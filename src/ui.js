@@ -102,6 +102,16 @@ export class UIController {
       });
     }
 
+    // Auto-sync canvas when video stream metadata arrives or device orientation changes
+    if (this.video) {
+      this.video.addEventListener('loadedmetadata', () => this.initCanvas(this.video));
+      this.video.addEventListener('play', () => this.initCanvas(this.video));
+    }
+    window.addEventListener('resize', () => this.initCanvas(this.video));
+    window.addEventListener('orientationchange', () => {
+      setTimeout(() => this.initCanvas(this.video), 200);
+    });
+
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         this.hideModelGuide();
@@ -301,6 +311,16 @@ export class UIController {
     }
 
     if (!canvas) return;
+
+    // Dynamically auto-synchronize canvas internal resolution with actual video stream
+    // Prevents bounding box distortion/offset on mobile devices in portrait/landscape modes
+    if (this.video && this.video.videoWidth > 0 && this.video.videoHeight > 0) {
+      if (canvas.width !== this.video.videoWidth || canvas.height !== this.video.videoHeight) {
+        canvas.width = this.video.videoWidth;
+        canvas.height = this.video.videoHeight;
+      }
+    }
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
