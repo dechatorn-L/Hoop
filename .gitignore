@@ -48,3 +48,8 @@ desktop.ini
 # Cloudflare / Tunnel temporary files
 .cloudflared/
 cloudflared.log
+
+# Raw Training Weights / Scratch
+*.pt
+weights/
+scratch/

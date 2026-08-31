@@ -32,9 +32,24 @@ export class UIController {
 
     this.btnFullscreen = document.getElementById('btn-fullscreen-toggle');
 
+    // Model selection controls
+    this.modelSelect = document.getElementById('model-preset-select');
+    this.modelInfoText = document.getElementById('model-info-text');
+    this.customModelFields = document.getElementById('custom-model-fields');
+    this.customModelIdInput = document.getElementById('custom-model-id');
+    this.customApiKeyInput = document.getElementById('custom-api-key');
+    this.btnApplyModel = document.getElementById('btn-apply-model');
+
+    // Model Guide Modal controls
+    this.modalGuide = document.getElementById('model-guide-modal');
+    this.btnOpenModelGuide = document.getElementById('btn-open-model-guide');
+    this.btnCloseModelGuide = document.getElementById('btn-close-model-guide');
+    this.btnCloseModalFooter = document.getElementById('btn-close-modal-footer');
+
     this.currentScore = 0;
 
     this._setupInternalEventListeners();
+    this._loadSavedModelSettings();
   }
 
   /**
@@ -69,6 +84,30 @@ export class UIController {
       this.btnCloseSettings.addEventListener('click', () => this.hideSettings());
     }
 
+    // Model Guide Modal Events
+    if (this.btnOpenModelGuide) {
+      this.btnOpenModelGuide.addEventListener('click', () => this.showModelGuide());
+    }
+    if (this.btnCloseModelGuide) {
+      this.btnCloseModelGuide.addEventListener('click', () => this.hideModelGuide());
+    }
+    if (this.btnCloseModalFooter) {
+      this.btnCloseModalFooter.addEventListener('click', () => this.hideModelGuide());
+    }
+    if (this.modalGuide) {
+      this.modalGuide.addEventListener('click', (e) => {
+        if (e.target === this.modalGuide) {
+          this.hideModelGuide();
+        }
+      });
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this.hideModelGuide();
+      }
+    });
+
     if (this.soundRadios) {
       this.soundRadios.forEach((radio) => {
         radio.addEventListener('change', (e) => {
@@ -93,6 +132,139 @@ export class UIController {
       this.confidenceSlider.addEventListener('input', (e) => {
         this.confidenceLabel.textContent = `${e.target.value}%`;
       });
+    }
+
+    // Model selection change
+    if (this.modelSelect) {
+      this.modelSelect.addEventListener('change', (e) => {
+        const val = e.target.value;
+        this._updateModelDescriptions(val);
+        this._saveModelSettings();
+      });
+    }
+
+    // Auto-save custom model inputs
+    if (this.customModelIdInput) {
+      this.customModelIdInput.addEventListener('input', () => this._saveModelSettings());
+    }
+    if (this.customApiKeyInput) {
+      this.customApiKeyInput.addEventListener('input', () => this._saveModelSettings());
+    }
+  }
+
+  /**
+   * Show Model Guide Modal
+   */
+  showModelGuide() {
+    if (this.modalGuide) {
+      this.modalGuide.classList.remove('hidden');
+    }
+  }
+
+  /**
+   * Hide Model Guide Modal
+   */
+  hideModelGuide() {
+    if (this.modalGuide) {
+      this.modalGuide.classList.add('hidden');
+    }
+  }
+
+  /**
+   * Update model description text and custom input visibility
+   * @private
+   */
+  _updateModelDescriptions(modelType) {
+    if (this.customModelFields) {
+      if (modelType === 'roboflow-custom') {
+        this.customModelFields.classList.remove('hidden');
+      } else {
+        this.customModelFields.classList.add('hidden');
+      }
+    }
+
+    if (this.modelInfoText) {
+      const descriptions = {
+        'roboflow-default': 'ตรวจจับห่วง ลูกบาส และผู้เล่น (Roboflow Universe v4 · โมเดลหลัก Cloud ความเสถียรสูงสุด)',
+        'local-onnx-swish': '⚡ Local ONNX: Swish-Vision (11.7 MB) Fine-tuned Basketball-1 คมชัด ไม่ตีกรอบรวมกับคน (เร็วสุด 30-60 FPS)',
+        'local-onnx-yolo11': '⚡ Local ONNX: YOLO11s Basketball (36.2 MB) สถาปัตยกรรมล่าสุด Attention C2PSA จับลูกความเร็วสูงและแสงแดดย้อนกลางแจ้ง',
+        'local-onnx-world': '⚡ Local ONNX: YOLO-World (47.8 MB) Open-Vocabulary AI วิเคราะห์ภาษา ไม่หลอนพัดลม/โคมไฟ',
+        'local-onnx-pro': '⚡ Local ONNX: Pro High-Precision (42.7 MB - YOLOv8s) แม่นยำสูงระดับโปร สำหรับชู้ตระยะไกล 3–8 เมตร',
+        'roboflow-custom': 'ใช้โมเดล Roboflow Universe ของคุณเอง (กรอก Model ID และ API Key ด้านล่าง)',
+      };
+      this.modelInfoText.textContent = descriptions[modelType] || 'เลือกโมเดลตรวจจับ AI';
+      this.modelInfoText.classList.toggle('highlight', modelType && modelType.startsWith('local-onnx'));
+    }
+  }
+
+  /**
+   * Load saved model configuration from localStorage
+   * @private
+   */
+  _loadSavedModelSettings() {
+    try {
+      const savedType = localStorage.getItem('hoop_selected_model_type');
+      const savedModelId = localStorage.getItem('hoop_custom_model_id');
+      const savedApiKey = localStorage.getItem('hoop_custom_api_key');
+
+      if (savedType && this.modelSelect) {
+        this.modelSelect.value = savedType;
+        this._updateModelDescriptions(savedType);
+      }
+
+      if (savedModelId && this.customModelIdInput) {
+        this.customModelIdInput.value = savedModelId;
+      }
+
+      if (savedApiKey && this.customApiKeyInput) {
+        this.customApiKeyInput.value = savedApiKey;
+      }
+    } catch (err) {
+      console.warn('[UIController] Could not read settings from localStorage:', err);
+    }
+  }
+
+  /**
+   * Save model configuration to localStorage
+   * @private
+   */
+  _saveModelSettings() {
+    try {
+      if (this.modelSelect) {
+        localStorage.setItem('hoop_selected_model_type', this.modelSelect.value);
+      }
+      if (this.customModelIdInput) {
+        localStorage.setItem('hoop_custom_model_id', this.customModelIdInput.value.trim());
+      }
+      if (this.customApiKeyInput) {
+        localStorage.setItem('hoop_custom_api_key', this.customApiKeyInput.value.trim());
+      }
+    } catch (err) {
+      console.warn('[UIController] Could not write settings to localStorage:', err);
+    }
+  }
+
+  /**
+   * Get currently configured model parameters
+   * @returns {{modelType: string, customModelId: string, customApiKey: string}}
+   */
+  getModelSettings() {
+    return {
+      modelType: this.modelSelect ? this.modelSelect.value : 'roboflow-default',
+      customModelId: this.customModelIdInput ? this.customModelIdInput.value.trim() : '',
+      customApiKey: this.customApiKeyInput ? this.customApiKeyInput.value.trim() : '',
+    };
+  }
+
+  /**
+   * Update active model UI selection programmatically (e.g. on auto-fallback)
+   * @param {string} modelType
+   */
+  setActiveModelUI(modelType) {
+    if (this.modelSelect) {
+      this.modelSelect.value = modelType;
+      this._updateModelDescriptions(modelType);
+      this._saveModelSettings();
     }
   }
 
@@ -424,6 +596,20 @@ export class UIController {
       btn.addEventListener('click', handler);
     }
   }
+
+  /**
+   * Bind model apply / switch button click handler
+   * @param {Function} handler ({ modelType, customModelId, customApiKey }) => void
+   */
+  bindModelChange(handler) {
+    if (this.btnApplyModel && typeof handler === 'function') {
+      this.btnApplyModel.addEventListener('click', () => {
+        const settings = this.getModelSettings();
+        handler(settings);
+      });
+    }
+  }
 }
 
 export { UIController as UIManager };
+

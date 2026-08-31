@@ -60,19 +60,47 @@ export class ShotTracker {
       ball = ballDetection || null;
     }
 
-    // Extract and cache rim bounding box (since hoop is static)
     let rimBox = rim ? (rim.bbox || rim) : null;
+    const ballBox = ball ? (ball.bbox || ball) : null;
+
+    // 1. Anti-Confusion Filter: If rim and ball heavily overlap (same object detected as both), reject false rim
+    if (rimBox && ballBox) {
+      const iou = this._computeIoU(rimBox, ballBox);
+      const containment = this._computeContainment(rimBox, ballBox);
+      if (iou > 0.30 || containment > 0.40) {
+        // The detector confused the ball in player's hand for a rim!
+        rimBox = null;
+      }
+    }
+
+    // 2. Stationary Rim Anchor & Cache (Hoop cannot move with player's hand)
     if (rimBox) {
-      this.lastKnownRimBox = rimBox;
-      this.lastKnownRimTime = now;
+      if (this.lastKnownRimBox) {
+        const dx = Math.abs((rimBox.x + rimBox.width / 2) - (this.lastKnownRimBox.x + this.lastKnownRimBox.width / 2));
+        const dy = Math.abs((rimBox.y + rimBox.height / 2) - (this.lastKnownRimBox.y + this.lastKnownRimBox.height / 2));
+        // If rim suddenly jumped > 100px in one frame (e.g. following moving hand), reject the jump
+        if (dx > 100 || dy > 100) {
+          rimBox = this.lastKnownRimBox;
+        } else {
+          // Smooth rim position (EMA)
+          this.lastKnownRimBox = {
+            x: this.lastKnownRimBox.x * 0.7 + rimBox.x * 0.3,
+            y: this.lastKnownRimBox.y * 0.7 + rimBox.y * 0.3,
+            width: this.lastKnownRimBox.width * 0.7 + rimBox.width * 0.3,
+            height: this.lastKnownRimBox.height * 0.7 + rimBox.height * 0.3,
+          };
+          this.lastKnownRimTime = now;
+        }
+      } else {
+        this.lastKnownRimBox = rimBox;
+        this.lastKnownRimTime = now;
+      }
     } else if (this.lastKnownRimBox && (now - this.lastKnownRimTime < 15000)) {
-      // Use cached rim if seen within the last 15 seconds
+      // Use cached stationary rim if seen recently
       rimBox = this.lastKnownRimBox;
     }
 
-    const ballBox = ball ? (ball.bbox || ball) : null;
-
-    // If no rim or no ball detected
+    // If no stationary rim or no ball detected
     if (!rimBox || !ballBox) {
       if ((this.state === 'TRACKING' || this.state === 'BALL_ABOVE') && now - this.lastSeenTime > this.trackingTimeoutMs) {
         this._transitionTo('IDLE');
@@ -100,7 +128,8 @@ export class ShotTracker {
     switch (this.state) {
       case 'IDLE':
         if (isWithinTrackingZone) {
-          if (ballCenterY < rimCenterY) {
+          // Ball must start clearly ABOVE the rim (not just inside or below)
+          if (ballCenterY < rimBox.y) {
             this._transitionTo('BALL_ABOVE');
           } else {
             this._transitionTo('TRACKING');
@@ -111,7 +140,7 @@ export class ShotTracker {
       case 'TRACKING':
         if (!isWithinTrackingZone) {
           this._transitionTo('IDLE');
-        } else if (ballCenterY < rimCenterY) {
+        } else if (ballCenterY < rimBox.y) {
           this._transitionTo('BALL_ABOVE');
         }
         break;
@@ -120,7 +149,7 @@ export class ShotTracker {
         if (!isWithinTrackingZone) {
           this._transitionTo('IDLE');
         } else {
-          // Check scoring conditions
+          // Check scoring conditions (must cross downward through the rim plane)
           if (this._checkScore(rimBox, ballCenterX, ballCenterY, rimCenterX, rimCenterY)) {
             scored = true;
             this.score++;
@@ -129,8 +158,8 @@ export class ShotTracker {
             // Immediately enter COOLDOWN
             this.cooldownEndTime = now + this.scoreCooldownMs;
             this._transitionTo('COOLDOWN');
-          } else if (ballCenterY > rimCenterY + rimBox.height * 2) {
-            // Ball fell way below without crossing the basket alignment
+          } else if (ballCenterY > rimCenterY + rimBox.height * 2.5) {
+            // Ball fell way below without crossing basket center
             this._transitionTo('IDLE');
           }
         }
@@ -152,18 +181,55 @@ export class ShotTracker {
    * @private
    */
   _checkScore(rimBox, ballCenterX, ballCenterY, rimCenterX, rimCenterY) {
-    // 1. X alignment: ball center within rim width * 0.6
-    const xAligned = Math.abs(ballCenterX - rimCenterX) <= rimBox.width * 0.6;
+    // 1. X alignment: ball center within rim width * 0.55
+    const xAligned = Math.abs(ballCenterX - rimCenterX) <= rimBox.width * 0.55;
 
     // 2. Downward crossing: previous ball Y was above rim center Y, and current ball Y is at or below rim center Y
     const crossedDown = this.previousBallCenterY !== null &&
       this.previousBallCenterY < rimCenterY &&
       ballCenterY >= rimCenterY;
 
-    // 3. Positive downward velocity: ball Y increasing
-    const movingDown = this.previousBallCenterY !== null && ballCenterY > this.previousBallCenterY;
+    // 3. Meaningful downward speed (must be moving down > 3px, not static jitter)
+    const movingDown = this.previousBallCenterY !== null && (ballCenterY - this.previousBallCenterY >= 3);
 
     return xAligned && crossedDown && movingDown;
+  }
+
+  /**
+   * Compute Intersection over Union
+   * @private
+   */
+  _computeIoU(b1, b2) {
+    const x1 = Math.max(b1.x, b2.x);
+    const y1 = Math.max(b1.y, b2.y);
+    const x2 = Math.min(b1.x + b1.width, b2.x + b2.width);
+    const y2 = Math.min(b1.y + b1.height, b2.y + b2.height);
+
+    const intersectionArea = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+    if (intersectionArea <= 0) return 0;
+
+    const area1 = b1.width * b1.height;
+    const area2 = b2.width * b2.height;
+    const unionArea = area1 + area2 - intersectionArea;
+
+    return unionArea > 0 ? intersectionArea / unionArea : 0;
+  }
+
+  /**
+   * Compute Containment Ratio
+   * @private
+   */
+  _computeContainment(b1, b2) {
+    const x1 = Math.max(b1.x, b2.x);
+    const y1 = Math.max(b1.y, b2.y);
+    const x2 = Math.min(b1.x + b1.width, b2.x + b2.width);
+    const y2 = Math.min(b1.y + b1.height, b2.y + b2.height);
+
+    const intersectionArea = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+    if (intersectionArea <= 0) return 0;
+
+    const minArea = Math.min(b1.width * b1.height, b2.width * b2.height);
+    return minArea > 0 ? intersectionArea / minArea : 0;
   }
 
   /**

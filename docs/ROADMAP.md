@@ -54,7 +54,11 @@ gantt
 
 ---
 
-### 🟣 Phase 4: Offline Engine & WebGPU Optimization
-- [ ] **ONNX Runtime Web / WebGPU**: Run custom YOLO models directly in the browser with zero cloud latency and no API keys required.
+### 🟣 Phase 4: Offline Engine, Lightweight Fallbacks & WebGPU Optimization
+- [x] **ONNX Runtime Web / WebGPU Engine**: Run custom YOLO models directly in the browser with zero cloud latency and no API keys required.
+- [ ] **Manual Hoop ROI & COCO-SSD / MediaPipe Emergency Mode**:
+  - โหมดสำรองฉุกเฉิน (Ultra-Lightweight Fallback): ใช้ `@tensorflow-models/coco-ssd` หรือ MediaPipe เพื่อตรวจจับลูกบาส (`sports ball`) โดยตรง
+  - **Manual Rim ROI Calibration**: รองรับการแตะ/ลากตีกรอบตำแหน่งห่วงบาสบนหน้าจอด้วยตนเอง สำหรับสนามที่มีห่วงบาสทรงแปลกตา หรือสภาพแสงที่โมเดลตรวจจับห่วงอัตโนมัติไม่เจอ
 - [ ] **Progressive Web App (PWA)**: Installable on iOS/Android home screens with offline sound asset caching.
 - [ ] **Multi-Angle Synchronized Tracking**: Multi-phone camera mesh to capture rim and shooter perspectives simultaneously.
+

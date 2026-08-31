@@ -115,27 +115,44 @@ class CameraManager {
 - Mobile: ใช้ `facingMode: { ideal: 'environment' }` เป็น default เพื่อให้ fallback กลับมาใช้เว็บแคมบน desktop ได้โดยไม่ error
 - Resolution: ขอ ideal 1280x720, fallback ตาม hardware
 
-### 2.3 `detector.js` — Object Detector
+### 2.3 `detector.js` — Unified Object Detector Manager
 
 ```javascript
 class ObjectDetector {
   // Public API
-  async loadModel(modelId, apiKey)  // โหลดโมเดลจาก Roboflow
-  async detect(videoElement)         // รัน inference, return detections[]
-  setConfidence(threshold)           // ปรับ confidence threshold
-  isReady()                          // model โหลดเสร็จหรือยัง
+  async loadModel(options, apiKey, autoFallback) // โหลดโมเดล (Roboflow หรือ Local ONNX)
+  async detect(videoElement)                      // รัน inference ตาม provider ปัจจุบัน
+  setConfidence(threshold)                        // ปรับ sensitivity (0.01 - 0.99)
+  setInferenceRate(fps)                           // ปรับ max inference FPS (throttled)
+  isReady()                                       // ตรวจสอบความพร้อมของ active model
   
   // Return format
-  // [{ class: 'rim', bbox: { x, y, width, height }, confidence: 0.87 }, ...]
+  // [{ class: 'rim', bbox: { x, y, width, height }, confidence: 0.94 }, ...]
   // หมายเหตุ: bbox ใช้พิกัด Top-Left (x, y) ในหน่วย pixels ของ video/canvas frame
 }
 ```
 
 **Implementation Notes:**
-- ใช้ `InferenceEngine` จาก `inferencejs`
-- โมเดลรันใน Web Worker (ไม่บล็อก UI thread)
-- Inference rate ควบคุมด้วย throttle (default 15 FPS)
-- `detector.js` จะ normalize ผลลัพธ์จากโมเดลให้อยู่ในรูป Top-Left `{ x, y, width, height }` เสมอ เพื่อให้ `ui.js` (Canvas `strokeRect`) และ `shot-tracker.js` ใช้งานสะดวกตรงกัน
+- ทำหน้าที่เป็น **Unified Facade / Manager** รองรับทั้ง 2 Inference Providers:
+  1. **Roboflow Provider:** รันผ่าน `InferenceEngine` (`inferencejs`) ใน Web Worker
+  2. **ONNX Provider:** รันผ่าน `OnnxObjectDetector` (`onnxruntime-web`) ด้วย WebGPU/WASM
+- **Auto-Fallback Pipeline:** หากโหลดโมเดล Roboflow ล้มเหลว (เช่น API Key หมดอายุ, เครือข่ายหลุด) ตัว Detector จะสลับไปโหลด Local ONNX Model อัตโนมัติ
+
+### 2.3.1 `onnx-detector.js` — Local In-Browser ONNX Engine
+
+```javascript
+class OnnxObjectDetector {
+  async loadModel(modelPath)         // สร้าง ONNX InferenceSession (WebGPU -> WASM fallback)
+  async detect(videoElement)         // Preprocess [1,3,640,640] -> session.run() -> NMS Postprocess
+  setConfidence(threshold)
+  setInferenceRate(fps)
+  isReady()
+}
+```
+
+- **Preprocessing:** ใช้ Offscreen Canvas วาดภาพขนาด 640x640 แปลงเป็น Normalized Float32Array `[1, 3, 640, 640]` (CHW planar format)
+- **Inference Acceleration:** เลือกใช้ `webgpu` เป็นลำดับแรกเพื่อความเร็ว 30–60 FPS และ fallback สู่ `wasm` (SIMD Multi-threaded)
+- **Postprocessing & NMS:** ถอดรหัส Tensor Shape `[1, 4 + classes, 8400]` กรองค่า Confidence และคำนวณ Non-Maximum Suppression (IoU 0.45)
 
 ### 2.4 `shot-tracker.js` — Shot Detection Engine
 

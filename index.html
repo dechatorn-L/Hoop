@@ -102,8 +102,154 @@
           <label for="confidence-slider">🎯 Sensitivity (Threshold): <span id="confidence-label" class="val-badge">35%</span></label>
           <input type="range" id="confidence-slider" min="10" max="90" value="35" class="range-slider" />
         </section>
+
+        <!-- AI Detection Model Selection Section -->
+        <section class="settings-section" id="section-model">
+          <div class="section-title-wrap">
+            <h3>🤖 Detection Model</h3>
+            <button type="button" id="btn-open-model-guide" class="btn-guide-badge" title="ดูข้อดี-ข้อเสียของแต่ละโมเดล">
+              💡 แนะนำโมเดล
+            </button>
+          </div>
+
+          <div class="control-group">
+            <label for="model-preset-select" class="visually-hidden">เลือกโมเดลตรวจจับ</label>
+            <select id="model-preset-select" class="select-input">
+              <option value="roboflow-default">Roboflow v4: People + Basketball + Hoops (Cloud)</option>
+              <option value="local-onnx-swish">Local ONNX: Swish-Vision (แนะนำ - 11.7MB เร็วสุด 30-60 FPS)</option>
+              <option value="local-onnx-yolo11">Local ONNX: YOLO11s Basketball (ยุคใหม่ 36.2MB - แม่นยำ & Motion Blur)</option>
+              <option value="local-onnx-world">Local ONNX: YOLO-World (47.8MB - Open-Vocabulary ฉลาดสุด)</option>
+              <option value="local-onnx-pro">Local ONNX: Pro High-Precision (Offline 42.7MB - YOLOv8s)</option>
+              <option value="roboflow-custom">Roboflow: Custom Model ID (กำหนดเอง)</option>
+            </select>
+          </div>
+
+          <div id="model-info-text" class="model-info-box">
+            ตรวจจับห่วง ลูกบาส และผู้เล่น (โมเดลหลัก Cloud ความเสถียรสูงสุด)
+          </div>
+
+          <!-- Custom Model ID & API Key Container -->
+          <div id="custom-model-fields" class="custom-model-fields hidden">
+            <div>
+              <label for="custom-model-id" style="font-size: 11px; margin-bottom: 4px;">Model ID (project/version):</label>
+              <input type="text" id="custom-model-id" class="text-input" placeholder="e.g. your-project/1" autocomplete="off" />
+            </div>
+            <div>
+              <label for="custom-api-key" style="font-size: 11px; margin-bottom: 4px;">Publishable API Key:</label>
+              <input type="password" id="custom-api-key" class="text-input" placeholder="rf_... (เว้นว่างถ้าใช้ Key เดิมใน .env)" autocomplete="off" />
+            </div>
+          </div>
+
+          <button type="button" id="btn-apply-model" class="btn btn-primary model-btn-apply">
+            ⚡ สลับโมเดล (Apply Model)
+          </button>
+        </section>
       </div>
     </aside>
+
+    <!-- Model Comparison Guide Modal (Popup) -->
+    <div id="model-guide-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-guide-title">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2 id="modal-guide-title">🏀 คู่มือเลือกโมเดล AI ตามสถานการณ์</h2>
+          <button type="button" id="btn-close-model-guide" class="btn-icon modal-close-btn" aria-label="Close modal">✕</button>
+        </div>
+        
+        <div class="modal-body">
+          <p class="modal-intro">เปรียบเทียบจุดเด่นและข้อดี-ข้อเสียของแต่ละโมเดล เพื่อเลือกใช้งานให้เหมาะสมกับสภาพสนามและอุปกรณ์ของคุณ:</p>
+          
+          <div class="model-cards-grid">
+            <!-- Card 1 -->
+            <div class="guide-card default-border">
+              <div class="guide-card-header">
+                <span class="guide-badge badge-primary">แนะนำหลัก (Cloud)</span>
+                <h4>1. Roboflow v4 (people_basketball_hoops/4)</h4>
+              </div>
+              <div class="guide-classes">🎯 คลาส: <code>rim</code>, <code>basketball</code>, <code>person</code></div>
+              <ul class="guide-list">
+                <li><strong class="text-green">ข้อดี:</strong> เสถียรสูงสุด มีคลาสคน ช่วยแยกแยะผู้เล่นกับลูกบาสไม่ให้สับสน</li>
+                <li><strong class="text-amber">ข้อเสีย:</strong> ต้องต่อเน็ตและใช้ Roboflow API Key</li>
+                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> เล่นทั่วไป สนามมาตรฐาน มีคนยืนใต้แป้น</li>
+              </ul>
+            </div>
+
+            <!-- Card 2 -->
+            <div class="guide-card highlight-border">
+              <div class="guide-card-header">
+                <span class="guide-badge badge-green">แนะนำออฟไลน์ (เร็วสุด)</span>
+                <h4>2. Local ONNX: Swish-Vision (11.7 MB)</h4>
+              </div>
+              <div class="guide-classes">🎯 คลาส: <code>basketball</code>, <code>rim</code>, <code>sports ball</code></div>
+              <ul class="guide-list">
+                <li><strong class="text-green">ข้อดี:</strong> <strong>ออฟไลน์ 100%</strong> Fine-tuned จากชุด Basketball-1 ล็อกเฉพาะลูกบาส ไม่ตีกรอบรวมกับคน (30–60 FPS)</li>
+                <li><strong class="text-amber">ข้อเสีย:</strong> ขนาดโมเดลเล็ก เหมาะกับระยะใกล้ถึงปานกลาง</li>
+                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> ซ้อมยิงเดี่ยว เล่นกลางแจ้ง ประหยัดแบตเตอรี่สูงสุด</li>
+              </ul>
+            </div>
+
+            <!-- Card 3 -->
+            <div class="guide-card highlight-border">
+              <div class="guide-card-header">
+                <span class="guide-badge badge-cyan">ใหม่ล่าสุด (Attention C2PSA)</span>
+                <h4>3. Local ONNX: YOLO11s Basketball (36.2 MB)</h4>
+              </div>
+              <div class="guide-classes">🎯 คลาส: <code>rim</code>, <code>ball</code>, <code>player</code> (9.4M Params)</div>
+              <ul class="guide-list">
+                <li><strong class="text-green">ข้อดี:</strong> <strong>สถาปัตยกรรม YOLO11 ล่าสุด</strong> สกัดภาพลูกบาสที่เคลื่อนที่เร็ว (Motion Blur) และสภาวะแสงย้อนกลางแจ้งได้ดีเยี่ยม</li>
+                <li><strong class="text-amber">ข้อเสีย:</strong> ขนาด 36.2 MB ต้องการ GPU ระดับปานกลางขึ้นไป</li>
+                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> เล่นกลางแจ้ง ชู้ตลูกเร็ว สภาพแสงเปลี่ยนแปลง</li>
+              </ul>
+            </div>
+
+            <!-- Card 4 -->
+            <div class="guide-card">
+              <div class="guide-card-header">
+                <span class="guide-badge badge-purple">Open-Vocabulary AI</span>
+                <h4>4. Local ONNX: YOLO-World (47.8 MB)</h4>
+              </div>
+              <div class="guide-classes">🎯 คลาส: <code>basketball</code>, <code>basketball rim</code>, <code>person</code></div>
+              <ul class="guide-list">
+                <li><strong class="text-green">ข้อดี:</strong> <strong>Zero-Shot AI</strong> แยกแยะวัตถุด้วยภาษา ลดปัญหาความสับสนกับพัดลมหรือหลอดไฟในห้อง 100%</li>
+                <li><strong class="text-amber">ข้อเสีย:</strong> ใช้หน่วยความจำ VRAM ปานกลาง (~300MB)</li>
+                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> พื้นที่ที่มีสิ่งกีดขวางหรือวัตถุรบกวนเยอะ</li>
+              </ul>
+            </div>
+
+            <!-- Card 5 -->
+            <div class="guide-card">
+              <div class="guide-card-header">
+                <span class="guide-badge badge-orange">ออฟไลน์ (แม่นยำสูงระดับโปร)</span>
+                <h4>5. Local ONNX: Pro High-Precision (42.7 MB)</h4>
+              </div>
+              <div class="guide-classes">🎯 คลาส: <code>Basketball</code>, <code>Rim</code> (YOLOv8s 11.1M Params)</div>
+              <ul class="guide-list">
+                <li><strong class="text-green">ข้อดี:</strong> <strong>โมเดล YOLOv8s ขนาดใหญ่</strong> ความละเอียดสูง เหมาะกับการชู้ตระยะไกล 3–8 เมตร</li>
+                <li><strong class="text-amber">ข้อเสีย:</strong> ขนาดไฟล์ใหญ่กว่า (42.7 MB)</li>
+                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> คอมพิวเตอร์ / สมาร์ตโฟนที่มีชิป GPU แรง (เช่น Xiaomi 13)</li>
+              </ul>
+            </div>
+
+            <!-- Card 6 -->
+            <div class="guide-card">
+              <div class="guide-card-header">
+                <span class="guide-badge badge-purple">เฉพาะบุคคล</span>
+                <h4>6. Roboflow Custom Model ID</h4>
+              </div>
+              <div class="guide-classes">🎯 คลาส: ตามโมเดลที่คุณเทรนเองบน Roboflow</div>
+              <ul class="guide-list">
+                <li><strong class="text-green">ข้อดี:</strong> แม่นยำสูงสุดสำหรับสนามของคุณเอง (Fine-tune 100-300 รูป)</li>
+                <li><strong class="text-amber">ข้อเสีย:</strong> ต้องมีบัญชี Roboflow และถ่ายรูปเทรนเอง</li>
+                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> สนามที่มีสภาพแสงหรือทรงแป้นบาสแปลกตา</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" id="btn-close-modal-footer" class="btn btn-secondary">ปิดหน้าต่าง (Close)</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="/src/main.js"></script>

@@ -4,7 +4,7 @@
  * Adheres to ARCHITECTURE.md Section 2.1, 1.2, and 4.
  */
 
-import { DEFAULT_CONFIG } from './config.js';
+import { DEFAULT_CONFIG, MODEL_PRESETS } from './config.js';
 import { CameraManager } from './camera.js';
 import { ObjectDetector } from './detector.js';
 import { ShotTracker } from './shot-tracker.js';
@@ -69,25 +69,83 @@ export class HoopCounterApp {
       console.error('📷 Failed to start camera:', camErr);
     }
 
-    // Load Roboflow Detection Model
-    if (this.config.publishableKey && this.config.publishableKey !== 'rf_live_placeholder') {
-      try {
-        this.ui.showLoading('กำลังดาวน์โหลดและเตรียมโมเดล AI...');
-        await this.detector.loadModel(this.config.modelId, this.config.publishableKey);
-        this.ui.hideLoading();
-      } catch (modelErr) {
-        console.error('🤖 Model load error:', modelErr);
-        this.ui.showError(`โหลดโมเดลไม่สำเร็จ: ${modelErr.message}`);
-      }
-    } else {
-      console.warn('⚠️ Roboflow Publishable Key is not configured.');
-      this.ui.showError('กรุณาระบุ Publishable API Key ใน src/config.js');
-    }
+    // Load initial detection model (from localStorage or default config)
+    const initialModelSettings = this.ui.getModelSettings();
+    await this.loadActiveModel(initialModelSettings);
 
     // Start Main Loop
     this.isRunning = true;
     requestAnimationFrame(() => this.mainLoop());
     console.log('🏀 Main application loop started.');
+  }
+
+  /**
+   * Load or switch active detection model
+   * @param {{modelType: string, customModelId?: string, customApiKey?: string}} settings
+   */
+  async loadActiveModel(settings) {
+    const { modelType, customModelId, customApiKey } = settings;
+    const preset = MODEL_PRESETS[modelType] || MODEL_PRESETS['roboflow-default'];
+
+    try {
+      this.ui.showLoading(`กำลังโหลดโมเดล (${preset.name || modelType})...`);
+
+      let loadOptions = {};
+
+      if (preset.provider === 'onnx') {
+        loadOptions = {
+          provider: 'onnx',
+          modelPath: preset.modelPath || this.config.onnxModelPath,
+        };
+      } else if (modelType === 'roboflow-custom') {
+        const apiKey = customApiKey || this.config.publishableKey;
+        if (!customModelId) {
+          throw new Error('กรุณากรอก Model ID (เช่น project-name/1)');
+        }
+        if (!apiKey || apiKey === 'rf_live_placeholder') {
+          throw new Error('กรุณากรอก Publishable API Key สำหรับ Custom Model');
+        }
+        loadOptions = {
+          provider: 'roboflow',
+          modelId: customModelId,
+          apiKey: apiKey,
+          autoFallback: true,
+        };
+      } else {
+        // Roboflow presets (default or v3)
+        const apiKey = customApiKey || this.config.publishableKey;
+        if (!apiKey || apiKey === 'rf_live_placeholder') {
+          console.warn('⚠️ No Roboflow API Key found. Switching to Local ONNX Fallback...');
+          this.ui.showLoading('ไม่พบ Roboflow API Key — กำลังโหลด Local ONNX Model (Offline)...');
+          loadOptions = {
+            provider: 'onnx',
+            modelPath: this.config.onnxModelPath,
+          };
+          this.ui.setActiveModelUI('local-onnx-shottracker');
+        } else {
+          loadOptions = {
+            provider: 'roboflow',
+            modelId: preset.modelId,
+            apiKey: apiKey,
+            autoFallback: true,
+          };
+        }
+      }
+
+      const result = await this.detector.loadModel(loadOptions);
+
+      if (result && result.fallback) {
+        console.warn('⚠️ Switched to Local ONNX Model due to Roboflow error:', result.originalError);
+        this.ui.setActiveModelUI('local-onnx-shottracker');
+        this.ui.showError(`โหลดโมเดลหลักไม่สำเร็จ (${result.originalError}) → สลับไปใช้ Local ONNX Model อัตโนมัติ`);
+        setTimeout(() => this.ui.hideLoading(), 2500);
+      } else {
+        this.ui.hideLoading();
+      }
+    } catch (err) {
+      console.error('🤖 Model load error:', err);
+      this.ui.showError(`เกิดข้อผิดพลาดในการโหลดโมเดล: ${err.message}`);
+    }
   }
 
   /**
@@ -142,6 +200,12 @@ export class HoopCounterApp {
     this.ui.bindTestSound(() => {
       console.log('🔊 Test sound button clicked');
       this.sound.playScoreSound();
+    });
+
+    // Model Change / Switch Button
+    this.ui.bindModelChange(async (settings) => {
+      console.log('🤖 Model change requested:', settings);
+      await this.loadActiveModel(settings);
     });
   }
 
