@@ -23,41 +23,41 @@ description: Build and maintain a basketball shot counter web app that uses came
 ## Project Structure
 
 ```
-c:\Projects\hoop\
-├── index.html                  # Main HTML page
-├── package.json                # Dependencies
-├── vite.config.js              # Vite configuration
+c:\Projects\GO_ON\hoop\
+├── index.html                  # Main HTML page & Settings drawer
+├── package.json                # Dependencies (inferencejs, onnxruntime-web)
+├── vite.config.js              # Vite configuration with HTTPS support
+├── public/
+│   └── models/
+│       ├── basketball_swish_yolov8.onnx # Swish-Vision YOLOv8n (11.7 MB - Fast & Tight)
+│       ├── basketball_yolo11.onnx       # YOLO11s Basketball (36.2 MB - Attention C2PSA)
+│       ├── basketball_yoloworld.onnx    # YOLO-World v2 (47.8 MB - Open Vocabulary)
+│       └── basketball_rim_focused.onnx  # Pro High-Precision YOLOv8s (42.7 MB - Court Distance)
 ├── src/
-│   ├── main.js                 # App entry point & main loop
-│   ├── camera.js               # Camera access & management
-│   ├── detector.js             # Roboflow model loading & inference
-│   ├── shot-tracker.js         # Shot detection state machine
-│   ├── sound-manager.js        # Web Audio API sound system
-│   ├── ui.js                   # UI updates & interactions
-│   └── config.js               # Default settings & constants
+│   ├── main.js                 # App entry point, mediator & frame loop
+│   ├── camera.js               # Camera access & device management
+│   ├── detector.js             # Unified Object Detector Manager (Roboflow + ONNX)
+│   ├── onnx-detector.js        # Local In-Browser ONNX Engine (WebGPU/WASM + Letterboxing)
+│   ├── shot-tracker.js         # Anti-Confusion 5-state tracking state machine
+│   ├── sound-manager.js        # Web Audio API sound system & player
+│   ├── ui.js                   # UI controller, canvas overlay & model guide modal
+│   └── config.js               # MODEL_PRESETS, thresholds & constants
 ├── styles/
-│   └── index.css               # All styles (dark theme, basketball colors)
-├── sounds/                     # Built-in sound effects
-│   ├── swoosh.mp3
-│   ├── buzzer.mp3
-│   └── crowd-cheer.mp3
-└── docs/
-    ├── SPEC.md                 # Technical specification
-    ├── ARCHITECTURE.md         # Architecture & algorithm details
-    ├── TASK.md                 # Task tracking & progress
-    ├── IMPLEMENTATION_PLAN.md  # Implementation plan & key decisions
-    └── PROMPT_GUIDE.md         # Prompt guide & verification checklists
+│   └── index.css               # Design system & dark glassmorphism styling
+├── sounds/                     # Sound effect assets (.mp3)
+└── docs/                       # Complete project documentation suite
 ```
 
 ---
 
 ## Setup Instructions
 
-### 1. Initialize Project
+### 1. Initialize Project & Dependencies
 ```bash
-npm init -y
-npm install inferencejs
-npm install -D vite
+npm install
+# ติดตั้ง onnxruntime-web และ inferencejs
+npm install onnxruntime-web inferencejs
+npm install -D vite @vitejs/plugin-basic-ssl
 ```
 
 ### 2. Configure Roboflow API Key

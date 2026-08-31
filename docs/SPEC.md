@@ -77,22 +77,22 @@
 
 | Feature | Details |
 |---------|---------|
-| Model | Pre-trained basketball + rim detection จาก Roboflow Universe |
-| Inference | รันในเบราว์เซอร์ผ่าน `inferencejs` (no backend required) |
-| Classes | `rim`, `basketball` (อย่างน้อย 2 classes) |
-| Confidence Threshold | Default 0.5 (ปรับได้ 0.1 - 0.9) |
-| Inference Rate | ~10-15 FPS (แยกจาก render rate) |
-| Visualization | Bounding boxes: Rim = สีเขียว, Ball = สีส้ม |
+| Model | Roboflow Universe (`inferencejs`) & Local ONNX (`onnxruntime-web`) |
+| Inference | รันในเบราว์เซอร์ 100% Client-side (Web Worker / WebGPU / WASM) |
+| Classes | `rim`, `hoop`, `ball`, `basketball` |
+| Confidence Threshold | Default 0.35 (ปรับได้ 0.10 - 0.90) |
+| Inference Rate | ~15-20 FPS (แยกจาก render rate) |
+| Visualization | Bounding boxes: Rim = สีเขียว (#00FF88), Ball = สีส้ม (#FF6B35) |
+| Fallback & Future | Auto-fallback to Local ONNX / แผนรองรับ Manual Rim ROI + COCO-SSD |
 
 #### 3.2.1 Model Strategy (Progressive)
 
 เป้าหมาย: ความแม่นยำ ≥ 80% mAP@50 — มุมกล้องหลัก: **ด้านหน้าห่วง**
 
 ```
-Phase 1: Pre-trained Model จาก Roboflow Universe
+Phase 1: Pre-trained Model (Roboflow Universe / Local ONNX WebGPU)
          → เลือก model ที่มี classes: basketball + rim
-         → mAP@50 ~80% (เพียงพอสำหรับเริ่มต้น)
-         → ใช้ inferencejs รันในเบราว์เซอร์ (ฟรี ไม่เสีย credits)
+         → รันในเบราว์เซอร์ client-side (ฟรี / ออฟไลน์)
               ↓
          ทดสอบกับห่วงจริง
               ↓
@@ -103,17 +103,16 @@ Phase 2: Fine-tune (ปรับโมเดลเดิม)
          → ถ่ายรูปห่วง+ลูกบาสจากมุมกล้องจริง 100-300 รูป
          → Upload ไป Roboflow → annotate bounding boxes
          → Train โดยใช้ pre-trained weights เป็น checkpoint (base)
-         → ผลลัพธ์ = ความรู้จาก dataset เดิม 6,000+ รูป + ปรับด้วยรูปเรา
-         → เปลี่ยนแค่ model ID ใน config.js (โค้ดไม่ต้องเปลี่ยน)
+         → เปลี่ยน Model ID ในหน้า Settings UI (เบราว์เซอร์จำค่าอัตโนมัติ)
               ↓
-Phase 3: Full Retrain (กรณีสุดท้าย — ไม่คาดว่าจะต้องใช้)
-         → สร้าง dataset ใหม่ 500-2000+ รูป
-         → ต้องมี GPU สำหรับ training
+Phase 3: Emergency Fallback / Manual Hoop Calibration (Future)
+         → ใช้ COCO-SSD / MediaPipe ตรวจจับเฉพาะลูกบาส
+         → ผู้ใช้ลากกรอบตำแหน่งห่วงบาสบนหน้าจอด้วยตนเอง (Manual ROI)
 ```
 
 > **หมายเหตุ:** Fine-tune ≠ เทรนใหม่ทั้งหมด — Fine-tune ใช้ weights ของ model เก่าเป็น base แล้วปรับ weights ด้วยรูปใหม่ ทำให้ต้องการรูปน้อย (100-300) และเทรนเร็ว (30-60 นาที)
 
-> **การเปลี่ยน model:** เปลี่ยนแค่ `modelId` ใน `src/config.js` — โค้ดทั้งหมดออกแบบให้ model-agnostic ผ่าน `inferencejs`
+> **การเปลี่ยน model:** สลับโมเดลได้ทันทีผ่าน **Settings Drawer** หรือแก้ใน `src/config.js` — โค้ดออกแบบให้ multi-model agnostic
 
 ### 3.3 Shot Detection Algorithm
 
@@ -214,22 +213,56 @@ IDLE → TRACKING → BALL_ABOVE → SCORED → COOLDOWN → IDLE
 
 ---
 
-## 5. Configuration
+## 5. Configuration & Model Presets
 
 ```javascript
+export const MODEL_PRESETS = {
+  'roboflow-default': {
+    name: 'Roboflow v4: People + Basketball + Hoops (Cloud)',
+    provider: 'roboflow',
+    modelId: 'people_basketball_hoops/4',
+  },
+  'local-onnx-swish': {
+    name: 'Local ONNX: Swish-Vision (แนะนำ - 11.7MB เร็วสุด 30-60 FPS)',
+    provider: 'onnx',
+    modelPath: '/models/basketball_swish_yolov8.onnx',
+  },
+  'local-onnx-yolo11': {
+    name: 'Local ONNX: YOLO11s Basketball (ยุคใหม่ 36.2MB - แม่นยำ & Motion Blur)',
+    provider: 'onnx',
+    modelPath: '/models/basketball_yolo11.onnx',
+  },
+  'local-onnx-world': {
+    name: 'Local ONNX: YOLO-World (47.8MB - Open-Vocabulary ฉลาดสุด)',
+    provider: 'onnx',
+    modelPath: '/models/basketball_yoloworld.onnx',
+  },
+  'local-onnx-pro': {
+    name: 'Local ONNX: Pro High-Precision (YOLOv8s 42.7MB - ระยะไกล 3–8 ม.)',
+    provider: 'onnx',
+    modelPath: '/models/basketball_rim_focused.onnx',
+  },
+  'roboflow-custom': {
+    name: 'Roboflow: Custom Model ID (กำหนดเอง)',
+    provider: 'roboflow',
+  },
+};
+
 export const DEFAULT_CONFIG = {
   // Detection
-  publishableKey: 'YOUR_PUBLISHABLE_KEY_HERE', // Roboflow Publishable API Key
-  modelId: 'basketball-rim-detection/1',       // Roboflow model ID
-  confidenceThreshold: 0.5,                    // Min confidence for detection
-  inferenceRate: 15,                           // Inference FPS (throttled)
+  modelType: 'roboflow-default',
+  publishableKey: import.meta.env.VITE_ROBOFLOW_API_KEY || '',
+  modelId: import.meta.env.VITE_ROBOFLOW_MODEL_ID || 'people_basketball_hoops/4',
+  onnxModelPath: '/models/basketball_yolov8n.onnx',
+  confidenceThreshold: 0.35,                    // Optimized for fast ball motion
+  inferenceRate: 20,                           // Throttled inference FPS
 
   // Shot tracking
   scoreCooldownMs: 2000,                       // Cooldown between scores (ms)
   rimProximityFactor: 2.0,                     // Factor of rim width for tracking zone
   
   // Sound
-  defaultSound: 'swoosh',                     // Default sound effect
+  defaultSound: 'cha-ching',                   // Default sound effect
   volume: 0.8,                                 // Default volume (0-1)
 
   // Camera

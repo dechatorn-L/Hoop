@@ -1,101 +1,172 @@
 /**
- * @fileoverview Object Detector Module (Roboflow inferencejs)
- * Implements client-side object detection running in Web Worker.
+ * @fileoverview Unified Object Detector Module
+ * Supports both Roboflow (inferencejs) and Local ONNX (onnxruntime-web) with seamless hot-swapping and auto-fallback.
  */
 
 import { InferenceEngine, CVImage } from 'inferencejs';
+import { OnnxObjectDetector } from './onnx-detector.js';
 
 export class ObjectDetector {
   /**
    * @param {Object} [config={}] Configuration options
-   * @param {number} [config.confidenceThreshold=0.5] Confidence threshold (0-1)
-   * @param {number} [config.inferenceRate=15] Max inference FPS
+   * @param {number} [config.confidenceThreshold=0.35] Confidence threshold (0-1)
+   * @param {number} [config.inferenceRate=20] Max inference FPS
    */
   constructor(config = {}) {
     this.config = config;
-    this.engine = new InferenceEngine();
-    this.workerId = null;
+    this.confidenceThreshold = config.confidenceThreshold ?? 0.35;
+    this.inferenceRate = config.inferenceRate ?? 20;
+
+    // Providers
+    this.currentProvider = 'roboflow'; // 'roboflow' | 'onnx'
+    this.activeModelId = '';
+
+    // Roboflow Engine
+    this.roboflowEngine = new InferenceEngine();
+    this.roboflowWorkerId = null;
+
+    // ONNX Detector
+    this.onnxDetector = new OnnxObjectDetector({
+      confidenceThreshold: this.confidenceThreshold,
+      inferenceRate: this.inferenceRate,
+      modelPath: config.onnxModelPath || '/models/basketball_yolov8n.onnx',
+    });
+
     this.isLoaded = false;
     this.isLoading = false;
-    this.confidenceThreshold = config.confidenceThreshold ?? 0.5;
-    this.inferenceRate = config.inferenceRate ?? 15;
     this.lastInferenceTime = 0;
     this.lastDetections = [];
     this.isInferring = false;
   }
 
   /**
-   * Load model from Roboflow Universe or Workspace
-   * @param {string} modelId Model ID (e.g. 'people_basketball_hoops/4' or 'project/1')
-   * @param {string} apiKey Roboflow Publishable API Key
-   * @returns {Promise<string>} Worker ID
+   * Load model based on provider options
+   * @param {Object|string} options Options object or modelId string
+   * @param {string} [apiKey] Roboflow API key (if options is string)
+   * @param {boolean} [autoFallback=true] Whether to fallback to ONNX if Roboflow fails
+   * @returns {Promise<{provider: string, id: string}>}
    */
-  async loadModel(modelId, apiKey) {
-    if (!modelId || !apiKey) {
-      throw new Error('Model ID and Publishable API Key are required.');
+  async loadModel(options, apiKey = '', autoFallback = true) {
+    let provider = 'roboflow';
+    let modelId = '';
+    let key = apiKey;
+    let onnxPath = this.config.onnxModelPath || '/models/basketball_yolov8n.onnx';
+
+    if (typeof options === 'string') {
+      modelId = options;
+      provider = options.endsWith('.onnx') || options.includes('onnx') ? 'onnx' : 'roboflow';
+    } else if (typeof options === 'object' && options !== null) {
+      provider = options.provider || (options.modelPath ? 'onnx' : 'roboflow');
+      modelId = options.modelId || '';
+      key = options.apiKey || options.publishableKey || key;
+      onnxPath = options.modelPath || onnxPath;
+      if (typeof options.autoFallback === 'boolean') {
+        autoFallback = options.autoFallback;
+      }
     }
 
     this.isLoading = true;
     this.isLoaded = false;
 
+    // 1. If ONNX Provider requested
+    if (provider === 'onnx') {
+      try {
+        console.log(`[ObjectDetector] Initializing Local ONNX model: ${onnxPath}`);
+        await this.onnxDetector.loadModel(onnxPath);
+        this.currentProvider = 'onnx';
+        this.activeModelId = onnxPath;
+        this.isLoaded = true;
+        this.isLoading = false;
+        return { provider: 'onnx', id: onnxPath };
+      } catch (onnxErr) {
+        this.isLoading = false;
+        this.isLoaded = false;
+        throw onnxErr;
+      }
+    }
+
+    // 2. Roboflow Provider
     try {
-      console.log(`[ObjectDetector] Loading model: ${modelId}...`);
-
-      // If previous worker exists, stop it first
-      if (this.workerId) {
-        try {
-          await this.engine.stopWorker(this.workerId);
-        } catch {
-          // Ignore cleanup errors
-        }
-        this.workerId = null;
+      console.log(`[ObjectDetector] Initializing Roboflow model: ${modelId}`);
+      if (!modelId || !key) {
+        throw new Error('Model ID และ Publishable API Key จำเป็นสำหรับการโหลด Roboflow');
       }
 
-      // Determine if modelId is a project/version format (e.g. 'people_basketball_hoops/4')
-      const parts = modelId.split('/');
-      const isProjectVersion = parts.length === 2 && !isNaN(parseInt(parts[1], 10));
-
-      if (isProjectVersion) {
-        const projectSlug = parts[0];
-        const versionNum = parseInt(parts[1], 10);
-        try {
-          this.workerId = await this.engine.startWorker(projectSlug, versionNum, apiKey);
-        } catch (err) {
-          console.warn('[ObjectDetector] startWorker failed, trying startWorkerByModelId:', err);
-          this.workerId = await this.engine.startWorkerByModelId(modelId, apiKey);
-        }
-      } else {
-        try {
-          this.workerId = await this.engine.startWorkerByModelId(modelId, apiKey);
-        } catch (err) {
-          console.warn('[ObjectDetector] startWorkerByModelId failed, trying startWorker:', err);
-          const projectSlug = parts[parts.length - 2];
-          const versionNum = parseInt(parts[parts.length - 1], 10);
-          if (!isNaN(versionNum)) {
-            this.workerId = await this.engine.startWorker(projectSlug, versionNum, apiKey);
-          } else {
-            throw err;
-          }
-        }
-      }
-
+      await this._loadRoboflowModel(modelId, key);
+      this.currentProvider = 'roboflow';
+      this.activeModelId = modelId;
       this.isLoaded = true;
       this.isLoading = false;
-      console.log(`[ObjectDetector] Model loaded successfully with workerId: ${this.workerId}`);
-      return this.workerId;
-    } catch (error) {
-      this.isLoaded = false;
-      this.isLoading = false;
-      this.workerId = null;
-      console.error('[ObjectDetector] Failed to load model:', error);
-      let errorDetail = error.message || error;
-      if (typeof errorDetail === 'string' && errorDetail.includes('Model initialization failed')) {
-        if (!apiKey.startsWith('rf_')) {
-          errorDetail = 'API Key ไม่ถูกต้อง — inferencejs ต้องการ "Publishable API Key" (ขึ้นต้นด้วย rf_...) จาก Roboflow Workspace Settings (ไม่ใช่ Private Key)';
+      return { provider: 'roboflow', id: modelId };
+    } catch (rfErr) {
+      console.warn('[ObjectDetector] Roboflow load failed:', rfErr);
+
+      // Auto-fallback to Local ONNX if enabled
+      if (autoFallback) {
+        console.log('[ObjectDetector] Triggering auto-fallback to Local ONNX...');
+        try {
+          await this.onnxDetector.loadModel(onnxPath);
+          this.currentProvider = 'onnx';
+          this.activeModelId = onnxPath;
+          this.isLoaded = true;
+          this.isLoading = false;
+          console.log('[ObjectDetector] Auto-fallback to Local ONNX succeeded.');
+          return { provider: 'onnx', id: onnxPath, fallback: true, originalError: rfErr.message };
+        } catch (fallbackErr) {
+          console.error('[ObjectDetector] Auto-fallback to ONNX also failed:', fallbackErr);
         }
       }
-      throw new Error(`Failed to load Roboflow model (${modelId}): ${errorDetail}`);
+
+      this.isLoading = false;
+      this.isLoaded = false;
+      throw rfErr;
     }
+  }
+
+  /**
+   * Internal Roboflow worker loading
+   * @private
+   */
+  async _loadRoboflowModel(modelId, apiKey) {
+    // If previous worker exists, stop it first
+    if (this.roboflowWorkerId) {
+      try {
+        await this.roboflowEngine.stopWorker(this.roboflowWorkerId);
+      } catch {
+        // Ignore cleanup errors
+      }
+      this.roboflowWorkerId = null;
+    }
+
+    const parts = modelId.split('/');
+    const isProjectVersion = parts.length === 2 && !isNaN(parseInt(parts[1], 10));
+
+    if (isProjectVersion) {
+      const projectSlug = parts[0];
+      const versionNum = parseInt(parts[1], 10);
+      try {
+        this.roboflowWorkerId = await this.roboflowEngine.startWorker(projectSlug, versionNum, apiKey);
+      } catch (err) {
+        console.warn('[ObjectDetector] startWorker failed, trying startWorkerByModelId:', err);
+        this.roboflowWorkerId = await this.roboflowEngine.startWorkerByModelId(modelId, apiKey);
+      }
+    } else {
+      try {
+        this.roboflowWorkerId = await this.roboflowEngine.startWorkerByModelId(modelId, apiKey);
+      } catch (err) {
+        console.warn('[ObjectDetector] startWorkerByModelId failed, trying startWorker:', err);
+        const projectSlug = parts[parts.length - 2];
+        const versionNum = parseInt(parts[parts.length - 1], 10);
+        if (!isNaN(versionNum)) {
+          this.roboflowWorkerId = await this.roboflowEngine.startWorker(projectSlug, versionNum, apiKey);
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    console.log(`[ObjectDetector] Roboflow worker ready: ${this.roboflowWorkerId}`);
+    return this.roboflowWorkerId;
   }
 
   /**
@@ -105,25 +176,31 @@ export class ObjectDetector {
   setConfidence(threshold) {
     if (typeof threshold === 'number' && !isNaN(threshold)) {
       this.confidenceThreshold = Math.max(0.01, Math.min(0.99, threshold));
+      this.onnxDetector.setConfidence(this.confidenceThreshold);
     }
   }
 
   /**
    * Set max inference rate in frames per second
-   * @param {number} fps Target FPS (e.g. 10-15)
+   * @param {number} fps Target FPS
    */
   setInferenceRate(fps) {
     if (typeof fps === 'number' && fps > 0) {
       this.inferenceRate = fps;
+      this.onnxDetector.setInferenceRate(fps);
     }
   }
 
   /**
-   * Check if model is loaded and ready for inference
+   * Check if active model is loaded and ready
    * @returns {boolean}
    */
   isReady() {
-    return Boolean(this.isLoaded && this.workerId);
+    if (!this.isLoaded) return false;
+    if (this.currentProvider === 'onnx') {
+      return this.onnxDetector.isReady();
+    }
+    return Boolean(this.roboflowWorkerId);
   }
 
   /**
@@ -136,10 +213,17 @@ export class ObjectDetector {
       return this.lastDetections;
     }
 
+    // Delegate to ONNX if provider is onnx
+    if (this.currentProvider === 'onnx') {
+      const detections = await this.onnxDetector.detect(videoElement);
+      this.lastDetections = detections;
+      return detections;
+    }
+
+    // Roboflow Detection
     const now = performance.now();
     const intervalMs = 1000 / this.inferenceRate;
 
-    // Throttle inference: return cached detections if called too quickly or still inferring
     if (now - this.lastInferenceTime < intervalMs || this.isInferring) {
       return this.lastDetections;
     }
@@ -149,15 +233,12 @@ export class ObjectDetector {
 
     try {
       const cvImage = new CVImage(videoElement);
-      const rawPredictions = await this.engine.infer(this.workerId, cvImage);
+      const rawPredictions = await this.roboflowEngine.infer(this.roboflowWorkerId, cvImage);
       const detections = this._normalizePredictions(rawPredictions);
       this.lastDetections = detections;
-      if (detections.length > 0) {
-        console.log('[ObjectDetector] Detections found:', detections);
-      }
       return detections;
     } catch (error) {
-      console.warn('[ObjectDetector] Inference error:', error);
+      console.warn('[ObjectDetector] Roboflow Inference error:', error);
       return this.lastDetections;
     } finally {
       this.isInferring = false;
@@ -165,8 +246,7 @@ export class ObjectDetector {
   }
 
   /**
-   * Normalize predictions to Top-Left bbox pixel format and apply confidence filter
-   * Output format: [{ class: string, bbox: { x, y, width, height }, confidence: number }]
+   * Normalize Roboflow predictions to Top-Left bbox pixel format
    * @private
    */
   _normalizePredictions(rawPredictions) {
@@ -174,7 +254,6 @@ export class ObjectDetector {
       return [];
     }
 
-    // Handle different return shapes from inferencejs (array or { predictions: [...] })
     const list = Array.isArray(rawPredictions)
       ? rawPredictions
       : (Array.isArray(rawPredictions.predictions) ? rawPredictions.predictions : []);
@@ -188,15 +267,12 @@ export class ObjectDetector {
         ? pred.confidence
         : (typeof pred.score === 'number' ? pred.score : 0);
 
-      // Filter by confidence threshold
       if (confidence < this.confidenceThreshold) {
         continue;
       }
 
-      // Extract class name
       const rawClass = (pred.class || pred.label || pred.name || '').toLowerCase().trim();
 
-      // Extract box coordinates
       const box = pred.bbox || pred;
       const width = typeof box.width === 'number' ? box.width : 0;
       const height = typeof box.height === 'number' ? box.height : 0;
@@ -204,8 +280,6 @@ export class ObjectDetector {
       let x = typeof box.x === 'number' ? box.x : 0;
       let y = typeof box.y === 'number' ? box.y : 0;
 
-      // Roboflow default returns center (x, y) coordinates.
-      // Convert center (x, y) to Top-Left (x, y) format if left/top or xmin/ymin are not explicitly given.
       let topLeftX = x;
       let topLeftY = y;
 
@@ -216,7 +290,6 @@ export class ObjectDetector {
         topLeftX = box.xmin;
         topLeftY = box.ymin;
       } else {
-        // Center coordinates -> convert to Top-Left
         topLeftX = x - width / 2;
         topLeftY = y - height / 2;
       }

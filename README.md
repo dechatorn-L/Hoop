@@ -26,11 +26,15 @@ Powered by **Roboflow Inference.js** and pre-trained YOLO object detection model
 
 ## ✨ Key Features
 
-- 📷 **Real-Time Rim & Ball Detection**: High-performance client-side inference using `inferencejs` running at 10–15+ FPS.
-- 🎯 **Finite State Machine Trajectory Tracking**: Robust multi-stage spatial validation (`IDLE` ➔ `TRACKING` ➔ `BALL_ABOVE` ➔ `SCORED` ➔ `COOLDOWN`) to eliminate false positives.
-- 🔊 **Dynamic Web Audio System**: Synthesized audio oscillator effects alongside support for custom `.mp3`/`.wav` sound uploads.
+- 🤖 **Multi-Model Detection Engine**: Choose between **Roboflow Universe (Cloud)** or **Local ONNX Suite (Offline 100%)** directly from the UI.
+- ⚡ **Local ONNX & WebGPU Acceleration**: Runs YOLOv8 / YOLO11 / YOLO-World basketball detection client-side via `onnxruntime-web` with zero API dependencies and zero cloud latency.
+- 🎯 **Advanced Aspect-Ratio Letterbox & Size Filtering**: Preserves exact 16:9 sphere and hoop geometry with gray padding, eliminating ghost and stretched bounding boxes.
+- 🛡️ **Anti-Confusion & Stationary Hoop Locking**: Spatial IoU suppression and Exponential Moving Average anchor to ensure moving balls/hands never trigger false scores.
+- 💾 **Smart LocalStorage Persistence**: Remembers custom Model IDs, API keys, and selected presets across browser sessions.
+- 💡 **In-App Model Comparison Guide**: Built-in interactive guide popup explaining pros, cons, and best scenarios for each model.
+- 🔊 **Dynamic Web Audio System**: High-quality audio effects (Cha-Ching, Fahhhh, Green Giant) alongside custom `.mp3`/`.wav` upload support.
 - 📱 **Mobile-First & Stadium UI**: Dark glassmorphism interface with neon score counters, live latency metrics, and instant front/rear camera switching.
-- 🔒 **Zero-Config Mobile HTTPS & Tunneling**: Built-in HTTPS development server and Cloudflare Tunnel integration for immediate smartphone testing on the court.
+- 🔒 **Zero-Config Mobile HTTPS & Tunneling**: All-in-One Cloudflare Tunnel integration that automatically spins up Vite and provides public mobile HTTPS access with QR code.
 
 ---
 
@@ -43,16 +47,17 @@ graph TD
         A2 --> A3["Overlay Canvas 2D<br/>(BBoxes & Trajectory Path)"]
     end
 
-    subgraph Computer Vision & Inference Layer
-        A2 --> B1["Inference Engine<br/>(detector.js / inferencejs)"]
-        B1 --> B2["Roboflow YOLO Model<br/>(Rim & Basketball BBoxes)"]
-        B2 --> B3["Confidence & Size Filter"]
+    subgraph Detection & Inference Layer
+        A2 --> B1["Unified Object Detector<br/>(detector.js)"]
+        B1 -->|Cloud / Web Worker| B2["Roboflow Engine<br/>(inferencejs)"]
+        B1 -->|Local / WebGPU| B3["ONNX Suite<br/>(Swish-Vision / YOLO11 / YOLO-World / Pro)"]
+        B2 -.->|Auto-Fallback on Error| B3
     end
 
     subgraph Tracking & State Engine
-        B3 --> C1["Spatial State Machine<br/>(shot-tracker.js)"]
-        C1 -->|Track Ball Descent| C2{"Crossed Rim Zone?"}
-        C2 -->|Yes| C3["Confirmed Basket (Score + 1)"]
+        B1 --> C1["Spatial State Machine<br/>(shot-tracker.js)"]
+        C1 -->|Anti-Confusion + Stationary Anchor| C2{"Crossed Rim Zone?"}
+        C2 -->|Yes (Downward Trajectory)| C3["Confirmed Basket (Score + 1)"]
         C2 -->|No| C4["Cooldown / Reset"]
     end
 
@@ -77,41 +82,45 @@ hoop/
 │   ├── ARCHITECTURE.md         # Full System Architecture & FSM Logic
 │   ├── SPEC.md                 # Technical Specifications & Acceptance Criteria
 │   ├── STYLE_GUIDE.md          # UI Design Tokens, Colors & Glassmorphism
-│   ├── ROADMAP.md              # Feature Roadmap (Phases 2–4 & WebGPU)
+│   ├── ROADMAP.md              # Feature Roadmap & Optimization Strategy
 │   ├── DEPLOYMENT.md           # Mobile Tunneling & HTTPS Setup Guide
 │   ├── TASK.md                 # Task Checklist & Progress Log
-│   ├── IMPLEMENTATION_PLAN.md  # Architectural Decisions & Phase 1 Execution
+│   ├── IMPLEMENTATION_PLAN.md  # Architectural Decisions & Multi-Model Plan
 │   └── PROMPT_GUIDE.md         # AI Prompt Templates & Checklists
 │
-├── public/                     # Static Assets & Icons
+├── public/                     # Static Assets & Offline Models
+│   └── models/
+│       ├── basketball_swish_yolov8.onnx # Swish-Vision YOLOv8n (11.7 MB - Fast & Tight)
+│       ├── basketball_yolo11.onnx       # YOLO11s Basketball (36.2 MB - Attention C2PSA)
+│       ├── basketball_yoloworld.onnx    # YOLO-World v2 (47.8 MB - Open Vocabulary)
+│       └── basketball_rim_focused.onnx  # Pro High-Precision YOLOv8s (42.7 MB - Court Distance)
+│
 ├── scripts/                    # Development & Tunneling Utilities
-│   ├── generate-sounds.js      # Synthesize fallback audio files
+│   ├── start-tunnel-cf.js      # All-in-One Cloudflare Tunnel + Auto Dev Runner
 │   ├── get-ip.js               # Discover local LAN IP for mobile testing
-│   └── start-tunnel-cf.js      # Zero-config Cloudflare HTTPS Tunnel
+│   └── generate-sounds.js      # Synthesize fallback audio files
 │
 ├── sounds/                     # Sound Effect Assets (.mp3 / .wav)
-│   ├── swoosh.mp3              # Clean net swish effect
-│   ├── buzzer.mp3              # Game buzzer sound
-│   └── crowd-cheer.mp3         # Crowd cheer effect
+│   ├── cha-ching.mp3           # Cash register sound
+│   ├── fahhhh.mp3              # Swoosh/air sound
+│   └── green-giant.mp3         # Crowd celebration sound
 │
 ├── src/                        # Core Application Source Code
 │   ├── camera.js               # Camera stream lifecycle & device switcher
-│   ├── config.js               # Default thresholds & Roboflow configurations
-│   ├── detector.js             # InferenceJS wrapper & detection loop
-│   ├── main.js                 # App coordinator & initialization pipeline
-│   ├── shot-tracker.js         # Finite State Machine & trajectory calculation
-│   ├── sound-manager.js        # Web Audio API engine & custom sound loader
-│   └── ui.js                   # HUD overlay, settings modal & DOM manipulation
+│   ├── config.js               # Model presets & default configurations
+│   ├── detector.js             # Unified multi-provider detector manager
+│   ├── onnx-detector.js        # Local ONNX Engine (onnxruntime-web + WebGPU)
+│   ├── shot-tracker.js         # 5-state spatial tracking state machine
+│   ├── sound-manager.js        # Web Audio API sound synthesis & player
+│   ├── ui.js                   # UI controller, canvas overlay & guide modal
+│   └── main.js                 # Mediator & application lifecycle coordinator
 │
 ├── styles/
-│   └── index.css               # Design system, glassmorphism & responsive rules
-│
+│   └── index.css               # Design system & dark glassmorphism styling
 ├── .env.example                # Environment variables template
-├── .gitignore                  # Git ignore rules for node_modules, build & secrets
-├── GEMINI.md                   # Agent execution instructions
-├── index.html                  # Main application entry point
-├── package.json                # NPM configuration & scripts
-└── vite.config.js              # Vite server & basic-ssl configuration
+├── index.html                  # Main application markup & Settings drawer
+├── package.json                # Project dependencies & npm scripts
+└── vite.config.js              # Vite configuration & HTTPS plugin
 ```
 
 ---

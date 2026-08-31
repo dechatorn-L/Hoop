@@ -37,14 +37,17 @@
 - [x] Resolution negotiation (ideal 1280x720)
 - [x] Camera error fallback UI
 
-### 📋 4. Object Detection (`src/detector.js`)
-- [x] Roboflow `InferenceEngine` integration
-- [x] Model loading with API Key
-- [x] Inference loop (throttled 10-15 FPS)
-- [x] Detection result parsing (class, bbox, confidence)
-- [x] Confidence threshold filtering
-- [x] Loading state indicator
-- [x] Error handling (model load failure)
+### 📋 4. Object Detection & Multi-Model Engine (`src/detector.js`, `src/onnx-detector.js`)
+- [x] Roboflow `InferenceEngine` (`inferencejs`) integration
+- [x] Local In-Browser ONNX Engine (`onnxruntime-web` + WebGPU/WASM)
+- [x] Pre-trained YOLOv8n Basketball & Rim Model (`public/models/basketball_yolov8n.onnx`)
+- [x] Multi-Model Presets (Default, Alt 1, Alt 2, Alt 3, Local ONNX, Custom Model ID)
+- [x] Automatic Fallback pipeline (Roboflow failure ➔ Local ONNX)
+- [x] LocalStorage persistence for Custom Model ID and API Key
+- [x] Detection result parsing & Top-Left bbox normalization
+- [x] Confidence threshold filtering & FPS throttling (20 FPS)
+- [x] Interactive Model Comparison Guide Modal (`💡 แนะนำโมเดล`)
+- [x] Loading state indicator & error recovery
 
 ### 📋 5. Shot Tracking (`src/shot-tracker.js`)
 - [x] State machine implementation (IDLE → TRACKING → BALL_ABOVE → SCORED → COOLDOWN)
@@ -143,6 +146,7 @@
 
 | Date | Change |
 |------|--------|
+| 2026-08-31 | Multi-Model & Local ONNX Offline Mode: Added Model Switcher UI in Settings, Local ONNX Detector via `onnxruntime-web` (WebGPU/WASM), auto-fallback pipeline, and localStorage memory for custom Model ID and API Key |
 | 2026-08-31 | Task 9 Done: Testing & Polish in browser (Model loading, settings drawer, audio selection, volume drag, score reset, error handling verified) |
 | 2026-08-31 | Task 8 Done: Main App Integration in src/main.js (Mediator pattern, requestAnimationFrame frame loop, score event pipeline, UI bindings) |
 | 2026-08-31 | Task 7 Done: UI Controller in src/ui.js & index.html markup (canvas bbox #00FF88/#FF6B35, score animation, settings drawer, mediator bindings) |
