@@ -56,9 +56,9 @@ graph TD
 
     subgraph Tracking & State Engine
         B1 --> C1["Spatial State Machine<br/>(shot-tracker.js)"]
-        C1 -->|Anti-Confusion + Stationary Anchor| C2{"Crossed Rim Zone?"}
-        C2 -->|Yes (Downward Trajectory)| C3["Confirmed Basket (Score + 1)"]
-        C2 -->|No| C4["Cooldown / Reset"]
+        C1 -->|"Anti-Confusion + Stationary Anchor"| C2{"Crossed Rim Zone?"}
+        C2 -->|"Yes (Downward Trajectory)"| C3["Confirmed Basket (Score + 1)"]
+        C2 -->|"No"| C4["Cooldown / Reset"]
     end
 
     subgraph Output & Audio Feedback
