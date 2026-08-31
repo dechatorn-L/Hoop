@@ -1,0 +1,23 @@
+{
+  "name": "hoop",
+  "version": "1.0.0",
+  "description": "Basketball shot counter web app",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tunnel": "npx localtunnel --port 5173",
+    "tunnel:ip": "node scripts/get-ip.js",
+    "tunnel:cf": "node scripts/start-tunnel-cf.js",
+    "ip": "node scripts/get-ip.js"
+  },
+  "dependencies": {
+    "inferencejs": "^1.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
+    "untun": "^0.2.2",
+    "vite": "^8.2.2"
+  }
+}
