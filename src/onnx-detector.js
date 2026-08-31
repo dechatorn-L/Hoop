@@ -181,25 +181,26 @@ export class OnnxObjectDetector {
     const scale = Math.min(this.inputSize / originalWidth, this.inputSize / originalHeight);
     const newW = Math.round(originalWidth * scale);
     const newH = Math.round(originalHeight * scale);
-    const padX = (this.inputSize - newW) / 2;
-    const padY = (this.inputSize - newH) / 2;
+    const padX = (this.inputSize - newW) >> 1;
+    const padY = (this.inputSize - newH) >> 1;
 
-    // Fill canvas with standard neutral gray (114, 114, 114)
+    // Fill canvas with neutral gray (114, 114, 114)
     this.ctx.fillStyle = '#727272';
     this.ctx.fillRect(0, 0, this.inputSize, this.inputSize);
     this.ctx.drawImage(videoElement, padX, padY, newW, newH);
 
-    const imageData = this.ctx.getImageData(0, 0, this.inputSize, this.inputSize);
-    const { data } = imageData;
-
+    const { data } = this.ctx.getImageData(0, 0, this.inputSize, this.inputSize);
     const numPixels = this.inputSize * this.inputSize;
     const floatArray = new Float32Array(3 * numPixels);
+    const inv255 = 1.0 / 255.0;
 
-    // Convert RGBA to planar RGB and normalize [0, 255] -> [0.0, 1.0]
-    for (let i = 0; i < numPixels; i++) {
-      floatArray[i] = data[i * 4] / 255.0;                  // Channel 0 (R)
-      floatArray[numPixels + i] = data[i * 4 + 1] / 255.0;  // Channel 1 (G)
-      floatArray[numPixels * 2 + i] = data[i * 4 + 2] / 255.0; // Channel 2 (B)
+    const offsetG = numPixels;
+    const offsetB = numPixels << 1;
+
+    for (let i = 0, p = 0; i < numPixels; i++, p += 4) {
+      floatArray[i] = data[p] * inv255;
+      floatArray[offsetG + i] = data[p + 1] * inv255;
+      floatArray[offsetB + i] = data[p + 2] * inv255;
     }
 
     return {
