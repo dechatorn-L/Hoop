@@ -42,28 +42,28 @@ Powered by **Roboflow Inference.js** and pre-trained YOLO object detection model
 
 ```mermaid
 graph TD
-    subgraph Input & Rendering Layer
-        A1["Camera Stream<br/>(getUserMedia API)"] --> A2["HTML5 Video Element<br/>(1280x720 ideal)"]
-        A2 --> A3["Overlay Canvas 2D<br/>(BBoxes & Trajectory Path)"]
+    subgraph Input Layer
+        A1["Camera Stream"] --> A2["HTML5 Video Element"]
+        A2 --> A3["Canvas 2D Overlay"]
     end
 
-    subgraph Detection & Inference Layer
-        A2 --> B1["Unified Object Detector<br/>(detector.js)"]
-        B1 -->|Cloud / Web Worker| B2["Roboflow Engine<br/>(inferencejs)"]
-        B1 -->|Local / WebGPU| B3["ONNX Suite<br/>(Swish-Vision / YOLO11 / YOLO-World / Pro)"]
-        B2 -.->|Auto-Fallback on Error| B3
+    subgraph Detection Layer
+        A2 --> B1["Unified Detector"]
+        B1 -->|Cloud Worker| B2["Roboflow Engine"]
+        B1 -->|Local WebGPU| B3["ONNX Suite"]
+        B2 -.->|Auto Fallback| B3
     end
 
-    subgraph Tracking & State Engine
-        B1 --> C1["Spatial State Machine<br/>(shot-tracker.js)"]
-        C1 -->|Anti-Confusion + Stationary Anchor| C2{"Crossed Rim Zone?"}
-        C2 -->|Yes (Downward Trajectory)| C3["Confirmed Basket (Score + 1)"]
-        C2 -->|No| C4["Cooldown / Reset"]
+    subgraph Tracking Engine
+        B1 --> C1["Spatial State Machine"]
+        C1 --> C2{"Crossed Rim Zone?"}
+        C2 -->|Yes| C3["Score Increment +1"]
+        C2 -->|No| C4["Cooldown Reset"]
     end
 
-    subgraph Output & Audio Feedback
-        C3 --> D1["Web Audio API<br/>(sound-manager.js)"]
-        C3 --> D2["HUD Scoreboard Glow<br/>(ui.js)"]
+    subgraph Audio and HUD
+        C3 --> D1["Web Audio API"]
+        C3 --> D2["HUD Scoreboard Glow"]
     end
 ```
 
