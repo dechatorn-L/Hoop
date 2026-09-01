@@ -226,6 +226,25 @@ export class HoopCounterApp {
         // 1. Run detection (throttled inside detector)
         const rawDetections = await this.detector.detect(this.videoElement);
 
+        // Helper classification guards (Crucial: never match 'basketball' as 'rim')
+        const isRimDetection = (d) => {
+          if (!d || !d.class) return false;
+          const c = d.class.toLowerCase().trim();
+          if (c.includes('ball') || c.includes('made')) return false;
+          return c === '1' || c.includes('rim') || c.includes('hoop') || c.includes('backboard') || c === 'basket';
+        };
+
+        const isBallDetection = (d) => {
+          if (!d || !d.class) return false;
+          const c = d.class.toLowerCase().trim();
+          return c === '2' || c.includes('ball');
+        };
+
+        const isMadeDetection = (d) => {
+          if (!d || !d.class) return false;
+          return d.class.toLowerCase().includes('made');
+        };
+
         // 2. Single Rim Guarantee Filter: Never allow multiple rims to show up or distract tracker
         const manualRim = this.ui.getManualRimRoi();
         let filteredDetections = [];
@@ -233,18 +252,12 @@ export class HoopCounterApp {
 
         if (manualRim) {
           // If Manual Rim is active, ignore ALL auto-detected rims from the model
-          filteredDetections = rawDetections.filter(
-            (d) => !d.class || !(d.class === '1' || d.class.includes('rim') || d.class.includes('hoop') || (d.class.includes('basket') && !d.class.includes('made')))
-          );
+          filteredDetections = rawDetections.filter((d) => !isRimDetection(d));
           primaryRim = manualRim;
         } else {
           // In Auto mode: filter so ONLY top 1 highest confidence rim exists
-          const rims = rawDetections.filter(
-            (d) => d.class && (d.class === '1' || d.class.includes('rim') || d.class.includes('hoop') || (d.class.includes('basket') && !d.class.includes('made')))
-          );
-          const nonRims = rawDetections.filter(
-            (d) => !d.class || !(d.class === '1' || d.class.includes('rim') || d.class.includes('hoop') || (d.class.includes('basket') && !d.class.includes('made')))
-          );
+          const rims = rawDetections.filter(isRimDetection);
+          const nonRims = rawDetections.filter((d) => !isRimDetection(d));
 
           if (rims.length > 0) {
             rims.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
@@ -259,8 +272,8 @@ export class HoopCounterApp {
         this.ui.drawDetections(filteredDetections);
 
         // 4. Extract ball & made basket
-        const ball = filteredDetections.find((d) => d.class && (d.class === '2' || d.class.includes('ball')));
-        const madeBasket = filteredDetections.find((d) => d.class && d.class.includes('made'));
+        const ball = filteredDetections.find(isBallDetection);
+        const madeBasket = filteredDetections.find(isMadeDetection);
 
         // 5. Update shot tracker state machine
         const scored = this.tracker.update(primaryRim, ball, madeBasket);

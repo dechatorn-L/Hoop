@@ -1095,6 +1095,11 @@ body.is-fullscreen .viewport-container {
   animation: fade-in-banner 0.25s ease-out;
 }
 
+.rim-draw-banner.hidden,
+#rim-draw-banner.hidden {
+  display: none !important;
+}
+
 @keyframes fade-in-banner {
   from { opacity: 0; transform: translate(-50%, -10px); }
   to { opacity: 1; transform: translate(-50%, 0); }

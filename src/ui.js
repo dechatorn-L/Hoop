@@ -624,7 +624,7 @@ export class UIController {
     for (const d of list) {
       if (!d || !d.bbox) continue;
       const cls = (d.class || '').toLowerCase();
-      const isRim = cls === '1' || cls.includes('rim') || cls.includes('hoop') || (cls.includes('basket') && !cls.includes('made'));
+      const isRim = !cls.includes('ball') && !cls.includes('made') && (cls === '1' || cls.includes('rim') || cls.includes('hoop') || cls.includes('backboard') || cls === 'basket');
 
       // If manual rim is active, skip auto-detected rim to prevent duplicate boxes
       if (this.manualRimRoi && isRim) {
@@ -637,10 +637,10 @@ export class UIController {
       if (!d || !d.bbox) continue;
       const { x, y, width, height } = d.bbox;
       const cls = (d.class || '').toLowerCase();
-      const isRim = cls === '1' || cls.includes('rim') || cls.includes('hoop') || (cls.includes('basket') && !cls.includes('made'));
       const isBall = cls === '2' || cls.includes('ball');
       const isMade = cls.includes('made');
-      const isPerson = cls === '0' || cls.includes('peop') || cls.includes('person') || cls.includes('player') || cls.includes('human');
+      const isRim = !isBall && !isMade && (cls === '1' || cls.includes('rim') || cls.includes('hoop') || cls.includes('backboard') || cls === 'basket');
+      const isPerson = !isBall && !isMade && !isRim && (cls === '0' || cls.includes('peop') || cls.includes('person') || cls.includes('player') || cls.includes('human'));
 
       let color = '#FF6B35';
       let label = cls.toUpperCase();
@@ -650,10 +650,6 @@ export class UIController {
         color = '#00FF88';
         label = '🎯 RIM (PINNED 📌)';
         fillColor = 'rgba(0, 255, 136, 0.18)';
-      } else if (isRim) {
-        color = '#00FF88';
-        label = 'RIM';
-        fillColor = 'rgba(0, 255, 136, 0.1)';
       } else if (isMade) {
         color = '#00E5FF';
         label = 'MADE BASKET 🎯';
@@ -662,6 +658,10 @@ export class UIController {
         color = '#FF6B35';
         label = 'BALL';
         fillColor = 'rgba(255, 107, 53, 0.12)';
+      } else if (isRim) {
+        color = '#00FF88';
+        label = 'RIM';
+        fillColor = 'rgba(0, 255, 136, 0.1)';
       } else if (isPerson) {
         color = '#4CC9F0';
         label = 'PERSON';

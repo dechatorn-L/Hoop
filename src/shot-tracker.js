@@ -55,10 +55,15 @@ export class ShotTracker {
 
     if (Array.isArray(rimOrDetections)) {
       const detections = rimOrDetections;
-      rim = detections.find(d => d.class && (d.class === '1' || d.class.includes('rim') || d.class.includes('hoop') || d.class.includes('basket'))) || null;
-      ball = detections.find(d => d.class && (d.class === '2' || d.class.includes('ball'))) || null;
+      rim = detections.find(d => {
+        if (!d || !d.class) return false;
+        const c = d.class.toLowerCase().trim();
+        if (c.includes('ball') || c.includes('made')) return false;
+        return c === '1' || c.includes('rim') || c.includes('hoop') || c.includes('backboard') || c === 'basket';
+      }) || null;
+      ball = detections.find(d => d.class && (d.class === '2' || d.class.toLowerCase().includes('ball'))) || null;
       if (!madeBasket) {
-        madeBasket = detections.find(d => d.class && d.class.includes('made')) || null;
+        madeBasket = detections.find(d => d.class && d.class.toLowerCase().includes('made')) || null;
       }
     } else {
       rim = rimOrDetections || null;
