@@ -4,18 +4,18 @@
  */
 
 import { InferenceEngine, CVImage } from 'inferencejs';
-import { OnnxObjectDetector } from './onnx-detector.js';
+import { OnnxWorkerDetector } from './onnx-worker-detector.js';
 
 export class ObjectDetector {
   /**
    * @param {Object} [config={}] Configuration options
    * @param {number} [config.confidenceThreshold=0.35] Confidence threshold (0-1)
-   * @param {number} [config.inferenceRate=20] Max inference FPS
+   * @param {number} [config.inferenceRate=25] Max inference FPS
    */
   constructor(config = {}) {
     this.config = config;
     this.confidenceThreshold = config.confidenceThreshold ?? 0.35;
-    this.inferenceRate = config.inferenceRate ?? 20;
+    this.inferenceRate = config.inferenceRate ?? 25;
 
     // Providers
     this.currentProvider = 'roboflow'; // 'roboflow' | 'onnx'
@@ -25,11 +25,12 @@ export class ObjectDetector {
     this.roboflowEngine = new InferenceEngine();
     this.roboflowWorkerId = null;
 
-    // ONNX Detector
-    this.onnxDetector = new OnnxObjectDetector({
+    // High-Performance Multi-Worker ONNX Detector (Strategy 3)
+    this.onnxDetector = new OnnxWorkerDetector({
       confidenceThreshold: this.confidenceThreshold,
       inferenceRate: this.inferenceRate,
-      modelPath: config.onnxModelPath || '/models/basketball_yolov8n.onnx',
+      modelPath: config.onnxModelPath || '/models/basketball_swish_yolov8.onnx',
+      poolSize: 2, // Dual-Worker Ping-Pong Pipeline
     });
 
     this.isLoaded = false;

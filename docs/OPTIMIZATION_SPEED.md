@@ -96,9 +96,10 @@ graph TD
   - [x] Tested TensorFlow.js WebGL integration alongside Roboflow & ONNX.
   - [x] Identified GPU-to-CPU tensor readback bottleneck and COCO class limitations.
   - [x] Cleaned up and deprecated generic TFJS in favor of lightweight ONNX & Web Workers.
+- [x] **Phase C (Architecture Refactoring - Strategy 3):**
+  - [x] Implemented `src/worker/onnx.worker.js` with `OffscreenCanvas` and zero-copy `ImageBitmap` transfer.
+  - [x] Implemented `src/onnx-worker-detector.js` managing a 2-worker parallel pipeline.
+  - [x] Decoupled Main UI Thread rendering (locked at 60 FPS) from AI inference.
 - [ ] **Phase B (Model Optimization - Strategy 1):**
   - Export Swish-Vision YOLOv8n at 384x384 INT8 / FP16.
   - Compare detection accuracy and score trigger reliability against 640x640 baseline.
-- [ ] **Phase C (Architecture Refactoring - Strategy 3 & 4):**
-  - Implement `src/worker/detection-worker.js` with `ImageBitmap` zero-copy transfer.
-  - Implement 60 FPS bounding box interpolator in `src/ui.js`.
