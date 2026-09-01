@@ -17,6 +17,20 @@ export const MODEL_PRESETS = {
     modelId: 'basketball-stat-tracker/basketball-hoop-ball-and-player/4',
     description: 'โมเดลชุดพิเศษสำหรับนับสถิติชู้ตบาส (ตรวจจับ hoop, ball, player ผ่าน Cloud)',
   },
+  'roboflow-cricket': {
+    id: 'roboflow-cricket',
+    name: 'Roboflow: Basketball 9.5K Images (Ball + Person + Rim)',
+    provider: 'roboflow',
+    modelId: 'cricket-qnb5l/basketball-xil7x/1',
+    description: 'โมเดลชุดใหญ่ 9,500+ รูป (cricket-qnb5l/basketball-xil7x/1 ตรวจจับ ball, person, rim)',
+  },
+  'roboflow-swishai': {
+    id: 'roboflow-swishai',
+    name: 'Roboflow: SwishAI Shot Detection (Ball + Basket + Player)',
+    provider: 'roboflow',
+    modelId: 'basketball-6vyfz/basketball-detection-srfkd/1',
+    description: 'โมเดลชุด SwishAI (basketball-6vyfz/basketball-detection-srfkd/1 ตรวจจับ Basket, Ball in Basket, Shooter)',
+  },
   'local-onnx-swish': {
     id: 'local-onnx-swish',
     name: 'Local ONNX: Swish-Vision (11.7MB · ออฟไลน์ 100%)',

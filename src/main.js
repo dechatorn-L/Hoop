@@ -227,7 +227,7 @@ export class HoopCounterApp {
         this.ui.drawDetections(detections);
 
         // 3. Extract rim & ball detections
-        const rim = detections.find((d) => d.class && (d.class.includes('rim') || d.class.includes('hoop')));
+        const rim = detections.find((d) => d.class && (d.class.includes('rim') || d.class.includes('hoop') || d.class.includes('basket')));
         const ball = detections.find((d) => d.class && d.class.includes('ball'));
 
         // 4. Update shot tracker state machine
