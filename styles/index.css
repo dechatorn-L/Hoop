@@ -336,13 +336,19 @@ html, body {
 /* Select Input */
 .select-input {
   font-family: var(--font-body);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 500;
   background: var(--surface-dark);
   color: var(--text-main);
   border: 1.5px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 10px 16px;
+  padding: 10px 14px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
   outline: none;
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -486,18 +492,21 @@ html, body {
   top: 0;
   right: 0;
   width: 360px;
+  max-width: 92vw;
   height: 100%;
   background: rgba(22, 22, 42, 0.92);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border-left: 1px solid var(--surface-glass-border);
-  padding: 28px;
+  padding: 24px 20px;
   z-index: 30;
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 24px;
   box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
   transition: transform var(--transition-smooth);
+  box-sizing: border-box;
+  overflow-x: hidden !important;
 }
 
 .settings-drawer.hidden {
@@ -524,12 +533,17 @@ html, body {
   flex-direction: column;
   gap: 24px;
   overflow-y: auto;
+  overflow-x: hidden !important;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .settings-section {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .settings-section h3,
@@ -1044,4 +1058,115 @@ body.is-fullscreen .viewport-container {
   border-top: 1px solid var(--border-color);
   background: rgba(30, 30, 56, 0.4);
 }
+
+/* --------------------------------------------------------------------------
+   Manual Rim ROI Pinning Styles
+   -------------------------------------------------------------------------- */
+.btn-danger {
+  background: rgba(255, 60, 60, 0.15);
+  color: #FF5555;
+  border: 1px solid rgba(255, 60, 60, 0.35);
+}
+
+.btn-danger:hover {
+  background: rgba(255, 60, 60, 0.3);
+  border-color: #FF5555;
+  color: #FFFFFF;
+}
+
+.btn-pin-active {
+  background: rgba(0, 255, 136, 0.2) !important;
+  color: #00FF88 !important;
+  border-color: #00FF88 !important;
+  box-shadow: 0 0 12px rgba(0, 255, 136, 0.4);
+  animation: pulse-border 1.5s infinite;
+}
+
+@keyframes pulse-border {
+  0%, 100% { box-shadow: 0 0 4px rgba(0, 255, 136, 0.3); }
+  50% { box-shadow: 0 0 15px rgba(0, 255, 136, 0.7); }
+}
+
+.rim-draw-banner {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(18, 18, 38, 0.92);
+  border: 1px solid #00FF88;
+  color: #FFFFFF;
+  padding: 8px 16px;
+  border-radius: 30px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 255, 136, 0.3);
+  z-index: 50;
+  pointer-events: auto;
+  white-space: nowrap;
+  animation: fade-in-banner 0.25s ease-out;
+}
+
+.rim-draw-banner.hidden,
+#rim-draw-banner.hidden {
+  display: none !important;
+}
+
+@keyframes fade-in-banner {
+  from { opacity: 0; transform: translate(-50%, -10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.btn-cancel-draw {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #EEEEEE;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-cancel-draw:hover {
+  background: rgba(255, 60, 60, 0.3);
+  border-color: #FF5555;
+  color: #FFFFFF;
+}
+
+.rim-status-box {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-color);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.rim-status-box strong {
+  color: var(--text-main);
+}
+
+.rim-status-box.pinned {
+  border-color: rgba(0, 255, 136, 0.4);
+  background: rgba(0, 255, 136, 0.08);
+}
+
+.rim-status-box.pinned strong {
+  color: #00FF88;
+}
+
+.canvas-drawing-mode,
+#detection-overlay.canvas-drawing-mode,
+.drawing-active #detection-overlay {
+  pointer-events: auto !important;
+  cursor: crosshair !important;
+  touch-action: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  z-index: 45 !important;
+}
+
 

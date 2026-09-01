@@ -146,6 +146,9 @@
 
 | Date | Change |
 |------|--------|
+| 2026-09-01 | ⚡ 60 FPS Kinematic Interpolator & GPU Buffer Preprocessing: Implemented 60 FPS projectile trajectory interpolator in `src/ui.js` and GPU downscaled canvas preprocessing (720p/1080p -> 640px) in `src/detector.js` |
+| 2026-09-01 | 🎯 Universal Manual Rim ROI Pinning Mode: Added interactive touch/drag rim pinning on canvas with `localStorage` persistence, single-rim locking filter, and Devin Ross Made Basket SOTA model preset (`devin-ross-g0rqc/basketball-ls818/15`) |
+| 2026-09-01 | 🏀 3-Phase Shot Physics Engine: Upgraded `src/shot-tracker.js` state machine to BALL_ENTERING cylinder check and upward rebound rejection to prevent premature scoring |
 | 2026-08-31 | Multi-Model & Local ONNX Offline Mode: Added Model Switcher UI in Settings, Local ONNX Detector via `onnxruntime-web` (WebGPU/WASM), auto-fallback pipeline, and localStorage memory for custom Model ID and API Key |
 | 2026-08-31 | Task 9 Done: Testing & Polish in browser (Model loading, settings drawer, audio selection, volume drag, score reset, error handling verified) |
 | 2026-08-31 | Task 8 Done: Main App Integration in src/main.js (Mediator pattern, requestAnimationFrame frame loop, score event pipeline, UI bindings) |

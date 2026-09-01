@@ -134,14 +134,18 @@ export class ObjectDetector {
    * @private
    */
   async _loadRoboflowModel(modelId, apiKey) {
-    // If previous worker exists, stop it first
+    // If previous worker exists, stop it cleanly first
     if (this.roboflowWorkerId) {
+      const oldWorker = this.roboflowWorkerId;
+      this.roboflowWorkerId = null;
+      this.isInferring = false;
       try {
-        await this.roboflowEngine.stopWorker(this.roboflowWorkerId);
+        await this.roboflowEngine.stopWorker(oldWorker);
       } catch {
         // Ignore cleanup errors
       }
-      this.roboflowWorkerId = null;
+      // Brief pause to allow worker thread disposal
+      await new Promise((r) => setTimeout(r, 60));
     }
 
     try {
@@ -218,6 +222,12 @@ export class ObjectDetector {
     const now = performance.now();
     const intervalMs = 1000 / this.inferenceRate;
 
+    // Watchdog: If inference has been pending for > 2.5s (e.g. during worker swap), force reset flag
+    if (this.isInferring && now - this.lastInferenceTime > 2500) {
+      console.warn('[ObjectDetector] Watchdog: Resetting stuck inference lock');
+      this.isInferring = false;
+    }
+
     if (now - this.lastInferenceTime < intervalMs || this.isInferring) {
       return this.lastDetections;
     }
@@ -227,7 +237,12 @@ export class ObjectDetector {
 
     try {
       const cvImage = new CVImage(videoElement);
-      const rawPredictions = await this.roboflowEngine.infer(this.roboflowWorkerId, cvImage);
+      const inferPromise = this.roboflowEngine.infer(this.roboflowWorkerId, cvImage);
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Inference timeout')), 2500)
+      );
+
+      const rawPredictions = await Promise.race([inferPromise, timeoutPromise]);
       const detections = this._normalizePredictions(rawPredictions);
       this.lastDetections = detections;
       return detections;
@@ -257,15 +272,33 @@ export class ObjectDetector {
     for (const pred of list) {
       if (!pred) continue;
 
-      const confidence = typeof pred.confidence === 'number'
-        ? pred.confidence
-        : (typeof pred.score === 'number' ? pred.score : 0);
+      let confidence = 0;
+      if (typeof pred.confidence === 'number') confidence = pred.confidence;
+      else if (typeof pred.score === 'number') confidence = pred.score;
+      else if (typeof pred.conf === 'number') confidence = pred.conf;
 
       if (confidence < this.confidenceThreshold) {
         continue;
       }
 
-      const rawClass = (pred.class || pred.label || pred.name || '').toLowerCase().trim();
+      let rawClass = '';
+      if (pred.class !== undefined && pred.class !== null) {
+        rawClass = String(pred.class);
+      } else if (pred.class_id !== undefined && pred.class_id !== null) {
+        rawClass = String(pred.class_id);
+      } else if (pred.classIndex !== undefined && pred.classIndex !== null) {
+        rawClass = String(pred.classIndex);
+      } else if (pred.label) {
+        rawClass = String(pred.label);
+      } else if (pred.name) {
+        rawClass = String(pred.name);
+      }
+      rawClass = rawClass.toLowerCase().trim();
+
+      // Normalize numeric class IDs (0 = player/person, 1 = rim, 2 = ball)
+      if (rawClass === '0') rawClass = 'person';
+      else if (rawClass === '1') rawClass = 'rim';
+      else if (rawClass === '2') rawClass = 'ball';
 
       const box = pred.bbox || pred;
       const width = typeof box.width === 'number' ? box.width : 0;

@@ -28,12 +28,13 @@ export class ShotTracker {
 
   /**
    * Update tracker with rim and ball detections
-   * Supports either (rimDetection, ballDetection) or single detections array
+   * Supports either (rimDetection, ballDetection, madeBasketDetection) or single detections array
    * @param {Object|Array} rimOrDetections Rim detection object or array of detections
    * @param {Object} [ballDetection] Ball detection object
+   * @param {Object} [madeBasketDetection] Made basket detection object (optional)
    * @returns {boolean} True if a score occurred in this frame
    */
-  update(rimOrDetections, ballDetection) {
+  update(rimOrDetections, ballDetection, madeBasketDetection) {
     const now = Date.now();
 
     // Check if in COOLDOWN
@@ -47,24 +48,34 @@ export class ShotTracker {
       }
     }
 
-    // Extract rim and ball detections
+    // Extract rim, ball, and made basket detections
     let rim = null;
     let ball = null;
+    let madeBasket = madeBasketDetection || null;
 
     if (Array.isArray(rimOrDetections)) {
       const detections = rimOrDetections;
-      rim = detections.find(d => d.class && (d.class.includes('rim') || d.class.includes('hoop'))) || null;
-      ball = detections.find(d => d.class && d.class.includes('ball')) || null;
+      rim = detections.find(d => {
+        if (!d || !d.class) return false;
+        const c = d.class.toLowerCase().trim();
+        if (c.includes('ball') || c.includes('made')) return false;
+        return c === '1' || c.includes('rim') || c.includes('hoop') || c.includes('backboard') || c === 'basket';
+      }) || null;
+      ball = detections.find(d => d.class && (d.class === '2' || d.class.toLowerCase().includes('ball'))) || null;
+      if (!madeBasket) {
+        madeBasket = detections.find(d => d.class && d.class.toLowerCase().includes('made')) || null;
+      }
     } else {
       rim = rimOrDetections || null;
       ball = ballDetection || null;
     }
 
+    const isManualRim = !!(rim && rim.isManual);
     let rimBox = rim ? (rim.bbox || rim) : null;
     const ballBox = ball ? (ball.bbox || ball) : null;
 
-    // 1. Anti-Confusion Filter: If rim and ball heavily overlap (same object detected as both), reject false rim
-    if (rimBox && ballBox) {
+    // 1. If NOT a manual pinned rim: run Anti-Confusion Filter
+    if (!isManualRim && rimBox && ballBox) {
       const iou = this._computeIoU(rimBox, ballBox);
       const containment = this._computeContainment(rimBox, ballBox);
       if (iou > 0.30 || containment > 0.40) {
@@ -73,8 +84,11 @@ export class ShotTracker {
       }
     }
 
-    // 2. Stationary Rim Anchor & Cache (Hoop cannot move with player's hand)
-    if (rimBox) {
+    // 2. Stationary Rim Anchor & Cache (Auto mode only, manual is fixed)
+    if (isManualRim && rimBox) {
+      this.lastKnownRimBox = rimBox;
+      this.lastKnownRimTime = now;
+    } else if (rimBox) {
       if (this.lastKnownRimBox) {
         const dx = Math.abs((rimBox.x + rimBox.width / 2) - (this.lastKnownRimBox.x + this.lastKnownRimBox.width / 2));
         const dy = Math.abs((rimBox.y + rimBox.height / 2) - (this.lastKnownRimBox.y + this.lastKnownRimBox.height / 2));
@@ -100,9 +114,29 @@ export class ShotTracker {
       rimBox = this.lastKnownRimBox;
     }
 
+    // 3. Direct Made Basket Trigger (SOTA event trigger for models with 'made basket' class)
+    if (madeBasket && rimBox) {
+      const mbBox = madeBasket.bbox || madeBasket;
+      const mbCenterX = mbBox.x + mbBox.width / 2;
+      const mbCenterY = mbBox.y + mbBox.height / 2;
+      const rimCenterX = rimBox.x + rimBox.width / 2;
+
+      // Must be horizontally aligned with rim and vertically at/below the rim iron
+      const xDist = Math.abs(mbCenterX - rimCenterX);
+      const yRel = mbCenterY - rimBox.y;
+
+      if (xDist <= rimBox.width * 0.55 && yRel >= 0 && yRel <= rimBox.height * 2.2) {
+        this.score++;
+        this._transitionTo('SCORED');
+        this.cooldownEndTime = now + this.scoreCooldownMs;
+        this._transitionTo('COOLDOWN');
+        return true;
+      }
+    }
+
     // If no stationary rim or no ball detected
     if (!rimBox || !ballBox) {
-      if ((this.state === 'TRACKING' || this.state === 'BALL_ABOVE') && now - this.lastSeenTime > this.trackingTimeoutMs) {
+      if ((this.state === 'TRACKING' || this.state === 'BALL_ABOVE' || this.state === 'BALL_ENTERING') && now - this.lastSeenTime > this.trackingTimeoutMs) {
         this._transitionTo('IDLE');
         this.previousBallCenterY = null;
         this.previousBallCenterX = null;
@@ -122,46 +156,52 @@ export class ShotTracker {
     const trackingZoneX = rimBox.width * this.rimProximityFactor;
     const isWithinTrackingZone = deltaX <= trackingZoneX;
 
-    // State Machine Transitions
+    // State Machine Transitions (Continuous Trajectory Intersection Engine)
     let scored = false;
+
+    // Check Continuous Downward Raycast Crossing through the Rim Plane (rimCenterY)
+    const prevY = this.previousBallCenterY;
+    const prevX = this.previousBallCenterX ?? ballCenterX;
+    const dy = prevY !== null ? (ballCenterY - prevY) : 0;
+
+    let crossedX = ballCenterX;
+    if (prevY !== null && dy > 0 && prevY < rimCenterY && ballCenterY >= rimCenterY) {
+      const t = (rimCenterY - prevY) / dy;
+      crossedX = prevX + t * (ballCenterX - prevX);
+    }
+
+    const xTrajectoryAligned = Math.abs(crossedX - rimCenterX) <= rimBox.width * 0.52;
+    const isCrossingDownward = prevY !== null && prevY < rimCenterY && ballCenterY >= rimCenterY && dy >= 2;
 
     switch (this.state) {
       case 'IDLE':
-        if (isWithinTrackingZone) {
-          // Ball must start clearly ABOVE the rim (not just inside or below)
-          if (ballCenterY < rimBox.y) {
-            this._transitionTo('BALL_ABOVE');
-          } else {
-            this._transitionTo('TRACKING');
-          }
-        }
-        break;
-
       case 'TRACKING':
-        if (!isWithinTrackingZone) {
-          this._transitionTo('IDLE');
-        } else if (ballCenterY < rimBox.y) {
-          this._transitionTo('BALL_ABOVE');
+        if (isWithinTrackingZone) {
+          // Ball is approaching from above the rim plane
+          if (ballCenterY <= rimCenterY) {
+            this._transitionTo('BALL_ABOVE');
+          }
         }
         break;
 
       case 'BALL_ABOVE':
-        if (!isWithinTrackingZone) {
+        if (!isWithinTrackingZone && deltaX > rimBox.width * 1.5) {
           this._transitionTo('IDLE');
-        } else {
-          // Check scoring conditions (must cross downward through the rim plane)
-          if (this._checkScore(rimBox, ballCenterX, ballCenterY, rimCenterX, rimCenterY)) {
-            scored = true;
-            this.score++;
-            this._transitionTo('SCORED');
+        } else if (isCrossingDownward && xTrajectoryAligned) {
+          // Continuous Trajectory Match: Ball cleanly crossed downward through the rim plane!
+          scored = true;
+          this.score++;
+          this._transitionTo('SCORED');
 
-            // Immediately enter COOLDOWN
-            this.cooldownEndTime = now + this.scoreCooldownMs;
-            this._transitionTo('COOLDOWN');
-          } else if (ballCenterY > rimCenterY + rimBox.height * 2.5) {
-            // Ball fell way below without crossing basket center
-            this._transitionTo('IDLE');
-          }
+          // Immediately enter COOLDOWN
+          this.cooldownEndTime = now + this.scoreCooldownMs;
+          this._transitionTo('COOLDOWN');
+        } else if (dy < -6 && ballCenterY < rimBox.y) {
+          // Ball bounced upward high away from rim -> Reset
+          this._transitionTo('IDLE');
+        } else if (ballCenterY > rimCenterY + rimBox.height * 2.8) {
+          // Ball fell way below outside rim
+          this._transitionTo('IDLE');
         }
         break;
 

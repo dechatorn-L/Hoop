@@ -5,26 +5,31 @@
 export const MODEL_PRESETS = {
   'roboflow-default': {
     id: 'roboflow-default',
-    name: 'Roboflow v4: People + Basketball + Hoops (Cloud)',
+    name: 'Roboflow v4: Main (⚡ 30-45 FPS แนะนำ)',
     provider: 'roboflow',
     modelId: 'people_basketball_hoops/4',
-    description: 'ตรวจจับห่วง ลูกบาส และผู้เล่น (โมเดลหลัก Cloud ความเสถียรสูงสุด)',
+    description: 'ตรวจจับห่วง ลูกบาส และคน (โมเดล Cloud ยอดนิยม · ลื่นไหล 30-45 FPS)',
+  },
+  'local-onnx-swish': {
+    id: 'local-onnx-swish',
+    name: 'Local ONNX: Swish-Vision (⚡ 60 FPS แนะนำ)',
+    provider: 'onnx',
+    modelPath: '/models/basketball_swish_yolov8.onnx',
+    description: 'รันบน Web Worker อิสระ (11.7 MB) ล็อกเฉพาะลูกบาสและห่วง ไม่กินสเปกมือถือ (ออฟไลน์ 100% · 60 FPS)',
   },
   'roboflow-cricket': {
     id: 'roboflow-cricket',
-    name: 'Roboflow: Basketball 9.5K Images (Ball + Person + Rim)',
+    name: 'Roboflow: Cricket 9.5K Images (🎯 โมเดลละเอียด)',
     provider: 'roboflow',
     modelId: 'cricket-qnb5l/basketball-xil7x/1',
-    description: 'โมเดลชุดใหญ่ 9,500+ รูป (cricket-qnb5l/basketball-xil7x/1 ตรวจจับ ball, person, rim)',
+    description: 'โมเดลชุดใหญ่ 9,500+ รูป (cricket-qnb5l/basketball-xil7x/1 · มีระบบ 60 FPS Interpolator ช่วยประมวลผล)',
   },
-
-
-  'local-onnx-swish': {
-    id: 'local-onnx-swish',
-    name: 'Local ONNX: Swish-Vision (11.7MB · ออฟไลน์ 100%)',
-    provider: 'onnx',
-    modelPath: '/models/basketball_swish_yolov8.onnx',
-    description: 'เทรนจากชุด Basketball-1 (11.7 MB) ความละเอียด 640px ล็อกเฉพาะลูกบาสและห่วง ไม่ตีกรอบรวมกับคน (Single-Worker)',
+  'roboflow-devinross': {
+    id: 'roboflow-devinross',
+    name: 'Roboflow: Devin Ross (🎯 Made Basket SOTA)',
+    provider: 'roboflow',
+    modelId: 'devin-ross-g0rqc/basketball-ls818/15',
+    description: 'ตรวจจับลูกบาสและจังหวะลูกลงห่วง (Devin Ross 8,150 รูป · เหมาะที่สุดเมื่อใช้ร่วมกับปุ่มล็อกห่วง)',
   },
   'roboflow-custom': {
     id: 'roboflow-custom',
