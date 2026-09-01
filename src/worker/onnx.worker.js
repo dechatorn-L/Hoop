@@ -7,7 +7,7 @@ import * as ort from 'onnxruntime-web';
 
 // Configure WebAssembly paths & environment for worker context
 ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.29.0/dist/';
-ort.env.wasm.numThreads = 2;
+ort.env.wasm.numThreads = 1; // Single-thread to prevent mobile CPU overload and camera stutter
 ort.env.wasm.simd = true;
 
 const COCO_CLASSES = [
@@ -24,7 +24,7 @@ const COCO_CLASSES = [
 
 let session = null;
 let modelPath = '';
-const inputSize = 640;
+let inputSize = 640;
 let confidenceThreshold = 0.35;
 let iouThreshold = 0.25;
 
@@ -32,10 +32,15 @@ let iouThreshold = 0.25;
 let offscreenCanvas = null;
 let ctx = null;
 
-if (typeof OffscreenCanvas !== 'undefined') {
-  offscreenCanvas = new OffscreenCanvas(inputSize, inputSize);
-  ctx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
+function initCanvas(size) {
+  inputSize = size;
+  if (typeof OffscreenCanvas !== 'undefined') {
+    offscreenCanvas = new OffscreenCanvas(inputSize, inputSize);
+    ctx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
+  }
 }
+
+initCanvas(640);
 
 self.onmessage = async (e) => {
   const { type, data, id } = e.data;
@@ -62,7 +67,21 @@ self.onmessage = async (e) => {
           });
         }
 
-        self.postMessage({ type: 'INIT_SUCCESS', id, modelPath });
+        // Dynamically detect model input resolution (e.g. 384x384 vs 640x640)
+        let detectedSize = 640;
+        if (session && session.inputNames && session.inputNames.length > 0) {
+          const inputMeta = session.inputMetadata ? session.inputMetadata[session.inputNames[0]] : null;
+          const dims = inputMeta?.dimensions;
+          if (dims && dims[2] && typeof dims[2] === 'number' && dims[2] > 0) {
+            detectedSize = dims[2];
+          } else if (modelPath.includes('384')) {
+            detectedSize = 384;
+          }
+        }
+        initCanvas(detectedSize);
+        console.log(`[ONNX Worker] Initialized model with inputSize: ${detectedSize}x${detectedSize}`);
+
+        self.postMessage({ type: 'INIT_SUCCESS', id, modelPath, inputSize: detectedSize });
       } catch (err) {
         console.error('[ONNX Worker] Session load failed:', err);
         self.postMessage({ type: 'INIT_ERROR', id, error: err.message });

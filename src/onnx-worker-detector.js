@@ -19,7 +19,7 @@ export class OnnxWorkerDetector {
     this.confidenceThreshold = config.confidenceThreshold ?? 0.35;
     this.inferenceRate = config.inferenceRate ?? 25;
     this.modelPath = config.modelPath || '/models/basketball_swish_yolov8.onnx';
-    this.poolSize = Math.min(2, Math.max(1, config.poolSize || 2));
+    this.poolSize = Math.min(2, Math.max(1, config.poolSize || 1));
 
     this.workers = [];
     this.isLoaded = false;

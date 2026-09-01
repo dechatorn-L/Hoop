@@ -25,12 +25,12 @@ export class ObjectDetector {
     this.roboflowEngine = new InferenceEngine();
     this.roboflowWorkerId = null;
 
-    // High-Performance Multi-Worker ONNX Detector (Strategy 3)
+    // High-Performance Dedicated Background ONNX Worker (Strategy 3)
     this.onnxDetector = new OnnxWorkerDetector({
       confidenceThreshold: this.confidenceThreshold,
       inferenceRate: this.inferenceRate,
       modelPath: config.onnxModelPath || '/models/basketball_swish_yolov8.onnx',
-      poolSize: 2, // Dual-Worker Ping-Pong Pipeline
+      poolSize: 1, // Single-worker dedicated core (leaves other 7 cores free for camera 60 FPS)
     });
 
     this.isLoaded = false;
