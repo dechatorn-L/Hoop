@@ -196,7 +196,6 @@ export class UIController {
     if (this.modelInfoText) {
       const descriptions = {
         'roboflow-default': 'ตรวจจับห่วง ลูกบาส และผู้เล่น (Roboflow Universe v4 · โมเดลหลัก Cloud ความเสถียรสูงสุด)',
-        'roboflow-stat-tracker': 'โมเดลเทรนจากชุด Basketball Stat Tracker โดยเฉพาะ (ตรวจจับ hoop, ball, player ผ่าน Cloud)',
         'local-onnx-swish': '⚡ Local ONNX: Swish-Vision (11.7 MB) Fine-tuned Basketball-1 ล็อกเฉพาะลูกบาสและห่วง ไม่ตีกรอบรวมกับคน (ออฟไลน์ 100%)',
         'roboflow-custom': 'ใช้โมเดล Roboflow Universe ของคุณเอง (กรอก Model ID และ API Key ด้านล่าง)',
       };
@@ -211,11 +210,18 @@ export class UIController {
    */
   _loadSavedModelSettings() {
     try {
-      const savedType = localStorage.getItem('hoop_selected_model_type');
+      let savedType = localStorage.getItem('hoop_selected_model_type');
       const savedModelId = localStorage.getItem('hoop_custom_model_id');
       const savedApiKey = localStorage.getItem('hoop_custom_api_key');
 
-      if (savedType && this.modelSelect) {
+      // If localStorage had a removed/stale model type, fallback to roboflow-default
+      const validTypes = ['roboflow-default', 'local-onnx-swish', 'roboflow-custom'];
+      if (!savedType || !validTypes.includes(savedType)) {
+        savedType = 'roboflow-default';
+        localStorage.setItem('hoop_selected_model_type', savedType);
+      }
+
+      if (this.modelSelect) {
         this.modelSelect.value = savedType;
         this._updateModelDescriptions(savedType);
       }

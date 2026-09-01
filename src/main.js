@@ -121,7 +121,7 @@ export class HoopCounterApp {
             provider: 'onnx',
             modelPath: this.config.onnxModelPath,
           };
-          this.ui.setActiveModelUI('local-onnx-shottracker');
+          this.ui.setActiveModelUI('local-onnx-swish');
         } else {
           loadOptions = {
             provider: 'roboflow',
@@ -136,7 +136,7 @@ export class HoopCounterApp {
 
       if (result && result.fallback) {
         console.warn('⚠️ Switched to Local ONNX Model due to Roboflow error:', result.originalError);
-        this.ui.setActiveModelUI('local-onnx-shottracker');
+        this.ui.setActiveModelUI('local-onnx-swish');
         this.ui.showError(`โหลดโมเดลหลักไม่สำเร็จ (${result.originalError}) → สลับไปใช้ Local ONNX Model อัตโนมัติ`);
         setTimeout(() => this.ui.hideLoading(), 2500);
       } else {

@@ -51,7 +51,7 @@ export class ObjectDetector {
     let provider = 'roboflow';
     let modelId = '';
     let key = apiKey;
-    let onnxPath = this.config.onnxModelPath || '/models/basketball_yolov8n.onnx';
+    let onnxPath = this.config.onnxModelPath || '/models/basketball_swish_yolov8.onnx';
 
     if (typeof options === 'string') {
       modelId = options;
