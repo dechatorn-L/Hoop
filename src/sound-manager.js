@@ -38,7 +38,7 @@ export class SoundManager {
       return;
     }
 
-    this.audioCtx = new AudioContextClass();
+    this.audioCtx = new AudioContextClass({ latencyHint: 'interactive' });
     this.gainNode = this.audioCtx.createGain();
     this.gainNode.gain.setValueAtTime(this.volume, this.audioCtx.currentTime);
     this.gainNode.connect(this.audioCtx.destination);

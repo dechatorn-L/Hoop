@@ -55,11 +55,13 @@ export class UIController {
     this.rimStatusText = document.getElementById('rim-status-text');
     this.rimDrawBanner = document.getElementById('rim-draw-banner');
     this.btnCancelDrawRim = document.getElementById('btn-cancel-draw-rim');
+    this.toggleHoopRoi = document.getElementById('toggle-hoop-roi');
 
     this.isDrawingRim = false;
     this.dragStart = null;
     this.currentDragBox = null;
     this.manualRimRoi = null;
+    this.isHoopRoiTurboEnabled = true;
 
     this.currentScore = 0;
 
@@ -70,7 +72,7 @@ export class UIController {
   }
 
   /**
-   * Load saved manual rim ROI from localStorage
+   * Load saved manual rim ROI and Turbo toggle from localStorage
    * @private
    */
   _loadManualRimRoi() {
@@ -80,9 +82,22 @@ export class UIController {
         this.manualRimRoi = JSON.parse(saved);
         this._updateManualRimUI();
       }
+      const savedTurbo = localStorage.getItem('hoop_roi_turbo_enabled');
+      this.isHoopRoiTurboEnabled = savedTurbo !== null ? (savedTurbo === 'true') : true;
+      if (this.toggleHoopRoi) {
+        this.toggleHoopRoi.checked = this.isHoopRoiTurboEnabled;
+      }
     } catch (err) {
       console.warn('[UIController] Could not load saved manual rim ROI:', err);
     }
+  }
+
+  /**
+   * Check if Hoop ROI Turbo cropping should be used for inference
+   * @returns {boolean}
+   */
+  isHoopRoiEnabled() {
+    return Boolean(this.isHoopRoiTurboEnabled && this.manualRimRoi);
   }
 
   /**
@@ -90,6 +105,14 @@ export class UIController {
    * @private
    */
   _setupManualRimEvents() {
+    if (this.toggleHoopRoi) {
+      this.toggleHoopRoi.addEventListener('change', (e) => {
+        this.isHoopRoiTurboEnabled = e.target.checked;
+        localStorage.setItem('hoop_roi_turbo_enabled', String(this.isHoopRoiTurboEnabled));
+        console.log('⚡ Hoop ROI Turbo:', this.isHoopRoiTurboEnabled);
+      });
+    }
+
     if (this.btnPinRim) {
       this.btnPinRim.addEventListener('click', () => this.toggleDrawingRim());
     }
@@ -635,11 +658,17 @@ export class UIController {
 
     // 60 FPS Kinematic Trajectory Interpolator for Ball Tracking
     const now = performance.now();
-    const hasBallInDetections = list.some((d) => d && d.class && (d.class === '2' || d.class.toLowerCase().includes('ball')));
+    const ballDet = list.find((d) => d && d.class && (d.class === '2' || d.class.toLowerCase().includes('ball')));
 
-    if (hasBallInDetections) {
-      const ballDet = list.find((d) => d && d.class && (d.class === '2' || d.class.toLowerCase().includes('ball')));
-      if (ballDet && ballDet.bbox) {
+    if (ballDet && ballDet.bbox) {
+      const isNewAiUpdate = ballDet._timestamp && ballDet._timestamp !== this.lastBallAiTimestamp;
+
+      if (isNewAiUpdate) {
+        // AI ground truth arrived: update velocity vector and anchor
+        const dtAi = this.lastBallAiTime ? Math.max(0.015, Math.min(0.8, (now - this.lastBallAiTime) / 1000)) : 0.05;
+        this.lastBallAiTime = now;
+        this.lastBallAiTimestamp = ballDet._timestamp;
+
         if (!this.ballInterpolatedBox) {
           this.ballInterpolatedBox = {
             x: ballDet.bbox.x,
@@ -651,39 +680,33 @@ export class UIController {
             lastSeen: now,
           };
         } else {
-          const dt = Math.max(0.001, Math.min(0.5, (now - (this.lastInterpolationTime || now)) / 1000));
-          const rawVx = (ballDet.bbox.x - this.ballInterpolatedBox.x) / dt;
-          const rawVy = (ballDet.bbox.y - this.ballInterpolatedBox.y) / dt;
-          this.ballInterpolatedBox.vx = this.ballInterpolatedBox.vx * 0.35 + rawVx * 0.65;
-          this.ballInterpolatedBox.vy = this.ballInterpolatedBox.vy * 0.35 + rawVy * 0.65;
+          // Calculate true velocity from previous position to new AI ground truth
+          const rawVx = (ballDet.bbox.x - this.ballInterpolatedBox.x) / dtAi;
+          const rawVy = (ballDet.bbox.y - this.ballInterpolatedBox.y) / dtAi;
+          this.ballInterpolatedBox.vx = this.ballInterpolatedBox.vx * 0.3 + rawVx * 0.7;
+          this.ballInterpolatedBox.vy = this.ballInterpolatedBox.vy * 0.3 + rawVy * 0.7;
 
-          // Smooth EMA follow
-          this.ballInterpolatedBox.x += (ballDet.bbox.x - this.ballInterpolatedBox.x) * 0.5;
-          this.ballInterpolatedBox.y += (ballDet.bbox.y - this.ballInterpolatedBox.y) * 0.5;
-          this.ballInterpolatedBox.width += (ballDet.bbox.width - this.ballInterpolatedBox.width) * 0.5;
-          this.ballInterpolatedBox.height += (ballDet.bbox.height - this.ballInterpolatedBox.height) * 0.5;
+          // Anchor directly to the fresh AI ground truth
+          this.ballInterpolatedBox.x = ballDet.bbox.x;
+          this.ballInterpolatedBox.y = ballDet.bbox.y;
+          this.ballInterpolatedBox.width = ballDet.bbox.width;
+          this.ballInterpolatedBox.height = ballDet.bbox.height;
           this.ballInterpolatedBox.lastSeen = now;
         }
+      } else if (this.ballInterpolatedBox && (now - this.ballInterpolatedBox.lastSeen < 350)) {
+        // Intermediate 60 FPS render frame: Smoothly glide ball along velocity trajectory!
+        const dt = Math.max(0.001, Math.min(0.035, (now - (this.lastInterpolationTime || now)) / 1000));
+        this.ballInterpolatedBox.vy += 980 * dt; // Gravity
+        this.ballInterpolatedBox.x += this.ballInterpolatedBox.vx * dt;
+        this.ballInterpolatedBox.y += this.ballInterpolatedBox.vy * dt;
       }
-    } else if (this.ballInterpolatedBox && (now - this.ballInterpolatedBox.lastSeen < 220)) {
-      // Extrapolate between slower AI detection intervals using gravity kinematics
-      const dt = Math.max(0.001, Math.min(0.05, (now - (this.lastInterpolationTime || now)) / 1000));
-      this.ballInterpolatedBox.vy += 980 * dt; // Gravity
+    } else if (this.ballInterpolatedBox && (now - this.ballInterpolatedBox.lastSeen < 350)) {
+      // Extrapolate if ball momentarily undetected
+      const dt = Math.max(0.001, Math.min(0.035, (now - (this.lastInterpolationTime || now)) / 1000));
+      this.ballInterpolatedBox.vy += 980 * dt;
       this.ballInterpolatedBox.x += this.ballInterpolatedBox.vx * dt;
       this.ballInterpolatedBox.y += this.ballInterpolatedBox.vy * dt;
-
-      renderList.push({
-        class: 'ball',
-        confidence: 0.9,
-        isInterpolated: true,
-        bbox: {
-          x: Math.round(this.ballInterpolatedBox.x),
-          y: Math.round(this.ballInterpolatedBox.y),
-          width: Math.round(this.ballInterpolatedBox.width),
-          height: Math.round(this.ballInterpolatedBox.height),
-        },
-      });
-    } else if (this.ballInterpolatedBox && (now - this.ballInterpolatedBox.lastSeen >= 220)) {
+    } else if (this.ballInterpolatedBox && (now - this.ballInterpolatedBox.lastSeen >= 350)) {
       this.ballInterpolatedBox = null;
     }
     this.lastInterpolationTime = now;

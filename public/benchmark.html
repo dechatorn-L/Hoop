@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ONNX Real Hardware Diagnostics & Benchmark</title>
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.29.0/dist/ort.all.min.js"></script>
+  <style>
+    body { font-family: monospace; background: #111; color: #00ff88; padding: 20px; }
+    pre { background: #1a1a1a; padding: 15px; border-radius: 8px; border: 1px solid #333; color: #fff; line-height: 1.5; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h2>🔬 Real Hardware & Backend Diagnostics: Swish-Vision (11.7 MB)</h2>
+  <div id="status">Starting hardware check...</div>
+  <pre id="results">Running...</pre>
+
+  <script>
+    async function runDiagnostics() {
+      const resultsEl = document.getElementById('results');
+      const statusEl = document.getElementById('status');
+      
+      const modelPath = '/models/basketball_swish_yolov8.onnx';
+      const iterations = 30;
+      const warmup = 5;
+
+      const log = (msg) => {
+        resultsEl.textContent += msg + '\n';
+        console.log(msg);
+      };
+
+      resultsEl.textContent = '';
+
+      log(`🖥️ SYSTEM & HARDWARE INSPECTION:`);
+      log(`----------------------------------------`);
+      log(`User Agent: ${navigator.userAgent}`);
+      log(`CPU Logical Cores: ${navigator.hardwareConcurrency || 'Unknown'}`);
+      
+      // Check WebGPU availability
+      let hasWebGpu = false;
+      if (navigator.gpu) {
+        try {
+          const adapter = await navigator.gpu.requestAdapter();
+          if (adapter) {
+            hasWebGpu = true;
+            const info = await adapter.requestAdapterInfo?.() || {};
+            log(`✅ WebGPU Available: YES`);
+            log(`   GPU Vendor: ${info.vendor || 'Standard GPU'}`);
+            log(`   GPU Architecture: ${info.architecture || 'Hardware Accelerated'}`);
+            log(`   GPU Device: ${info.device || info.description || 'Native'}`);
+          } else {
+            log(`⚠️ WebGPU: navigator.gpu exists but requestAdapter() returned null`);
+          }
+        } catch (e) {
+          log(`⚠️ WebGPU Adapter Error: ${e.message}`);
+        }
+      } else {
+        log(`❌ WebGPU: navigator.gpu is undefined (Not supported by browser/flag)`);
+      }
+
+      ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.29.0/dist/';
+      ort.env.wasm.simd = true;
+
+      async function testProvider(providerName) {
+        log(`\n========================================`);
+        log(`🧪 Testing Provider: [${providerName.toUpperCase()}]`);
+        log(`========================================`);
+
+        statusEl.textContent = `Testing ${providerName}...`;
+
+        try {
+          const tCreate0 = performance.now();
+          const session = await ort.InferenceSession.create(modelPath, {
+            executionProviders: [providerName],
+            graphOptimizationLevel: 'all',
+          });
+          const tCreate1 = performance.now();
+          log(`  ✅ Session Created in ${(tCreate1 - tCreate0).toFixed(1)} ms`);
+          log(`  📦 Input Name: ${session.inputNames[0]}`);
+          log(`  📦 Output Name: ${session.outputNames[0]}`);
+
+          const inputDim = 640;
+          const floatData = new Float32Array(1 * 3 * inputDim * inputDim);
+          floatData.fill(0.5);
+          const inputTensor = new ort.Tensor('float32', floatData, [1, 3, inputDim, inputDim]);
+          const feeds = { [session.inputNames[0]]: inputTensor };
+
+          log(`  🔥 Warming up (${warmup} runs)...`);
+          for (let i = 0; i < warmup; i++) {
+            await session.run(feeds);
+          }
+
+          log(`  ⏱️ Benchmarking (${iterations} runs)...`);
+          const times = [];
+          for (let i = 0; i < iterations; i++) {
+            const t0 = performance.now();
+            await session.run(feeds);
+            const t1 = performance.now();
+            times.push(t1 - t0);
+          }
+
+          const avg = times.reduce((a, b) => a + b, 0) / times.length;
+          const min = Math.min(...times);
+          const max = Math.max(...times);
+          const fps = 1000 / avg;
+
+          log(`  📊 Average Latency: ${avg.toFixed(2)} ms`);
+          log(`  ⚡ Estimated FPS  : ${fps.toFixed(1)} FPS`);
+          log(`  🟢 Min Latency    : ${min.toFixed(2)} ms | Max: ${max.toFixed(2)} ms`);
+
+          return { provider: providerName, avg, fps, min, max, success: true };
+        } catch (err) {
+          log(`  ❌ Failed to run on [${providerName}]: ${err.message}`);
+          return { provider: providerName, success: false, error: err.message };
+        }
+      }
+
+      // Test CPU WASM
+      const resWasm = await testProvider('wasm');
+
+      // Test WebGPU (if available)
+      let resWebGpu = null;
+      if (hasWebGpu) {
+        resWebGpu = await testProvider('webgpu');
+      }
+
+      log(`\n========================================`);
+      log(`🏆 HARDWARE BENCHMARK VERDICT`);
+      log(`========================================`);
+      log(`CPU WASM SIMD   : ${resWasm.avg ? resWasm.avg.toFixed(2) + ' ms (' + resWasm.fps.toFixed(1) + ' FPS)' : 'Failed'}`);
+      if (resWebGpu && resWebGpu.success) {
+        log(`WebGPU (Hardware): ${resWebGpu.avg.toFixed(2)} ms (${resWebGpu.fps.toFixed(1)} FPS) -> Speedup: ${(resWasm.avg / resWebGpu.avg).toFixed(2)}x Faster!`);
+      } else {
+        log(`WebGPU (Hardware): Not active or unsupported in this test context.`);
+      }
+
+      statusEl.textContent = '✅ Diagnostics Complete!';
+      window.DIAGNOSTICS_DONE = { resWasm, resWebGpu };
+    }
+
+    window.addEventListener('DOMContentLoaded', runDiagnostics);
+  </script>
+</body>
+</html>

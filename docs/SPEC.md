@@ -32,29 +32,33 @@
 
 | Component | Technology | Version |
 |-----------|-----------|---------|
-| Frontend | HTML5 + Vanilla JavaScript + CSS | - |
-| Dev Server | Vite | ^5.x |
-| Object Detection | Roboflow `inferencejs` | latest |
-| Detection Model | Pre-trained YOLOv8/v11 from Roboflow Universe | - |
-| Camera | MediaDevices API | Web Standard |
-| Drawing | Canvas 2D API | Web Standard |
-| Audio | Web Audio API | Web Standard |
+| Frontend | HTML5 + Vanilla JavaScript + CSS | Modern Standard |
+| Dev Server & Bundler | Vite | ^8.x |
+| Cloud Object Detection | Roboflow `inferencejs` | ^1.3.0 |
+| Local In-Browser ONNX | `onnxruntime-web` (WebGPU / WASM SIMD) | ^1.29.0 |
+| Camera | MediaDevices API (`getUserMedia`) | Web Standard |
+| Drawing & HUD | Canvas 2D API (60 FPS Kinematic Interpolator) | Web Standard |
+| Audio Engine | Web Audio API (`latencyHint: 'interactive'`) | Web Standard |
 
 ### 2.2 Browser Requirements
-- Chrome 80+ (แนะนำ)
-- Firefox 78+
-- Safari 14+ (iOS/macOS)
-- Edge 80+
-- ต้องรองรับ `getUserMedia` และ `WebGL`
+- Chrome 113+ (แนะนำสำหรับ WebGPU Hardware Acceleration)
+- Firefox 115+
+- Safari 16.4+ (iOS/macOS)
+- Edge 113+
+- ต้องรองรับ `getUserMedia`, `WebGL`, หรือ `WebGPU`
 
 ### 2.3 Dependencies
 ```json
 {
   "dependencies": {
-    "inferencejs": "latest"
+    "inferencejs": "^1.3.0",
+    "onnxruntime-web": "^1.29.0",
+    "@tensorflow/tfjs": "^4.22.0"
   },
   "devDependencies": {
-    "vite": "^5.0.0"
+    "vite": "^8.2.2",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
+    "untun": "^0.2.2"
   }
 }
 ```

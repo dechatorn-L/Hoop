@@ -3,11 +3,11 @@
  * Implements client-side in-browser inference for YOLOv8/v11 models with zero API dependencies.
  */
 
-import * as ort from 'onnxruntime-web';
+import * as ort from 'onnxruntime-web/all';
 
 // Set WebAssembly paths & environment (matching package.json onnxruntime-web 1.29.0)
 ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.29.0/dist/';
-ort.env.wasm.numThreads = Math.min(4, Math.max(1, (navigator.hardwareConcurrency || 2) - 1));
+ort.env.wasm.numThreads = 1;
 ort.env.wasm.simd = true;
 
 // Standard 80 COCO classes for general YOLO models
