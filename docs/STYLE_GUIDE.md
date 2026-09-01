@@ -10,15 +10,17 @@ This document defines the visual design system, design tokens, typography, compo
 
 | Token Name | Value | Preview / Usage |
 |---|---|---|
-| `--color-primary` | `#FF6B35` | 🏀 Vibrant Basketball Orange (Primary Action, Main Score Glow) |
+| `--color-primary` | `#FF6B35` | 🏀 Vibrant Basketball Orange (Primary Action, Main Score Glow, Basketball BBox) |
 | `--color-primary-hover` | `#FF8252` | Lighter Orange for Hover States |
 | `--color-primary-active` | `#E8551F` | Deep Orange for Pressed / Active States |
 | `--color-primary-glow` | `rgba(255, 107, 53, 0.45)` | Neon Orange Ambient Glow |
-| `--color-accent-blue` | `#00D2FC` | Electric Cyan-Blue (Secondary stats, Rim detection bounding boxes) |
-| `--color-accent-cyan` | `#00F5D4` | Bright Neon Cyan (Trajectory paths, active indicators) |
-| `--color-success` | `#00E676` | Emerald Green (Confirmed basket / Scored indicator) |
-| `--color-warning` | `#FFD600` | Golden Amber (Calibration, low confidence warnings) |
-| `--color-danger` | `#FF3D71` | Crimson Red (Errors, stop recording, reset score) |
+| `--color-rim` | `#00FF88` | 🎯 Bright Emerald Green (Rim Bounding Box & Pinned Rim State) |
+| `--color-made` | `#00E5FF` | 🎯 Electric Cyan (Made Basket SOTA Detections) |
+| `--color-person` | `#4CC9F0` | 👤 Sky Blue (Person / Player Detection BBoxes) |
+| `--color-accent-blue` | `#00D2FC` | Secondary Highlights & Navigation Accents |
+| `--color-success` | `#00E676` | Score Increment Confirmations & Online Status |
+| `--color-warning` | `#FFD600` | Warnings & Calibration Alerts |
+| `--color-danger` | `#FF3D71` | Errors, Reset Buttons & Clear Action |
 
 ### 1.2 Neutral & Surface Hierarchy (Dark Theme)
 
@@ -69,16 +71,16 @@ This document defines the visual design system, design tokens, typography, compo
 - **Aspect Ratio**: Flexible 16:9 or full viewport on mobile portrait/landscape.
 - **Overlay Canvas**: Positioned `absolute` over `<video>` with matching dimensions.
 - **HUD Elements**:
-  - Top Left: Live FPS and Inference Latency indicator.
-  - Top Right: Camera Switcher & Settings Toggle.
-  - Bottom Center: Floating Action Controls (Start/Stop Detection, Reset Counter).
-  - Floating Score Counter: Top-left or floating card with pulsing animation when scored.
+  - Header Left: 🏀 Hoop Counter Brand Title.
+  - Header Center: Camera Selector, 🎯 ล็อกห่วง (Pin Rim), and 🔄 Reset Buttons.
+  - Header Right: SCORE display badge, ⛶ Fullscreen toggle, and ⚙️ Settings toggle.
 
 ### 3.2 Detection Bounding Boxes & Trajectory Canvas
-- **Rim Bounding Box**: Cyan (`#00D2FC`), 3px solid, with semi-transparent corner brackets.
-- **Basketball Bounding Box**: Vibrant Orange (`#FF6B35`), 2px dashed with center tracking dot.
-- **Ball Trajectory Line**: Neon gradient from transparent to `#00F5D4`, decaying over 1.5 seconds.
-- **Score Flash Animation**: Green screen edge glow (`rgba(0, 230, 118, 0.5)`) on confirmed basket.
+- **Rim Bounding Box**: Green (`#00FF88`), 3px solid, with label "RIM" or "TARGET RIM (PINNED 📌)".
+- **Basketball Bounding Box**: Vibrant Orange (`#FF6B35`), 3px solid, with label "BALL" (smoothed by 60 FPS Kinematics).
+- **Made Basket Bounding Box**: Cyan (`#00E5FF`), 3px solid, with label "MADE BASKET 🎯".
+- **Person Bounding Box**: Sky Blue (`#4CC9F0`), 3px solid, with label "PERSON".
+- **Score Flash Animation**: Pulsing glow on the score badge (`.scored-anim`).
 
 ---
 
@@ -86,6 +88,6 @@ This document defines the visual design system, design tokens, typography, compo
 
 | Breakpoint | Target Devices | Layout Behavior |
 |---|---|---|
-| `< 640px` | Mobile (Portrait) | Compact HUD, Fullscreen camera, bottom sliding controls |
-| `641px - 1024px` | Tablets / Mobile (Landscape) | Sidebar score dashboard with large preview |
-| `> 1025px` | Desktop / Laptops | Centered 16:9 stadium layout with dual-flanked analytics panels |
+| `< 640px` | Mobile (Portrait) | Compact header bar, maximized camera feed, slide-in settings drawer |
+| `641px - 1024px` | Tablets / Mobile (Landscape) | Expanded control toolbar with responsive canvas |
+| `> 1025px` | Desktop / Laptops | Centered stadium layout with high-resolution canvas overlay |

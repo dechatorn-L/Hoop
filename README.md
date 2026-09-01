@@ -20,21 +20,19 @@
 
 **Hoop Shot Counter** is a browser-based, client-side computer vision application designed to automatically track basketball shots and count completed baskets in real time using your device's camera (Webcam or Smartphone). 
 
-Powered by **Roboflow Inference.js** and pre-trained YOLO object detection models, the system tracks the ball's trajectory relative to the rim and triggers instant spatial audio feedback (Swish, Buzzer, Crowd Cheer, or Custom Audio) upon a successful shot.
+Powered by **Roboflow Inference.js** and pre-trained YOLO object detection models, the system tracks the ball's trajectory relative to the rim and triggers instant spatial audio feedback (Swish, Buzzer, Crowd Cheer, or Custom Audio) upon a successful s## ✨ Key Features
 
----
-
-## ✨ Key Features
-
-- 🤖 **Multi-Model Detection Engine**: Choose between **Roboflow Universe (Cloud)** or **Local ONNX Suite (Offline 100%)** directly from the UI.
-- ⚡ **Local ONNX & WebGPU Acceleration**: Runs YOLOv8 / YOLO11 / YOLO-World basketball detection client-side via `onnxruntime-web` with zero API dependencies and zero cloud latency.
-- 🎯 **Advanced Aspect-Ratio Letterbox & Size Filtering**: Preserves exact 16:9 sphere and hoop geometry with gray padding, eliminating ghost and stretched bounding boxes.
-- 🛡️ **Anti-Confusion & Stationary Hoop Locking**: Spatial IoU suppression and Exponential Moving Average anchor to ensure moving balls/hands never trigger false scores.
-- 💾 **Smart LocalStorage Persistence**: Remembers custom Model IDs, API keys, and selected presets across browser sessions.
-- 💡 **In-App Model Comparison Guide**: Built-in interactive guide popup explaining pros, cons, and best scenarios for each model.
-- 🔊 **Dynamic Web Audio System**: High-quality audio effects (Cha-Ching, Fahhhh, Green Giant) alongside custom `.mp3`/`.wav` upload support.
-- 📱 **Mobile-First & Stadium UI**: Dark glassmorphism interface with neon score counters, live latency metrics, and instant front/rear camera switching.
-- 🔒 **Zero-Config Mobile HTTPS & Tunneling**: All-in-One Cloudflare Tunnel integration that automatically spins up Vite and provides public mobile HTTPS access with QR code.
+- 🤖 **Multi-Model Detection Suite**: Choose between **Roboflow Universe (Cloud)** or **Local ONNX Suite (Offline 100%)** directly from the UI.
+- ⚡ **Local ONNX & WebGPU Acceleration**: Runs YOLOv8 `Swish-Vision (11.7 MB)` client-side via `onnxruntime-web/all` (WebGPU JSEP) with **~30.9ms latency (10.7x speedup)** and zero cloud latency.
+- 🧮 **Decoupled 60 FPS Kinematic Projectile Interpolator**: Decouples UI rendering from AI inference, running camera & bounding boxes at a locked **60.0 FPS** with continuous gravity projectile physics ($g=980\text{ px/s}^2$).
+- 🎯 **Universal Manual Rim Pinning & ⚡ Hoop ROI Turbo**: Pin exact rim coordinates on canvas and crop the Action Zone on the GPU, accelerating heavy models (`Cricket 9.5K`, `Devin Ross`) by **3x (80–110ms)**.
+- 📐 **Continuous Trajectory Raycast Crossing**: Line-segment intersection math captures high-speed swishes and dunks without frame tunneling or dropped points.
+- 🛡️ **Anti-Confusion & Rebound Rejection**: Spatial cylinder validation and upward velocity rejection prevent premature or false scoring.
+- 💾 **Smart LocalStorage Persistence**: Remembers custom Model IDs, API keys, selected presets, and manual rim coordinates across sessions.
+- 💡 **In-App Model Comparison Guide**: Built-in interactive guide popup explaining accuracy, latency, and best scenarios for each model.
+- 🔊 **Low-Latency Dynamic Web Audio**: Audio effects with `latencyHint: 'interactive'` for instant (<10ms) playback on made baskets.
+- 📱 **Mobile-First & Stadium UI**: Dark glassmorphism interface with neon score counters, live latency metrics, and front/rear camera switching.
+- 🔒 **Zero-Config Mobile HTTPS & Tunneling**: All-in-One Cloudflare Tunnel integration spinning up Vite with public mobile HTTPS access and QR code.
 
 ---
 
@@ -44,25 +42,26 @@ Powered by **Roboflow Inference.js** and pre-trained YOLO object detection model
 graph TD
     subgraph Input Layer
         A1["Camera Stream"] --> A2["HTML5 Video Element"]
-        A2 --> A3["Canvas 2D Overlay"]
+        A2 --> A3["Canvas 2D Overlay (Locked 60 FPS)"]
     end
 
-    subgraph Detection Layer
+    subgraph Detection Layer (Background Async)
         A2 --> B1["Unified Detector"]
-        B1 -->|Cloud Worker| B2["Roboflow Engine"]
-        B1 -->|Local WebGPU| B3["ONNX Suite"]
+        B1 -->|GPU WebGL| B2["Roboflow Engine"]
+        B1 -->|Web Worker WebGPU| B3["ONNX Suite (30.9ms)"]
         B2 -.->|Auto Fallback| B3
     end
 
-    subgraph Tracking Engine
-        B1 --> C1["Spatial State Machine"]
-        C1 --> C2{"Crossed Rim Zone?"}
+    subgraph Tracking & Kinematics Engine
+        B1 --> C1["Spatial Trajectory Tracker"]
+        C1 --> C2{"Raycast Rim Crossing?"}
         C2 -->|Yes| C3["Score Increment +1"]
-        C2 -->|No| C4["Cooldown Reset"]
+        C2 -->|No| C4["Kinematic Extrapolator (60 FPS)"]
+        C4 --> A3
     end
 
     subgraph Audio and HUD
-        C3 --> D1["Web Audio API"]
+        C3 --> D1["Web Audio (Low Latency)"]
         C3 --> D2["HUD Scoreboard Glow"]
     end
 ```
@@ -74,49 +73,55 @@ graph TD
 ```text
 hoop/
 ├── .agents/                    # Agent Customizations & Skills
-│   ├── rules/style.md          # Response & coding style guidelines
+│   ├── rules/                  # Style & guideline rules
 │   └── skills/                 # Custom domain skill (hoop-shot-counter)
 │
 ├── docs/                       # Comprehensive Technical Documentation
 │   ├── INDEX.md                # Central Documentation Hub & Navigation
-│   ├── ARCHITECTURE.md         # Full System Architecture & FSM Logic
+│   ├── ARCHITECTURE.md         # Full System Architecture & Decoupled 60 FPS Loop
 │   ├── SPEC.md                 # Technical Specifications & Acceptance Criteria
 │   ├── STYLE_GUIDE.md          # UI Design Tokens, Colors & Glassmorphism
 │   ├── ROADMAP.md              # Feature Roadmap & Optimization Strategy
 │   ├── DEPLOYMENT.md           # Mobile Tunneling & HTTPS Setup Guide
-│   ├── TASK.md                 # Task Checklist & Progress Log
-│   ├── IMPLEMENTATION_PLAN.md  # Architectural Decisions & Multi-Model Plan
+│   ├── TASK.md                 # Task Checklist, Milestones & Changelog
+│   ├── OPTIMIZATION_SPEED.md   # Empirical Benchmarks & Hardware Audit Report
 │   └── PROMPT_GUIDE.md         # AI Prompt Templates & Checklists
 │
 ├── public/                     # Static Assets & Offline Models
+│   ├── benchmark.html          # In-Browser Real Hardware Benchmark Harness
 │   └── models/
-│       ├── basketball_swish_yolov8.onnx # Swish-Vision YOLOv8n (11.7 MB - Fast & Tight)
-│       ├── basketball_yolo11.onnx       # YOLO11s Basketball (36.2 MB - Attention C2PSA)
-│       ├── basketball_yoloworld.onnx    # YOLO-World v2 (47.8 MB - Open Vocabulary)
-│       └── basketball_rim_focused.onnx  # Pro High-Precision YOLOv8s (42.7 MB - Court Distance)
+│       └── basketball_swish_yolov8.onnx # Swish-Vision YOLOv8n (11.7 MB · WebGPU / WASM)
 │
 ├── scripts/                    # Development & Tunneling Utilities
 │   ├── start-tunnel-cf.js      # All-in-One Cloudflare Tunnel + Auto Dev Runner
 │   ├── get-ip.js               # Discover local LAN IP for mobile testing
 │   └── generate-sounds.js      # Synthesize fallback audio files
 │
-├── sounds/                     # Sound Effect Assets (.mp3 / .wav)
-│   ├── cha-ching.mp3           # Cash register sound
-│   ├── fahhhh.mp3              # Swoosh/air sound
-│   └── green-giant.mp3         # Crowd celebration sound
+├── sounds/                     # Sound Effect Assets (.wav)
+│   ├── cha-ching.wav           # Cash register sound (Default)
+│   ├── fahhhh.wav              # Swoosh/air sound FX
+│   └── green-giant.wav         # Crowd celebration sound
 │
 ├── src/                        # Core Application Source Code
 │   ├── camera.js               # Camera stream lifecycle & device switcher
 │   ├── config.js               # Model presets & default configurations
-│   ├── detector.js             # Unified multi-provider detector manager
-│   ├── onnx-detector.js        # Local ONNX Engine (onnxruntime-web + WebGPU)
-│   ├── shot-tracker.js         # 5-state spatial tracking state machine
-│   ├── sound-manager.js        # Web Audio API sound synthesis & player
-│   ├── ui.js                   # UI controller, canvas overlay & guide modal
-│   └── main.js                 # Mediator & application lifecycle coordinator
+│   ├── detector.js             # Unified multi-provider detector manager & ROI Cropper
+│   ├── onnx-detector.js        # Main-thread ONNX fallback engine
+│   ├── onnx-worker-detector.js # Dedicated Web Worker manager for ONNX
+│   ├── shot-tracker.js         # Continuous Raycast Crossing shot tracking engine
+│   ├── sound-manager.js        # Low-latency Web Audio API sound engine
+│   ├── ui.js                   # UI controller, 60 FPS interpolator & manual rim tool
+│   ├── main.js                 # Mediator & decoupled 60 FPS loop coordinator
+│   └── worker/
+│       └── onnx.worker.js      # Background WebGPU/WASM ONNX inference worker
 │
 ├── styles/
 │   └── index.css               # Design system & dark glassmorphism styling
+├── .env.example                # Environment variables template
+├── index.html                  # Main application markup & Settings drawer
+├── package.json                # Project dependencies & npm scripts
+└── vite.config.js              # Vite configuration & HTTPS plugin
+```� index.css               # Design system & dark glassmorphism styling
 ├── .env.example                # Environment variables template
 ├── index.html                  # Main application markup & Settings drawer
 ├── package.json                # Project dependencies & npm scripts

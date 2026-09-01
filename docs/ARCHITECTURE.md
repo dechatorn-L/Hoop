@@ -1,358 +1,158 @@
-# 🏀 Hoop Shot Counter — Architecture Document
+# 🏗️ System Architecture & Engineering Design — Hoop Shot Counter
 
-> **Version:** 1.0  
-> **Last Updated:** 2026-08-24
+> **Status:** Approved & Active  
+> **Pattern:** Mediator Pattern, Decoupled 60 FPS Render Loop, Web Worker WebGPU Inference Pipeline
 
 ---
 
-## 1. System Architecture
+## 1. System Overview & Architecture
 
-### 1.1 High-Level Data Flow (Decoupled 60 FPS Architecture)
-
-```
-┌──────────┐    getUserMedia     ┌──────────┐    (Background Async)    ┌───────────────────────────┐
-│  Camera  │ ─────────────────▶  │  Video   │ ───────────────────────▶ │     Unified Detector      │
-│  (HW)   │                     │  Element │                          │ (Roboflow GPU /           │
-└──────────┘                     └────┬─────┘                          │  ONNX Web Worker WebGPU)  │
-                                      │                                └─────────────┬─────────────┘
-                                      │                                              │
-                                      │ (Locked 60 FPS Render Loop)                  ▼ raw detections[]
-                                      ▼                                ┌───────────────────────────┐
-                                ┌──────────┐   (60 FPS Interpolation)  │    Detection Processor    │
-                                │  Canvas  │ ◀──────────────────────── │ (Spatial Anchor, Rim Lock │
-                                │  Overlay │                           │  & Action Zone Remap)     │
-                                └──────────┘                           └─────────────┬─────────────┘
-                                                                                     │
-                                                                      rim bbox + continuous ball ray
-                                                                                     │
-                                                                                     ▼
-                                                                       ┌───────────────────────────┐
-                                                                       │       Shot Tracker        │
-                                                                       │ (Continuous Line Raycast  │
-                                                                       │  & Rebound Rejection)     │
-                                                                       └─────────────┬─────────────┘
-                                                                                     │
-                                                                              SCORED event (<10ms)
-                                                                                     │
-                                                                      ┌──────────────┴──────────────┐
-                                                                      ▼                             ▼
-                                                               ┌──────────────┐              ┌──────────────┐
-                                                               │    Sound     │              │      UI      │
-                                                               │   Manager    │              │  Score Glow  │
-                                                               │(Interactive) │              │  & HUD Stats │
-                                                               └──────────────┘              └──────────────┘
-```
-
-### 1.2 Module Dependency Graph
+Hoop Shot Counter ออกแบบโดยใช้ **Decoupled Architecture** เพื่อแยกการประมวลผล 2 ลูปออกจากกันโดยเด็ดขาด:
+1. **Unblocked 60 FPS Render & Kinematics Loop:** รันบน Main UI Thread ผ่าน `requestAnimationFrame` วาดวิดีโอกล้อง Bounding Box และคำนวณการเคลื่อนที่ของลูกบาสด้วยฟิสิกส์ ($g = 980\text{ px/s}^2$)
+2. **Asynchronous Background Inference Loop:** รันบน Web Worker อิสระ (`src/worker/onnx.worker.js` ด้วย WebGPU หรือ Roboflow Inference Worker) เพื่อไม่ให้กระทบต่อความลื่นไหลของหน้าจอ
 
 ```
-main.js
-  ├── config.js               (no deps)
-  ├── camera.js               (no deps)
-  ├── detector.js             (depends on: inferencejs, config, onnx-worker-detector.js)
+                                ┌──────────────────────────────────────────┐
+                                │             Camera Stream                │
+                                │   (WebRTC getUserMedia 720p / 1080p)     │
+                                └────────────────────┬─────────────────────┘
+                                                     │
+                                                     ▼
+                                ┌──────────────────────────────────────────┐
+                                │            HTML5 Video Element           │
+                                │          (#camera-feed @ 60 FPS)         │
+                                └───────┬──────────────────────────┬───────┘
+                                        │                          │
+           (Locked 60 FPS Render Loop)  │                          │ (Non-Blocking Transfer)
+                                        ▼                          ▼
+                                ┌───────────────┐          ┌───────────────┐
+                                │   Canvas 2D   │          │    Unified    │
+                                │    Overlay    │          │   Detector    │
+                                └───────▲───────┘          └───────┬───────┘
+                                        │                          │
+                                        │ (60 FPS Interpolation)   ▼
+                                        │                  ┌───────────────┐
+                                        │                  │  Web Worker   │
+                                        │                  │ WebGPU / WASM │
+                                        │                  └───────┬───────┘
+                                        │                          │
+                                        │                          ▼ raw detections
+                                        │                  ┌───────────────┐
+                                        │                  │ Spatial Anchor│
+                                        │                  │ & Crop Remap  │
+                                        │                  └───────┬───────┘
+                                        │                          │
+                                        │                          ▼
+                                        │                  ┌───────────────┐
+                                        └──────────────────┤ Shot Tracker  │
+                                    continuous ball ray    │(Raycast Cross)│
+                                                           └───────┬───────┘
+                                                                   │
+                                                                   ▼ SCORED event (<10ms)
+                                                           ┌───────┴───────┐
+                                                           ▼               ▼
+                                                    ┌─────────────┐ ┌─────────────┐
+                                                    │Sound Manager│ │UI Score Glow│
+                                                    │ (Web Audio) │ │ & HUD Stats │
+                                                    └─────────────┘ └─────────────┘
+```
+
+---
+
+## 2. Module Dependency Graph
+
+```
+main.js (Mediator)
+  ├── config.js               (MODEL_PRESETS, DEFAULT_CONFIG)
+  ├── camera.js               (WebRTC, device switcher)
+  ├── detector.js             (Unified manager: Roboflow & ONNX)
   │     └── onnx-worker-detector.js  (spawns: src/worker/onnx.worker.js [WebGPU / WASM])
-  ├── shot-tracker.js         (depends on: config)
-  ├── sound-manager.js        (depends on: config)
-  └── ui.js                   (no deps — 60 FPS Kinematic Projectile Interpolator)
+  ├── onnx-detector.js        (Main-thread fallback engine)
+  ├── shot-tracker.js         (Continuous Raycast Crossing & Anti-Confusion)
+  ├── sound-manager.js        (Web Audio API low latency sound player)
+  └── ui.js                   (60 FPS Kinematic Projectile Interpolator & Manual Rim Tool)
 ```
-
-> **Design Principle:** ทุก module เป็น self-contained class ที่สื่อสารผ่าน `main.js` เท่านั้น (Mediator Pattern) — Render Loop (60 FPS) แยกอิสระ 100% จาก Asynchronous AI Detection Loop.
 
 ---
 
-## 2. Module Specifications
+## 3. Module Specifications & APIs
 
-### 2.1 `main.js` — Application Controller
+### 3.1 `main.js` — Application Controller & Mediator
+- จัดการวงจรชีวิตของแอปพลิเคชัน (Initialization, Event Wiring)
+- รัน `mainLoop()` ผ่าน `requestAnimationFrame` โดยไม่บล็อก UI
+- ประสานข้อมูลระหว่าง `detector.detect()`, `ui.drawDetections()`, `tracker.update()`, และ `sound.playScoreSound()`
 
-**Responsibility:** Initialize ทุก module, จัดการ main loop, ประสาน events ระหว่าง modules
-
-```javascript
-// Pseudocode — Main Loop
-async function mainLoop() {
-  // 1. Get current video frame
-  const frame = videoElement;
-
-  // 2. Run detection (throttled to inference rate)
-  if (shouldRunInference()) {
-    const detections = await detector.detect(frame);
-    
-    // 3. Draw bounding boxes
-    ui.drawDetections(canvas, detections);
-    
-    // 4. Extract rim & ball positions
-    const rim = detections.find(d => d.class === 'rim');
-    const ball = detections.find(d => d.class === 'basketball');
-    
-    // 5. Update shot tracker
-    const scored = shotTracker.update(rim, ball);
-    
-    // 6. Handle score
-    if (scored) {
-      soundManager.playScoreSound();
-      ui.incrementScore();
-    }
-  }
-
-  requestAnimationFrame(mainLoop);
-}
-```
-
-### 2.2 `camera.js` — Camera Manager
-
+### 3.2 `camera.js` — Camera Manager
 ```javascript
 class CameraManager {
-  // Public API
-  async start(deviceId?)          // เริ่มกล้อง
-  async stop()                     // หยุดกล้อง
-  async listDevices()              // แสดงรายชื่อกล้อง
-  async switchCamera(deviceId)     // สลับกล้อง
-  getVideoElement()                // ได้ <video> element
-  
-  // Events
-  onError(callback)                // เมื่อเกิด error
-  onReady(callback)                // เมื่อกล้องพร้อม
+  async start(deviceId = null)       // เริ่มสตรีมกล้อง (default: environment)
+  stop()                             // หยุดสตรีมและปล่อยทรัพยากร
+  async listDevices()                // คืนค่ารายการกล้องทั้งหมด
+  async switchCamera(deviceId)       // สลับไปยังกล้องที่เลือก
+  getVideoElement()                  // ได้รับ reference ของ <video>
+  onError(callback)                  // สมัครรับแจ้งเตือน error
+  onReady(callback)                  // สมัครรับแจ้งเตือนเมื่อกล้องพร้อม
 }
 ```
 
-**Implementation Notes:**
-- ใช้ `navigator.mediaDevices.getUserMedia({ video: constraints })`
-- Mobile: ใช้ `facingMode: { ideal: 'environment' }` เป็น default เพื่อให้ fallback กลับมาใช้เว็บแคมบน desktop ได้โดยไม่ error
-- Resolution: ขอ ideal 1280x720, fallback ตาม hardware
-
-### 2.3 `detector.js` — Unified Object Detector Manager
-
+### 3.3 `detector.js` — Unified Object Detector
 ```javascript
 class ObjectDetector {
-  // Public API
-  async loadModel(options, apiKey, autoFallback) // โหลดโมเดล (Roboflow หรือ Local ONNX)
-  async detect(videoElement)                      // รัน inference ตาม provider ปัจจุบัน
-  setConfidence(threshold)                        // ปรับ sensitivity (0.01 - 0.99)
-  setInferenceRate(fps)                           // ปรับ max inference FPS (throttled)
-  isReady()                                       // ตรวจสอบความพร้อมของ active model
-  
-  // Return format
-  // [{ class: 'rim', bbox: { x, y, width, height }, confidence: 0.94 }, ...]
-  // หมายเหตุ: bbox ใช้พิกัด Top-Left (x, y) ในหน่วย pixels ของ video/canvas frame
+  async loadModel(options, apiKey, autoFallback) // โหลดโมเดล Roboflow หรือ Local ONNX
+  async detect(videoElement, cropRoi = null)      // ประมวลผลภาพ (รองรับ Hoop ROI Turbo)
+  setConfidence(threshold)                        // ปรับ Sensitivity (0.01 - 0.99)
+  setInferenceRate(fps)                           // ปรับ Max inference rate
+  isReady()                                       // ตรวจสอบสถานะความพร้อม
 }
 ```
 
-**Implementation Notes:**
-- ทำหน้าที่เป็น **Unified Facade / Manager** รองรับทั้ง 2 Inference Providers:
-  1. **Roboflow Provider:** รันผ่าน `InferenceEngine` (`inferencejs`) ใน Web Worker
-  2. **ONNX Provider:** รันผ่าน `OnnxObjectDetector` (`onnxruntime-web`) ด้วย WebGPU/WASM
-- **Auto-Fallback Pipeline:** หากโหลดโมเดล Roboflow ล้มเหลว (เช่น API Key หมดอายุ, เครือข่ายหลุด) ตัว Detector จะสลับไปโหลด Local ONNX Model อัตโนมัติ
-
-### 2.3.1 `onnx-detector.js` — Local In-Browser ONNX Engine
-
-```javascript
-class OnnxObjectDetector {
-  async loadModel(modelPath)         // สร้าง ONNX InferenceSession (WebGPU -> WASM fallback)
-  async detect(videoElement)         // Preprocess [1,3,640,640] -> session.run() -> NMS Postprocess
-  setConfidence(threshold)
-  setInferenceRate(fps)
-  isReady()
-}
-```
-
-- **Preprocessing:** ใช้ Offscreen Canvas วาดภาพขนาด 640x640 แปลงเป็น Normalized Float32Array `[1, 3, 640, 640]` (CHW planar format)
-- **Inference Acceleration:** เลือกใช้ `webgpu` เป็นลำดับแรกเพื่อความเร็ว 30–60 FPS และ fallback สู่ `wasm` (SIMD Multi-threaded)
-- **Postprocessing & NMS:** ถอดรหัส Tensor Shape `[1, 4 + classes, 8400]` กรองค่า Confidence และคำนวณ Non-Maximum Suppression (IoU 0.45)
-
-### 2.4 `shot-tracker.js` — Shot Detection Engine
-
+### 3.4 `shot-tracker.js` — Continuous Trajectory & Scoring Engine
 ```javascript
 class ShotTracker {
-  // Public API
-  update(rimDetection, ballDetection)  // อัปเดตทุกเฟรม, return true ถ้า scored
-  reset()                              // reset state
-  getState()                           // ได้ state ปัจจุบัน
-  getScore()                           // ได้คะแนนปัจจุบัน
-  setCooldown(ms)                      // ปรับ cooldown
+  update(rimOrDetections, ballDetection, madeBasketDetection) // อัปเดตพิกัดและคืนค่า true เมื่อลูกลง
+  reset()                                                      // รีเซ็ตคะแนนและสถานะ
+  getState()                                                   // คืนค่าสถานะปัจจุบัน (IDLE, BALL_ABOVE, ฯลฯ)
+  getScore()                                                   // คืนค่าคะแนนสะสม
+  setCooldown(ms)                                              // ปรับระยะเวลา Cooldown
 }
 ```
 
-**State Machine Detail:**
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                                                                 │
-│  ┌──────┐   ball near   ┌──────────┐  ball above  ┌──────────┐ │
-│  │ IDLE │ ────────────▶ │ TRACKING │ ───────────▶ │BALL_ABOVE│ │
-│  └──┬───┘               └────┬─────┘              └────┬─────┘ │
-│     ▲                        │                          │       │
-│     │ timeout                │ ball lost                │       │
-│     │                        ▼                          │       │
-│     │                   ┌──────┐                        │       │
-│     ├───────────────── │ IDLE │                        │       │
-│     │                   └──────┘                        │       │
-│     │                                                   │       │
-│     │                              ball crosses below   │       │
-│     │                              rim + within X range │       │
-│     │                                                   ▼       │
-│     │    2s cooldown    ┌──────────┐              ┌──────────┐  │
-│     ◀────────────────── │ COOLDOWN │ ◀─────────── │  SCORED  │  │
-│                         └──────────┘   play sound └──────────┘  │
-│                                        + score++                │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**Scoring Algorithm:**
-
-```javascript
-// Pseudocode
-function checkScore(rim, ball) {
-  const rimCenterX = rim.x + rim.width / 2;
-  const rimCenterY = rim.y + rim.height / 2;
-  const ballCenterX = ball.x + ball.width / 2;
-  const ballCenterY = ball.y + ball.height / 2;
-
-  // Check X alignment: ball ต้องอยู่ในแนว rim
-  const xAligned = Math.abs(ballCenterX - rimCenterX) < rim.width * 0.6;
-
-  // Check downward crossing: ball เคยอยู่เหนือ rim แล้วลงมาต่ำกว่า
-  const crossedDown = previousBallY < rimCenterY && ballCenterY > rimCenterY;
-
-  return xAligned && crossedDown;
-}
-```
-
-### 2.5 `sound-manager.js` — Audio System
-
+### 3.5 `sound-manager.js` — Web Audio Engine
 ```javascript
 class SoundManager {
-  // Public API
-  async init()                        // สร้าง AudioContext + preload sounds
-  async loadBuiltinSounds()           // โหลดเสียง built-in
-  async loadCustomSound(file)         // โหลดเสียงจาก File object
-  playScoreSound()                    // เล่นเสียง score ปัจจุบัน
-  setActiveSound(soundId)             // เลือกเสียง
-  setVolume(level)                    // ปรับ volume (0-1)
-  getAvailableSounds()                // รายชื่อเสียงทั้งหมด
+  async init()                         // สร้าง AudioContext (interactive latency)
+  async loadBuiltinSounds()            // Preload cha-ching.wav, fahhhh.wav, green-giant.wav
+  async loadCustomSound(file)          // อัปโหลดและ decode ไฟล์เสียง (.mp3, .wav, .ogg)
+  playScoreSound()                     // เล่นเสียงคะแนนทันที (< 10ms)
+  setActiveSound(soundId)              // เลือกเสียงที่ใช้งาน
+  setVolume(level)                     // ปรับระดับเสียง (0.0 - 1.0)
+  getAvailableSounds()                 // รายชื่อเสียงทั้งหมด
 }
 ```
 
-**Implementation Notes:**
-- ใช้ `AudioContext` เดียวตลอด application lifecycle
-- Pre-decode ทุก sound effect เป็น `AudioBuffer` ตอน init
-- เล่นผ่าน `AudioBufferSourceNode` → `GainNode` → `destination`
-- Resume AudioContext เมื่อ user interaction ครั้งแรก (browser policy)
-
-### 2.6 `ui.js` — UI Controller
-
+### 3.6 `ui.js` — UI Controller & Canvas Overlay
 ```javascript
 class UIController {
-  // Public API — Rendering & Updates
-  initCanvas(videoElement)             // ซิงค์ขนาด canvas (width/height) ตาม videoWidth/videoHeight
-  drawDetections(canvas, detections)   // วาด bounding boxes
-  incrementScore()                     // เพิ่มคะแนน + animation
-  resetScore()                         // reset คะแนน
-  showSettings()                       // เปิด settings panel
-  hideSettings()                       // ปิด settings panel
-  showError(message)                   // แสดง error
-  showLoading(message)                 // แสดง loading state
-  setStatus(text)                      // อัปเดต status bar
-
-  // Event Binding (Mediator Pattern — ส่ง event ให้ main.js)
-  bindReset(handler)                   // เมื่อผู้ใช้กด Reset
-  bindCameraChange(handler)            // เมื่อผู้ใช้เลือกกล้องใหม่
-  bindSoundChange(handler)             // เมื่อผู้ใช้เปลี่ยนเสียง
-  bindVolumeChange(handler)            // เมื่อผู้ใช้ปรับ Volume
-  bindSensitivityChange(handler)       // เมื่อผู้ใช้ปรับ Sensitivity (Confidence Threshold)
+  initCanvas(videoElement)             // ซิงค์ resolution ภายในของ Canvas ให้เท่ากับ Video
+  drawDetections(detections)           // วาด Bounding Box พร้อม 60 FPS Kinematics Interpolator
+  incrementScore()                     // เพิ่มคะแนนและแสดง Animation Pulse Glow
+  resetScore()                         // รีเซ็ตคะแนนเป็น 0
+  startDrawingRim() / stopDrawingRim() // เปิด/ปิด โหมดลากสี่เหลี่ยมล็อกห่วงบาส (Manual ROI)
+  setManualRimRoi(roi)                 // บันทึกตำแหน่งห่วงลง localStorage
+  clearManualRimRoi()                  // ล้างตำแหน่งห่วงและกลับเป็น Auto Mode
+  showSettings() / hideSettings()      // ควบคุม Settings Drawer
+  showModelGuide() / hideModelGuide()  // ควบคุม Model Guide Modal
 }
 ```
 
 ---
 
-## 3. Canvas Overlay Strategy
+## 4. Canvas Overlay Strategy & Visual Tokens
 
-Video และ Canvas ซ้อนกันอย่างถูกต้อง (ป้องกัน Container ยุบตัว):
-
-```html
-<div class="camera-container">
-  <video id="camera-feed" autoplay playsinline></video>
-  <canvas id="detection-overlay"></canvas>
-</div>
-```
-
-```css
-.camera-container {
-  position: relative;
-  width: 100%;
-  max-width: 1280px;
-  margin: 0 auto;
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-#camera-feed {
-  display: block;
-  width: 100%;
-  height: auto;
-  object-fit: cover;
-}
-
-#detection-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none; /* เพื่อให้คลิกทะลุได้ */
-}
-```
-
-**Resolution Sync Note:**
-- เมื่อ `<video>` โหลด Metadata เสร็จ (`loadedmetadata`) ต้องกำหนดขนาดความละเอียดภายในของ Canvas ให้เท่ากับ Video เสมอ:
-  ```javascript
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  ```
-  เพื่อป้องกันปัญหา Bounding Box เบี้ยว หรือไม่ตรงกับตำแหน่งจริงของลูกบาส/ห่วง
-
-Canvas จะถูก clear + redraw ทุกเฟรมด้วย bounding boxes:
-- **Rim:** กรอบสีเขียว (#00FF88) + label "RIM" + confidence %
-- **Basketball:** กรอบสีส้ม (#FF6B35) + label "BALL" + confidence %
-
----
-
-## 4. Event Flow — Score Sequence
-
-```
-Frame N:     Ball detected ABOVE rim     → state = BALL_ABOVE
-Frame N+k:   Ball crosses BELOW rim Y    → state = SCORED
-                                           ├── soundManager.playScoreSound()
-                                           ├── ui.incrementScore()
-                                           └── state = COOLDOWN
-Frame N+k+60: Cooldown expired (2s)      → state = IDLE
-```
-
----
-
-## 5. Performance Considerations
-
-### 5.1 Frame Budget
-
-| Task | Budget |
-|------|--------|
-| Video render | ~2ms (browser native) |
-| Canvas draw | ~1ms |
-| Model inference | ~50-80ms (depends on device) |
-| Shot tracking logic | < 1ms |
-| Sound playback | < 1ms (pre-decoded) |
-| **Total per frame** | **~55-85ms** (allows 12-18 inference FPS) |
-
-### 5.2 Optimization Techniques
-- **Throttled inference:** ไม่รัน inference ทุกเฟรม — throttle ที่ 10-15 FPS
-- **Web Worker:** `inferencejs` รัน model ใน background worker โดยอัตโนมัติ
-- **Canvas batching:** วาดทุก bounding box ในรอบเดียว
-- **Pre-decoded audio:** Sound effects ถูก decode ตอน init ไม่ใช่ตอนเล่น
-
----
-
-## 6. Security & Privacy
-
-- ❌ ไม่มีการส่งภาพ/วิดีโอไปยัง server ใดๆ (โมเดลรันในเบราว์เซอร์)
-- ❌ ไม่มีการบันทึกวิดีโอ
-- ✅ Camera permission ต้องได้รับอนุญาตจากผู้ใช้
-- ✅ API Key ของ Roboflow เป็น publishable key (ไม่ใช่ secret key)
-- ✅ ทุกอย่างรันใน client-side เท่านั้น
+- **Video-Canvas Co-location**: ซ้อน Canvas 2D ทับ Video ด้วย `position: absolute` และขนาด 100%
+- **Resolution Synchronization**: อัปเดต `canvas.width = video.videoWidth` และ `canvas.height = video.videoHeight` อัตโนมัติเมื่อเกิด event `loadedmetadata` หรือ `resize` เพื่อป้องกันกรอบเบี้ยว
+- **Color Coding**:
+  - 🎯 **Rim (AI Auto / Pinned 📌)**: `#00FF88` (Emerald Green)
+  - 🏀 **Basketball**: `#FF6B35` (Basketball Orange)
+  - 🎯 **Made Basket (SOTA)**: `#00E5FF` (Electric Cyan)
+  - 👤 **Person / Player**: `#4CC9F0` (Sky Blue)
