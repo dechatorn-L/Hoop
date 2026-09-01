@@ -68,11 +68,17 @@ export class ObjectDetector {
 
     this.isLoading = true;
     this.isLoaded = false;
+    this.resetState();
 
     // 1. If ONNX Provider requested
     if (provider === 'onnx') {
       try {
         console.log(`[ObjectDetector] Initializing Local ONNX model: ${onnxPath}`);
+        // Clean up any active Roboflow worker
+        if (this.roboflowWorkerId) {
+          try { await this.roboflowEngine.stopWorker(this.roboflowWorkerId); } catch (_) {}
+          this.roboflowWorkerId = null;
+        }
         await this.onnxDetector.loadModel(onnxPath);
         this.currentProvider = 'onnx';
         this.activeModelId = onnxPath;
@@ -93,6 +99,7 @@ export class ObjectDetector {
         throw new Error('Model ID และ Publishable API Key จำเป็นสำหรับการโหลด Roboflow');
       }
 
+      this.onnxDetector.resetState();
       await this._loadRoboflowModel(modelId, key);
       this.currentProvider = 'roboflow';
       this.activeModelId = modelId;
@@ -203,13 +210,25 @@ export class ObjectDetector {
   }
 
   /**
+   * Reset detector state and clear any cached detections
+   */
+  resetState() {
+    this.lastDetections = [];
+    this.isInferring = false;
+    this.lastInferenceTime = 0;
+    if (this.onnxDetector) {
+      this.onnxDetector.resetState();
+    }
+  }
+
+  /**
    * Run inference on video element with FPS throttling
    * @param {HTMLVideoElement} videoElement
    * @returns {Promise<Array<{class: string, bbox: {x: number, y: number, width: number, height: number}, confidence: number}>>}
    */
   async detect(videoElement) {
     if (!this.isReady() || !videoElement || videoElement.readyState < 2) {
-      return this.lastDetections;
+      return [];
     }
 
     // Delegate to ONNX if provider is onnx
