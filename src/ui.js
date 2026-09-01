@@ -358,7 +358,7 @@ export class UIController {
       const cls = (d.class || '').toLowerCase();
       const isRim = cls.includes('rim') || cls.includes('hoop') || cls.includes('basket');
       const isBall = cls.includes('ball');
-      const isPerson = cls.includes('peop') || cls.includes('person') || cls.includes('player');
+      const isPerson = cls.includes('peop') || cls.includes('person') || cls.includes('player') || cls.includes('human');
 
       let color = '#FF6B35';
       let label = cls.toUpperCase();
