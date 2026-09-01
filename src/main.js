@@ -27,7 +27,104 @@ export class HoopCounterApp {
     this.sound = new SoundManager(this.config);
 
     this.isRunning = false;
-    this.isProcessingFrame = false;
+    this.isInferring = false;
+    this.latestDetections = [];
+    this.primaryRim = null;
+  }
+
+  /**
+   * Helper classification guards
+   * @private
+   */
+  _isRim(d) {
+    if (!d || !d.class) return false;
+    const c = d.class.toLowerCase().trim();
+    if (c.includes('ball') || c.includes('made')) return false;
+    return c === '1' || c.includes('rim') || c.includes('hoop') || c.includes('backboard') || c === 'basket';
+  }
+
+  _isBall(d) {
+    if (!d || !d.class) return false;
+    const c = d.class.toLowerCase().trim();
+    return c === '2' || c.includes('ball');
+  }
+
+  _isMade(d) {
+    if (!d || !d.class) return false;
+    return d.class.toLowerCase().includes('made');
+  }
+
+  /**
+   * Filter and normalize raw detections into single primary rim & tracking list
+   * @private
+   */
+  _processDetections(rawDetections) {
+    const manualRim = this.ui.getManualRimRoi();
+    let filtered = [];
+    let rim = null;
+
+    if (manualRim) {
+      filtered = (rawDetections || []).filter((d) => !this._isRim(d));
+      rim = manualRim;
+    } else {
+      const rims = (rawDetections || []).filter((d) => this._isRim(d));
+      const nonRims = (rawDetections || []).filter((d) => !this._isRim(d));
+
+      if (rims.length > 0) {
+        rims.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+        rim = rims[0];
+        filtered = [...nonRims, rim];
+      } else {
+        filtered = nonRims;
+      }
+    }
+
+    this.latestDetections = filtered;
+    this.primaryRim = rim;
+  }
+
+  /**
+   * Main Application Frame Loop (requestAnimationFrame)
+   * Adheres to ARCHITECTURE.md Section 2.1 — True Decoupled 60 FPS Render Loop
+   */
+  mainLoop() {
+    if (!this.isRunning) return;
+
+    if (this.videoElement && this.videoElement.readyState >= 2) {
+      // 1. Asynchronous Non-Blocking Inference Trigger (Runs in background without pausing UI)
+      if (!this.isInferring) {
+        this.isInferring = true;
+        this.detector
+          .detect(this.videoElement)
+          .then((rawDetections) => {
+            this._processDetections(rawDetections);
+            this.isInferring = false;
+          })
+          .catch((err) => {
+            console.warn('[MainLoop] Inference warning:', err);
+            this.isInferring = false;
+          });
+      }
+
+      // 2. Unblocked 60 FPS Render & HUD Update Loop (Never pauses, 60 FPS Interpolator runs continuously)
+      this.ui.drawDetections(this.latestDetections);
+
+      // 3. Extract ball & made basket for shot tracking
+      const ball = this.latestDetections.find((d) => this._isBall(d));
+      const madeBasket = this.latestDetections.find((d) => this._isMade(d));
+
+      // 4. Update shot tracker state machine
+      const scored = this.tracker.update(this.primaryRim, ball, madeBasket);
+
+      // 5. Handle score event
+      if (scored) {
+        console.log('🎯 SCORE EVENT TRIGGERED!');
+        this.sound.playScoreSound();
+        this.ui.incrementScore();
+      }
+    }
+
+    requestAnimationFrame(() => this.mainLoop());
   }
 
   /**
@@ -210,88 +307,6 @@ export class HoopCounterApp {
       console.log('🤖 Model change requested:', settings);
       await this.loadActiveModel(settings);
     });
-  }
-
-  /**
-   * Main Application Frame Loop (requestAnimationFrame)
-   * Adheres to ARCHITECTURE.md Section 2.1
-   */
-  async mainLoop() {
-    if (!this.isRunning) return;
-
-    if (this.videoElement && this.videoElement.readyState >= 2 && !this.isProcessingFrame) {
-      this.isProcessingFrame = true;
-
-      try {
-        // 1. Run detection (throttled inside detector)
-        const rawDetections = await this.detector.detect(this.videoElement);
-
-        // Helper classification guards (Crucial: never match 'basketball' as 'rim')
-        const isRimDetection = (d) => {
-          if (!d || !d.class) return false;
-          const c = d.class.toLowerCase().trim();
-          if (c.includes('ball') || c.includes('made')) return false;
-          return c === '1' || c.includes('rim') || c.includes('hoop') || c.includes('backboard') || c === 'basket';
-        };
-
-        const isBallDetection = (d) => {
-          if (!d || !d.class) return false;
-          const c = d.class.toLowerCase().trim();
-          return c === '2' || c.includes('ball');
-        };
-
-        const isMadeDetection = (d) => {
-          if (!d || !d.class) return false;
-          return d.class.toLowerCase().includes('made');
-        };
-
-        // 2. Single Rim Guarantee Filter: Never allow multiple rims to show up or distract tracker
-        const manualRim = this.ui.getManualRimRoi();
-        let filteredDetections = [];
-        let primaryRim = null;
-
-        if (manualRim) {
-          // If Manual Rim is active, ignore ALL auto-detected rims from the model
-          filteredDetections = rawDetections.filter((d) => !isRimDetection(d));
-          primaryRim = manualRim;
-        } else {
-          // In Auto mode: filter so ONLY top 1 highest confidence rim exists
-          const rims = rawDetections.filter(isRimDetection);
-          const nonRims = rawDetections.filter((d) => !isRimDetection(d));
-
-          if (rims.length > 0) {
-            rims.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
-            primaryRim = rims[0];
-            filteredDetections = [...nonRims, primaryRim];
-          } else {
-            filteredDetections = nonRims;
-          }
-        }
-
-        // 3. Draw bounding boxes on canvas
-        this.ui.drawDetections(filteredDetections);
-
-        // 4. Extract ball & made basket
-        const ball = filteredDetections.find(isBallDetection);
-        const madeBasket = filteredDetections.find(isMadeDetection);
-
-        // 5. Update shot tracker state machine
-        const scored = this.tracker.update(primaryRim, ball, madeBasket);
-
-        // 6. Handle score event (Event Flow Section 4)
-        if (scored) {
-          console.log('🎯 SCORE EVENT TRIGGERED!');
-          this.sound.playScoreSound();
-          this.ui.incrementScore();
-        }
-      } catch (frameError) {
-        console.warn('[MainLoop] Frame processing warning:', frameError);
-      } finally {
-        this.isProcessingFrame = false;
-      }
-    }
-
-    requestAnimationFrame(() => this.mainLoop());
   }
 }
 
