@@ -235,12 +235,15 @@ export class ObjectDetector {
 
     this.isInferring = true;
     this.lastInferenceTime = now;
+    let activeBitmap = null;
 
     try {
       const srcW = videoElement.videoWidth || 640;
       const srcH = videoElement.videoHeight || 480;
 
       let cropX = 0, cropY = 0, cropW = srcW, cropH = srcH;
+      let isCropped = false;
+
       if (cropRoi && cropRoi.width > 10 && cropRoi.height > 10) {
         // Calculate Action Zone around the pinned rim
         const padTop = cropRoi.height * 2.0;
@@ -251,48 +254,43 @@ export class ObjectDetector {
         cropY = Math.max(0, Math.round(cropRoi.y - padTop));
         cropW = Math.min(srcW - cropX, Math.round(cropRoi.width + padX * 2));
         cropH = Math.min(srcH - cropY, Math.round(cropRoi.height + padTop + padBottom));
+        isCropped = true;
       }
 
-      const maxDim = 640;
-      let dstW = cropW;
-      let dstH = cropH;
-      if (cropW > maxDim || cropH > maxDim) {
-        if (cropW >= cropH) {
-          dstW = maxDim;
-          dstH = Math.round((cropH / cropW) * maxDim);
-        } else {
-          dstH = maxDim;
-          dstW = Math.round((cropW / cropH) * maxDim);
-        }
+      let cvImage;
+      if (isCropped && typeof createImageBitmap !== 'undefined') {
+        // Native GPU ImageBitmap crop in browser C++ layer (Supported by CVImage)
+        activeBitmap = await createImageBitmap(videoElement, cropX, cropY, cropW, cropH);
+        cvImage = new CVImage(activeBitmap);
+      } else {
+        // Native HTMLVideoElement (Supported by CVImage)
+        cvImage = new CVImage(videoElement);
       }
 
-      if (!this.inputBufferCanvas) {
-        this.inputBufferCanvas = document.createElement('canvas');
-        this.inputBufferCtx = this.inputBufferCanvas.getContext('2d', { willReadFrequently: true });
-      }
-
-      if (this.inputBufferCanvas.width !== dstW || this.inputBufferCanvas.height !== dstH) {
-        this.inputBufferCanvas.width = dstW;
-        this.inputBufferCanvas.height = dstH;
-      }
-
-      // Fast hardware GPU crop and downscale in 1 draw call
-      this.inputBufferCtx.drawImage(videoElement, cropX, cropY, cropW, cropH, 0, 0, dstW, dstH);
-
-      const cvImage = new CVImage(this.inputBufferCanvas);
       const inferPromise = this.roboflowEngine.infer(this.roboflowWorkerId, cvImage);
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Inference timeout')), 2500)
       );
 
       const rawPredictions = await Promise.race([inferPromise, timeoutPromise]);
-      const detections = this._normalizePredictions(rawPredictions, cropW / dstW, cropH / dstH, cropX, cropY);
+      const detections = this._normalizePredictions(
+        rawPredictions,
+        1,
+        1,
+        isCropped ? cropX : 0,
+        isCropped ? cropY : 0
+      );
       this.lastDetections = detections;
       return detections;
     } catch (error) {
       console.warn('[ObjectDetector] Roboflow Inference error:', error);
       return this.lastDetections;
     } finally {
+      if (activeBitmap) {
+        try {
+          activeBitmap.close();
+        } catch (_) {}
+      }
       this.isInferring = false;
     }
   }
