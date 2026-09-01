@@ -257,15 +257,33 @@ export class ObjectDetector {
     for (const pred of list) {
       if (!pred) continue;
 
-      const confidence = typeof pred.confidence === 'number'
-        ? pred.confidence
-        : (typeof pred.score === 'number' ? pred.score : 0);
+      let confidence = 0;
+      if (typeof pred.confidence === 'number') confidence = pred.confidence;
+      else if (typeof pred.score === 'number') confidence = pred.score;
+      else if (typeof pred.conf === 'number') confidence = pred.conf;
 
       if (confidence < this.confidenceThreshold) {
         continue;
       }
 
-      const rawClass = (pred.class || pred.label || pred.name || '').toLowerCase().trim();
+      let rawClass = '';
+      if (pred.class !== undefined && pred.class !== null) {
+        rawClass = String(pred.class);
+      } else if (pred.class_id !== undefined && pred.class_id !== null) {
+        rawClass = String(pred.class_id);
+      } else if (pred.classIndex !== undefined && pred.classIndex !== null) {
+        rawClass = String(pred.classIndex);
+      } else if (pred.label) {
+        rawClass = String(pred.label);
+      } else if (pred.name) {
+        rawClass = String(pred.name);
+      }
+      rawClass = rawClass.toLowerCase().trim();
+
+      // Normalize numeric class IDs (0 = player/person, 1 = rim, 2 = ball)
+      if (rawClass === '0') rawClass = 'person';
+      else if (rawClass === '1') rawClass = 'rim';
+      else if (rawClass === '2') rawClass = 'ball';
 
       const box = pred.bbox || pred;
       const width = typeof box.width === 'number' ? box.width : 0;
