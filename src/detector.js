@@ -151,23 +151,18 @@ export class ObjectDetector {
     const projectSlug = parts.length >= 2 ? parts[parts.length - 2] : parts[0];
 
     try {
-      if (!isNaN(versionNum) && projectSlug) {
-        console.log(`[ObjectDetector] Starting worker: project="${projectSlug}", version=${versionNum}`);
-        this.roboflowWorkerId = await this.roboflowEngine.startWorker(projectSlug, versionNum, apiKey);
-      } else {
-        console.log(`[ObjectDetector] Starting worker by modelId: ${modelId}`);
-        this.roboflowWorkerId = await this.roboflowEngine.startWorkerByModelId(modelId, apiKey);
-      }
+      console.log(`[ObjectDetector] Starting worker by modelId: ${modelId}`);
+      this.roboflowWorkerId = await this.roboflowEngine.startWorkerByModelId(modelId, apiKey);
     } catch (err) {
-      console.warn('[ObjectDetector] Primary worker start failed, trying fallback method:', err);
+      console.warn('[ObjectDetector] startWorkerByModelId failed, trying startWorker with slug:', err);
       try {
-        this.roboflowWorkerId = await this.roboflowEngine.startWorkerByModelId(modelId, apiKey);
-      } catch (err2) {
         if (!isNaN(versionNum) && projectSlug) {
           this.roboflowWorkerId = await this.roboflowEngine.startWorker(projectSlug, versionNum, apiKey);
         } else {
-          throw err2;
+          throw err;
         }
+      } catch (err2) {
+        throw err;
       }
     }
 
