@@ -24,26 +24,26 @@ export const MODEL_PRESETS = {
     modelPath: '/models/basketball_swish_yolov8.onnx',
     description: 'เทรนจากชุด Basketball-1 (11.7 MB) ความละเอียด 640px มาตรฐาน ล็อกเฉพาะลูกบาสและห่วง ไม่ตีกรอบรวมกับคน',
   },
-  'local-onnx-yolo11': {
-    id: 'local-onnx-yolo11',
-    name: 'Local ONNX: YOLO11s Basketball (ยุคใหม่ 36.2MB - แม่นยำ & Motion Blur)',
+  'local-onnx-yolo11-int8': {
+    id: 'local-onnx-yolo11-int8',
+    name: '⚡ Local ONNX: YOLO11s INT8 (9.4MB · เบาลง 75% Motion Blur)',
     provider: 'onnx',
-    modelPath: '/models/basketball_yolo11.onnx',
-    description: 'สถาปัตยกรรม YOLO11s ตัวล่าสุด มี Attention C2PSA จับลูกบาสความเร็วสูงและแสงแดดย้อนกลางแจ้งได้ดีเยี่ยม',
+    modelPath: '/models/basketball_yolo11_int8.onnx',
+    description: 'สถาปัตยกรรม YOLO11s ควอนไทซ์ INT8 (9.4 MB) ลดการกิน RAM แบนด์วิดท์ 75% จับลูกบาสความเร็วสูงและแสงแดดย้อนกลางแจ้ง',
   },
-  'local-onnx-world': {
-    id: 'local-onnx-world',
-    name: 'Local ONNX: YOLO-World (47.8MB - Open-Vocabulary ฉลาดสุด)',
+  'local-onnx-world-int8': {
+    id: 'local-onnx-world-int8',
+    name: '⚡ Local ONNX: YOLO-World INT8 (12.3MB · เบาลง 75% ฉลาดสุด)',
     provider: 'onnx',
-    modelPath: '/models/basketball_yoloworld.onnx',
-    description: 'โมเดล Open-Vocabulary AI วิเคราะห์คลาส basketball, rim, person แยกแยะแม่นยำ ไม่หลอนวัตถุอื่น',
+    modelPath: '/models/basketball_yoloworld_int8.onnx',
+    description: 'โมเดล Open-Vocabulary AI ควอนไทซ์ INT8 (12.3 MB) วิเคราะห์คลาส basketball, rim, person แยกแยะแม่นยำ ไม่หลอนวัตถุอื่น',
   },
-  'local-onnx-pro': {
-    id: 'local-onnx-pro',
-    name: 'Local ONNX: Pro High-Precision (YOLOv8s 42.7MB - ระยะไกล)',
+  'local-onnx-pro-384': {
+    id: 'local-onnx-pro-384',
+    name: '⚡ Local ONNX: Pro High-Precision 384px INT8 (10.8MB · ระยะไกล)',
     provider: 'onnx',
-    modelPath: '/models/basketball_rim_focused.onnx',
-    description: 'โมเดลขนาดใหญ่ 42.7 MB ความแม่นยำสูง สำหรับตั้งกล้องระยะสนามจริง 3–8 เมตร',
+    modelPath: '/models/basketball_pro_384_int8.onnx',
+    description: 'โมเดลระดับโปร YOLOv8s ปรับ 384px INT8 (10.8 MB) แม่นยำสูง สำหรับตั้งกล้องระยะสนามจริง 3–8 เมตร',
   },
   'roboflow-custom': {
     id: 'roboflow-custom',
