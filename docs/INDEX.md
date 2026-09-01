@@ -12,6 +12,7 @@ docs/
 ├── DEPLOYMENT.md           # Local Dev, Cloudflare Tunnel & HTTPS Setup for Mobile
 ├── TASK.md                 # Project Checklist & Task Progress Tracking
 ├── IMPLEMENTATION_PLAN.md  # Architectural Decisions & Phase 1 Execution Plan
+├── OPTIMIZATION_SPEED.md   # Mobile Speed Acceleration & 60 FPS Roadmap
 └── PROMPT_GUIDE.md         # Agent Prompts & Step-by-Step Verification Guide
 ```
 
