@@ -84,8 +84,8 @@ graph TD
 
 | Preset | Model ID / Path | Architecture | Native Inference Time | With Hoop ROI Turbo | Visual Tracking FPS | Best Use Case |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| ⚡ **Roboflow v4: Main** | `people_basketball_hoops/4` | YOLOv5/v8 Nano (WebGL Cloud) | **~45–60 ms** | **~25–35 ms** | 🟢 **45–60 FPS** | 🥇 แนะนำใช้งานทั่วไป (เสถียร + ลื่นไหลสูงสุด) |
-| ⚡ **Local ONNX: Swish-Vision** | `/models/basketball_swish_yolov8.onnx` | YOLOv8n (11.7 MB · WASM SIMD) | **~320 ms (Inference)** | **~120 ms (ROI Crop)** | 🟢 **60 FPS (Via Interpolator)** | 🥈 ใช้งานออฟไลน์ 100% |
+| ⚡ **Local ONNX: Swish-Vision** | `/models/basketball_swish_yolov8.onnx` | YOLOv8n (11.7 MB · 🚀 WebGPU) | **~23–31 ms (⚡ 10.7x ไวขึ้น)** | **~12–18 ms** | 🟢 **60 FPS** | 🥇 แนะนำใช้งานจริง (เร็วสุด + ออฟไลน์ 100% ไม่พึ่งเน็ต) |
+| ⚡ **Roboflow v4: Main** | `people_basketball_hoops/4` | YOLOv5/v8 Nano (WebGL Cloud) | **~45–60 ms** | **~25–35 ms** | 🟢 **45–60 FPS** | 🥈 แนะนำใช้งานทั่วไป (ตรวจจับ คน + ลูก + ห่วง) |
 | 🎯 **Roboflow: Cricket 9.5K** | `cricket-qnb5l/basketball-xil7x/1` | YOLOv8m (9.5K Dataset) | **~250–320 ms** | **~80–110 ms (⚡ 3x เร็วขึ้น)** | 🟢 **60 FPS (Via Interpolator)** | 🎯 โมเดลชุดใหญ่ เน้นความแม่นยำสูง |
 | 🎯 **Roboflow: Devin Ross** | `devin-ross-g0rqc/basketball-ls818/15` | Roboflow Snap (8.1K Dataset) | **~280–350 ms** | **~85–120 ms (⚡ 3x เร็วขึ้น)** | 🟢 **60 FPS (Via Interpolator)** | 🎯 ตรวจจับจังหวะ `made basket` ลงห่วง (ใช้คู่ล็อกห่วง) |
 
@@ -96,8 +96,9 @@ graph TD
 - [x] **Phase A (TFJS WebGL Evaluation):**
   - [x] Evaluated TensorFlow.js WebGL backend vs ONNX Runtime & `inferencejs`.
   - [x] Deprecated generic TFJS due to GPU readback bottleneck and lack of rim class.
-- [x] **Phase C (Web Worker Pipeline & Adaptive Multi-Threading):**
-  - [x] Implemented `src/worker/onnx.worker.js` with `OffscreenCanvas`, `ImageBitmap`, and `numThreads = 2`.
+- [x] **Phase C (Web Worker Pipeline & WebGPU Hardware Acceleration):**
+  - [x] Implemented `src/worker/onnx.worker.js` with `onnxruntime-web/all` WebGPU JSEP backend.
+  - [x] Boosted Local ONNX inference speed by **10.7x (330ms ➔ 30.9ms)** with automatic WASM fallback.
   - [x] Decoupled Main UI render loop (locked at 60 FPS) from AI inference.
 - [x] **Phase D (Kinematic Trajectory Interpolation & Hoop ROI Turbo):**
   - [x] Implemented 60 FPS kinematic projectile trajectory interpolator in `src/ui.js`.

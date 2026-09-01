@@ -3,7 +3,7 @@
  * Offloads ONNX tensor generation, execution, and NMS postprocessing off the main UI thread.
  */
 
-import * as ort from 'onnxruntime-web';
+import * as ort from 'onnxruntime-web/all';
 
 // Configure WebAssembly paths & environment for worker context
 ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.29.0/dist/';
@@ -53,18 +53,21 @@ self.onmessage = async (e) => {
         
         console.log(`[ONNX Worker] Loading session: ${modelPath}`);
         
-        // Attempt WebGPU first, then WASM
+        // Attempt WebGPU first for 10x hardware acceleration, with graceful fallback to WASM
         try {
+          console.log('[ONNX Worker] 🚀 Attempting WebGPU Hardware Acceleration...');
           session = await ort.InferenceSession.create(modelPath, {
-            executionProviders: ['webgpu', 'wasm'],
+            executionProviders: ['webgpu'],
             graphOptimizationLevel: 'all',
           });
+          console.log('[ONNX Worker] ✅ WebGPU Execution Provider successfully initialized!');
         } catch (gpuErr) {
-          console.warn('[ONNX Worker] WebGPU unavailable, using WASM:', gpuErr);
+          console.warn('[ONNX Worker] ⚠️ WebGPU unavailable, falling back to CPU WASM:', gpuErr);
           session = await ort.InferenceSession.create(modelPath, {
             executionProviders: ['wasm'],
             graphOptimizationLevel: 'all',
           });
+          console.log('[ONNX Worker] 💻 Fallback to CPU WASM SIMD active.');
         }
 
         // Dynamically detect model input resolution (e.g. 384x384 vs 640x640)
