@@ -7,44 +7,48 @@ description: Build and maintain a basketball shot counter web app that uses came
 
 ## Overview
 
-เว็บแอป **Hoop Shot Counter** ใช้กล้อง (webcam/มือถือ) ตรวจจับห่วงบาสเก็ตบอลแบบ real-time ด้วย Roboflow `inferencejs` แล้วนับจำนวนลูกที่ชู้ตลงห่วง พร้อม Sound Effect ที่ปรับแต่งได้
+เว็บแอป **Hoop Shot Counter** ใช้กล้อง (webcam/มือถือ) ตรวจจับห่วงบาสเก็ตบอลแบบ real-time ด้วย Roboflow `inferencejs` และ Local ONNX WebGPU Runtime (`onnxruntime-web/all`) เพื่อนับจำนวนลูกที่ชู้ตลงห่วงแบบแม่นยำ พร้อม Sound Effect ที่ปรับแต่งได้
 
 ---
 
 ## Prerequisites
 
 1. **Node.js** v18+ ติดตั้งอยู่ในเครื่อง
-2. **Roboflow Account** (ฟรี) — ต้องมี Publishable API Key
-3. **กล้อง** — webcam หรือ กล้องมือถือ
-4. **HTTPS** — `getUserMedia` ต้องการ HTTPS (Vite dev server ใช้ localhost ได้)
+2. **Roboflow Account** (ฟรี) — สำหรับโมเดล Roboflow Universe หรือใช้งาน Local ONNX (ออฟไลน์ 100% ไม่ต้องใช้ API Key)
+3. **กล้อง** — webcam หรือ กล้องมือถือ (รองรับสลับกล้องหน้า/หลัง)
+4. **HTTPS** — `getUserMedia` ต้องการ HTTPS (รันผ่าน `npm run dev` หรือ `npm run tunnel:cf`)
 
 ---
 
 ## Project Structure
 
-```
-c:\Projects\GO_ON\hoop\
+```text
+hoop/
 ├── index.html                  # Main HTML page & Settings drawer
 ├── package.json                # Dependencies (inferencejs, onnxruntime-web)
 ├── vite.config.js              # Vite configuration with HTTPS support
 ├── public/
+│   ├── benchmark.html          # In-Browser Real Hardware Benchmark Harness
 │   └── models/
-│       ├── basketball_swish_yolov8.onnx # Swish-Vision YOLOv8n (11.7 MB - Fast & Tight)
-│       ├── basketball_yolo11.onnx       # YOLO11s Basketball (36.2 MB - Attention C2PSA)
-│       ├── basketball_yoloworld.onnx    # YOLO-World v2 (47.8 MB - Open Vocabulary)
-│       └── basketball_rim_focused.onnx  # Pro High-Precision YOLOv8s (42.7 MB - Court Distance)
+│       └── basketball_swish_yolov8.onnx # Swish-Vision YOLOv8n (11.7 MB · WebGPU / WASM)
 ├── src/
-│   ├── main.js                 # App entry point, mediator & frame loop
+│   ├── main.js                 # App entry point, mediator & decoupled 60 FPS loop
 │   ├── camera.js               # Camera access & device management
 │   ├── detector.js             # Unified Object Detector Manager (Roboflow + ONNX)
-│   ├── onnx-detector.js        # Local In-Browser ONNX Engine (WebGPU/WASM + Letterboxing)
-│   ├── shot-tracker.js         # Anti-Confusion 5-state tracking state machine
-│   ├── sound-manager.js        # Web Audio API sound system & player
-│   ├── ui.js                   # UI controller, canvas overlay & model guide modal
-│   └── config.js               # MODEL_PRESETS, thresholds & constants
+│   ├── onnx-detector.js        # Main-thread ONNX fallback engine
+│   ├── onnx-worker-detector.js # Dedicated Web Worker manager for ONNX
+│   ├── shot-tracker.js         # Continuous Raycast Crossing & Anti-Confusion state machine
+│   ├── sound-manager.js        # Web Audio API low-latency sound player
+│   ├── ui.js                   # UI controller, 60 FPS Kinematics & Manual Rim tool
+│   ├── config.js               # MODEL_PRESETS, thresholds & constants
+│   └── worker/
+│       └── onnx.worker.js      # Background WebGPU/WASM ONNX inference worker
 ├── styles/
 │   └── index.css               # Design system & dark glassmorphism styling
-├── sounds/                     # Sound effect assets (.mp3)
+├── sounds/                     # Sound effect assets (.wav)
+│   ├── cha-ching.wav           # Cash register sound (Default)
+│   ├── fahhhh.wav              # Swoosh/air sound FX
+│   └── green-giant.wav         # Crowd celebration sound
 └── docs/                       # Complete project documentation suite
 ```
 
@@ -55,38 +59,43 @@ c:\Projects\GO_ON\hoop\
 ### 1. Initialize Project & Dependencies
 ```bash
 npm install
-# ติดตั้ง onnxruntime-web และ inferencejs
-npm install onnxruntime-web inferencejs
-npm install -D vite @vitejs/plugin-basic-ssl
 ```
 
-### 2. Configure Roboflow API Key
-สร้างไฟล์ `src/config.js` แล้วใส่ API Key และค่าเริ่มต้น (ตาม SPEC.md Section 5):
+### 2. Configure Settings & Default Presets (`src/config.js`)
 ```javascript
 export const DEFAULT_CONFIG = {
-  // Detection
-  publishableKey: 'YOUR_PUBLISHABLE_KEY_HERE', // Roboflow Publishable API Key
-  modelId: 'basketball-rim-detection/1',       // Roboflow model ID
-  confidenceThreshold: 0.5,                    // Min confidence for detection
-  inferenceRate: 15,                           // Inference FPS (throttled)
+  // Detection Model Settings
+  modelType: 'roboflow-default',
+  publishableKey: import.meta.env.VITE_ROBOFLOW_API_KEY || '',
+  modelId: import.meta.env.VITE_ROBOFLOW_MODEL_ID || 'people_basketball_hoops/4',
+  onnxModelPath: '/models/basketball_swish_yolov8.onnx',
+  confidenceThreshold: 0.35,
+  inferenceRate: 20,
 
   // Shot tracking
-  scoreCooldownMs: 2000,                       // Cooldown between scores (ms)
-  rimProximityFactor: 2.0,                     // Factor of rim width for tracking zone
-  
+  scoreCooldownMs: 2000,
+  rimProximityFactor: 2.0,
+
   // Sound
-  defaultSound: 'swoosh',                     // Default sound effect
-  volume: 0.8,                                 // Default volume (0-1)
+  defaultSound: 'cha-ching',
+  volume: 0.8,
 
   // Camera
   preferredResolution: { width: 1280, height: 720 },
-  facingMode: 'environment',                   // Back camera on mobile
+  facingMode: 'environment',
 };
 ```
 
-### 3. Run Development Server
+### 3. Run Development Server & Mobile Tunnel
 ```bash
+# Local Dev Server
 npm run dev
+
+# All-in-One Cloudflare Tunnel for Mobile Testing
+npm run tunnel:cf
+
+# Local LAN IP for Wi-Fi Testing
+npm run ip
 ```
 
 ---
@@ -98,54 +107,31 @@ npm run dev
 - รองรับเลือกกล้อง (หน้า/หลังบนมือถือ)
 - Resolution: 1280x720 (fallback auto)
 
-### Detector (`src/detector.js`)
-- โหลดโมเดลผ่าน `InferenceEngine` จาก `inferencejs`
-- รัน inference แบบ throttled ที่ 10-15 FPS (แยกจาก render loop)
-- Return: `{ class: 'rim'|'basketball', bbox: {x, y, width, height}, confidence: 0-1 }`
+### Detector (`src/detector.js` & `src/onnx-worker-detector.js`)
+- Unified Manager รองรับทั้ง Roboflow (`inferencejs`) และ Local ONNX WebGPU Web Worker
+- ปรับ Sensitivity (0.01 - 0.99) และ Throttle Inference Rate
+- รองรับ ⚡ **Hoop ROI Turbo Mode** ตัดภาพเฉพาะโซน Action Zone รอบห่วงบาส เร่งความเร็ว 3 เท่า
 
 ### Shot Tracker (`src/shot-tracker.js`)
 - State Machine: `IDLE → TRACKING → BALL_ABOVE → SCORED → COOLDOWN → IDLE`
-- Track ball centroid relative to rim position
-- Score condition: ball ลงจากบนห่วงผ่านลงล่าง + อยู่ในแกน X ของ rim
-- Cooldown 2 วินาทีป้องกันนับซ้ำ
+- Continuous Trajectory Raycast Crossing: คำนวณจุดตัดระนาบห่วง ป้องกัน Ball Tunneling
+- Anti-Confusion Filter: ตัดกล่องห่วงปลอมที่ทับซ้อนกับลูกบาสในมือผู้เล่น
+- Stationary Rim Anchor & Cache: กรองการกระโดดของห่วงและ Smooth ตำแหน่ง
 
 ### Sound Manager (`src/sound-manager.js`)
-- Pre-load sound effects ด้วย Web Audio API
-- เล่นเสียงเมื่อ shot tracker trigger `SCORED`
-- รองรับเลือกเสียง built-in + อัปโหลดเสียงเอง
-- Volume control
+- Web Audio API (`AudioContext` with `latencyHint: 'interactive'`)
+- Pre-decode ไฟล์เสียง `cha-ching.wav`, `fahhhh.wav`, `green-giant.wav` (< 10ms playback)
+- รองรับ Custom Sound Upload และมี Synthetic Sound Fallback
 
-### UI (`src/ui.js`)
-- Score counter with glow animation
-- Settings panel (slide-in) — sound, volume, sensitivity, camera
-- Canvas overlay สำหรับวาด bounding boxes
-
----
-
-## Development Guidelines
-
-### Code Style
-- Vanilla JavaScript (ES Modules)
-- ไม่ใช้ framework (React, Vue, etc.)
-- ใช้ `class` สำหรับ modules หลัก
-- JSDoc comments สำหรับ public methods
-
-### Performance
-- แยก inference loop ออกจาก render loop
-- ใช้ `requestAnimationFrame` สำหรับ rendering
-- Target: inference 10-15 FPS, render 30 FPS
-- Debounce UI updates
-
-### Error Handling
-- Graceful fallback สำหรับทุก error case
-- User-friendly error messages (ไทย + อังกฤษ)
-- Console logging สำหรับ debug
+### UI Controller (`src/ui.js`)
+- 60 FPS Kinematic Projectile Interpolator ลื่นไหลระดับ Native
+- Bounding Box Overlay: Rim (`#00FF88`), Ball (`#FF6B35`), Made Basket (`#00E5FF`), Person (`#4CC9F0`)
+- Manual Rim ROI Pinning Tool (ลากกล่องกำหนดตำแหน่งห่วงเอง พร้อมจำลง `localStorage`)
+- Score Counter Glow Animation และ Settings Drawer
 
 ---
 
 ## References
-
 - [Roboflow inferencejs docs](https://inference.roboflow.com/)
-- [Roboflow Universe — Basketball Models](https://universe.roboflow.com/)
+- [ONNX Runtime Web WebGPU](https://onnxruntime.ai/docs/tutorials/web/)
 - [Web Audio API — MDN](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
-- [MediaDevices.getUserMedia — MDN](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia)

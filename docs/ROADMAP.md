@@ -11,8 +11,9 @@ gantt
     title Hoop Shot Counter Roadmap
     dateFormat  YYYY-MM
     section Phase 1 (Completed)
-    Core Detection & Tracking       :done, 2026-08, 2026-08
-    Sound Synthesis & Web Audio      :done, 2026-08, 2026-08
+    Core Detection & Tracking       :done, 2026-08, 2026-09
+    Sound Synthesis & Web Audio      :done, 2026-08, 2026-09
+    Multi-Model Suite & WebGPU ONNX :done, 2026-08, 2026-09
     section Phase 2 (Planned)
     Analytics & Shot Accuracy        :active, 2026-09, 2026-10
     Session History & Local Storage  :2026-09, 2026-10
@@ -20,25 +21,27 @@ gantt
     Pose Estimation & Form Analysis :2026-11, 2026-12
     Multiplayer / Challenge Mode    :2027-01, 2027-02
     section Phase 4 (Next-Gen)
-    Local ONNX / WebGPU Engine       :2027-03, 2027-05
-    PWA & Offline Court Companion    :2027-05, 2027-06
+    Custom 384x384 QAT Model Training:2027-03, 2027-04
+    PWA & Offline Court Companion    :2027-04, 2027-05
 ```
 
 ---
 
 ## 🌟 Phase Breakdown
 
-### ✅ Phase 1: Core Engine & Real-Time Tracking (Current)
+### ✅ Phase 1: Core Engine, Real-Time Tracking & WebGPU Suite (Completed)
 - [x] Web camera stream integration with rear/front switcher (`getUserMedia`).
-- [x] Client-side YOLO object detection powered by Roboflow `inferencejs`.
-- [x] Heuristic spatial trajectory analysis (IDLE → TRACKING → BALL_ABOVE → SCORED → COOLDOWN).
-- [x] Web Audio API sound synthesis and custom audio upload.
-- [x] Mobile-responsive dark glassmorphism UI.
-- [x] Cloudflare Tunneling and local HTTPS support for mobile testing.
+- [x] Client-side YOLO object detection powered by Roboflow `inferencejs` with 5 presets.
+- [x] Dedicated Web Worker WebGPU hardware-accelerated ONNX Runtime (`src/worker/onnx.worker.js` ~30.9ms).
+- [x] True 60 FPS Kinematic Projectile Extrapolator ($g = 980\text{ px/s}^2$).
+- [x] Continuous Trajectory Raycast Crossing & Rebound Rejection.
+- [x] Universal Manual Rim ROI Pinning Mode & ⚡ Hoop ROI Turbo mode (3x speedup).
+- [x] Web Audio API low-latency sound player (`cha-ching.wav`, `fahhhh.wav`, `green-giant.wav`) and custom upload.
+- [x] All-in-One Cloudflare Tunneling (`npm run tunnel:cf`) and Local HTTPS.
 
 ---
 
-### 🟡 Phase 2: Analytics, Accuracy & Shot Breakdown
+### 🟡 Phase 2: Analytics, Accuracy & Shot Breakdown (Active / Next)
 - [ ] **Shot Attempt & Accuracy Tracking**: Detect both missed shots and made shots to compute Shooting Percentage ($FG\% = \frac{\text{Made}}{\text{Attempts}} \times 100$).
 - [ ] **Streak & Heat Multiplier**: Fire effects and audio escalation for consecutive baskets (e.g., 3-in-a-row "He's on fire!").
 - [ ] **Session Summary & Charts**: Real-time Chart.js integration showing shots per minute, scoring velocity, and workout duration.
@@ -54,11 +57,8 @@ gantt
 
 ---
 
-### 🟣 Phase 4: Offline Engine, Lightweight Fallbacks & WebGPU Optimization
-- [x] **ONNX Runtime Web / WebGPU Engine**: Run custom YOLO models directly in the browser with zero cloud latency and no API keys required.
-- [ ] **Manual Hoop ROI & COCO-SSD / MediaPipe Emergency Mode**:
-  - โหมดสำรองฉุกเฉิน (Ultra-Lightweight Fallback): ใช้ `@tensorflow-models/coco-ssd` หรือ MediaPipe เพื่อตรวจจับลูกบาส (`sports ball`) โดยตรง
-  - **Manual Rim ROI Calibration**: รองรับการแตะ/ลากตีกรอบตำแหน่งห่วงบาสบนหน้าจอด้วยตนเอง สำหรับสนามที่มีห่วงบาสทรงแปลกตา หรือสภาพแสงที่โมเดลตรวจจับห่วงอัตโนมัติไม่เจอ
-- [ ] **Progressive Web App (PWA)**: Installable on iOS/Android home screens with offline sound asset caching.
-- [ ] **Multi-Angle Synchronized Tracking**: Multi-phone camera mesh to capture rim and shooter perspectives simultaneously.
-
+### 🟣 Phase 4: Next-Gen Optimization & Progressive Web App
+- [x] **Local ONNX / WebGPU Engine**: Run custom YOLO models in browser with ~30.9ms latency (Done).
+- [x] **Universal Manual Rim ROI Calibration**: Drag and pin rim on canvas with `localStorage` persistence (Done).
+- [ ] **Custom 384x384 QAT Model Training**: Train YOLOv8n from epoch 0 at 384x384 resolution with INT8 Quantization (~3-4 MB).
+- [ ] **Progressive Web App (PWA)**: Installable on iOS/Android home screens with full offline caching.

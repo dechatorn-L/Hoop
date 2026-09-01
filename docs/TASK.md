@@ -1,171 +1,90 @@
-# 🏀 Hoop Shot Counter — Task Tracking
+# 📋 Project Task Tracker & Changelog — Hoop Shot Counter
 
-> **Project:** Basketball Shot Counter Web App  
-> **Phase:** 1  
-> **Start Date:** 2026-08-24  
-> **Status:** 🟢 Completed
+## Overview
+
+Task tracker and release checklist for **Hoop Shot Counter**.
 
 ---
 
-## Phase 1 — Core Features
+## Sprint Checklist
 
 ### 📋 1. Project Setup & Infrastructure
-- [x] Initialize npm project (`npm init`)
-- [x] Install dependencies (`inferencejs`, `vite`)
-- [x] Configure `vite.config.js`
-- [x] Create project folder structure
-- [x] Create `index.html` boilerplate
-- [x] Setup `package.json` scripts (`dev`, `build`)
+- [x] Initialize npm project (`package.json`)
+- [x] Configure Vite with `@vitejs/plugin-basic-ssl` and `untun`
+- [x] Install dependencies: `inferencejs`, `onnxruntime-web`, `@tensorflow/tfjs`
+- [x] Set up project folder structure (`src/`, `styles/`, `sounds/`, `public/`, `scripts/`, `docs/`)
+- [x] Configure environment template (`.env.example`)
 
-### 📋 2. Styling & Design System
-- [x] Create `styles/index.css`
-- [x] Dark theme base styles (background, text colors)
-- [x] Basketball color palette (orange #FF6B35, dark #1A1A2E)
-- [x] Google Fonts import (Inter / Outfit)
-- [x] Camera container layout (video + canvas overlay)
-- [x] Score counter styles (large number, glow effect)
-- [x] Settings panel styles (glassmorphism, slide-in)
-- [x] Responsive layout (desktop + mobile)
-- [x] Button & control styles
-- [x] Animations (pulse, glow, slide)
+### 📋 2. Styling & Design System (`styles/index.css`)
+- [x] Design tokens: Dark theme (`#0F0F1A`), Basketball Orange (`#FF6B35`), Rim Green (`#00FF88`), Cyan (`#00E5FF`)
+- [x] Glassmorphism panels, modals, and settings drawer
+- [x] Score badge glow animations (`.scored-anim`)
+- [x] Manual Rim drawing banner, dashed box preview, and canvas overlay styles
+- [x] Responsive layout for mobile (portrait & landscape) and desktop
 
-### 📋 3. Camera Module (`src/camera.js`)
-- [x] `getUserMedia` request with error handling
-- [x] List available cameras (`enumerateDevices`)
-- [x] Camera switching (front/back on mobile)
-- [x] Video element setup (autoplay, playsinline)
-- [x] Resolution negotiation (ideal 1280x720)
-- [x] Camera error fallback UI
+### 📋 3. Camera Management (`src/camera.js`)
+- [x] WebRTC `getUserMedia` stream initialization with `facingMode: 'environment'`
+- [x] Camera device enumeration & switcher
+- [x] Fallback constraints and graceful error mapping
 
-### 📋 4. Object Detection & Multi-Model Engine (`src/detector.js`, `src/onnx-detector.js`)
-- [x] Roboflow `InferenceEngine` (`inferencejs`) integration
-- [x] Local In-Browser ONNX Engine (`onnxruntime-web` + WebGPU/WASM)
-- [x] Pre-trained YOLOv8n Basketball & Rim Model (`public/models/basketball_yolov8n.onnx`)
-- [x] Multi-Model Presets (Default, Alt 1, Alt 2, Alt 3, Local ONNX, Custom Model ID)
-- [x] Automatic Fallback pipeline (Roboflow failure ➔ Local ONNX)
-- [x] LocalStorage persistence for Custom Model ID and API Key
-- [x] Detection result parsing & Top-Left bbox normalization
-- [x] Confidence threshold filtering & FPS throttling (20 FPS)
+### 📋 4. Object Detection Pipeline (`src/detector.js`, `src/onnx-worker-detector.js`, `src/worker/onnx.worker.js`)
+- [x] Unified Detector Manager supporting Roboflow and Local ONNX
+- [x] Dedicated Web Worker WebGPU/WASM ONNX engine with zero-copy ImageBitmap transfers
+- [x] Multi-Model Presets: `roboflow-default`, `local-onnx-swish`, `roboflow-cricket`, `roboflow-devinross`, `roboflow-custom`
+- [x] Auto-fallback pipeline to Local ONNX when API Key is missing or network fails
+- [x] ⚡ Hoop ROI Turbo Mode Action Zone cropping & coordinate remapping
 - [x] Interactive Model Comparison Guide Modal (`💡 แนะนำโมเดล`)
-- [x] Loading state indicator & error recovery
 
 ### 📋 5. Shot Tracking (`src/shot-tracker.js`)
 - [x] State machine implementation (IDLE → TRACKING → BALL_ABOVE → SCORED → COOLDOWN)
-- [x] Ball-Rim spatial relationship calculation
-- [x] Downward trajectory detection
-- [x] X-axis alignment check
-- [x] Cooldown timer (2s default)
-- [x] Score counter logic
-- [x] Reset functionality
+- [x] Anti-Confusion filter between rim and ball
+- [x] Stationary Rim Anchor & Cache (EMA smoothing, jump rejection)
+- [x] Direct Made Basket trigger for Devin Ross model
+- [x] Continuous Downward Raycast Crossing math
+- [x] Rebound & upward bounce rejection
+- [x] Cooldown timer (2s default) & score counter logic
 
 ### 📋 6. Sound System (`src/sound-manager.js`)
-- [x] `AudioContext` initialization
-- [x] Built-in sound effect loading (swoosh, buzzer, crowd-cheer)
-- [x] Sound playback on score event
-- [x] Active sound selection
-- [x] Volume control (GainNode)
-- [x] Custom sound upload (File API → decode)
-- [x] AudioContext resume on user interaction
-- [x] ค้นหาและดาวน์โหลดไฟล์เสียง free ที่เหมาะสม
+- [x] `AudioContext` initialization with `latencyHint: 'interactive'`
+- [x] Built-in sound loading: `cha-ching.wav`, `fahhhh.wav`, `green-giant.wav`
+- [x] Instant sound playback on score event (< 10ms)
+- [x] Custom sound upload & decode (.mp3, .wav, .ogg)
+- [x] Volume slider control (GainNode)
+- [x] Synthetic fallback sound generator
+- [x] AudioContext auto-resume on first user interaction
 
 ### 📋 7. UI Controller (`src/ui.js`)
-- [x] Canvas resolution synchronization (`canvas.width/height = video.videoWidth/videoHeight`)
-- [x] Canvas bounding box drawing (rim=green, ball=orange)
-- [x] Score display update with animation
-- [x] Settings panel toggle (show/hide)
-- [x] Sound selector radio buttons
-- [x] Volume slider
-- [x] Sensitivity slider
-- [x] Camera selector dropdown
-- [x] Reset button
-- [x] Loading/error overlay
-- [x] Score flash effect on increment
-- [x] Event binding methods (`bindReset`, `bindCameraChange`, `bindSoundChange`, `bindVolumeChange`, `bindSensitivityChange`)
+- [x] Dynamic Canvas resolution synchronization with video feed
+- [x] 60 FPS Kinematic Projectile Interpolator for smooth ball tracking
+- [x] Canvas bounding box drawing with color coding
+- [x] Manual Rim ROI drawing (PointerEvents/TouchEvents) & `localStorage` persistence
+- [x] Fullscreen mode toggle
+- [x] Settings drawer panel, volume slider, confidence slider, camera selector
+- [x] Mediator pattern event bindings
 
 ### 📋 8. Main App Integration (`src/main.js`)
-- [x] Module initialization sequence
-- [x] Main detection loop (requestAnimationFrame)
-- [x] Module coordination (mediator pattern)
-- [x] Configuration management (`src/config.js`)
-- [x] Event wiring (score → sound + UI)
+- [x] True Decoupled 60 FPS render loop (`requestAnimationFrame`)
+- [x] Non-blocking asynchronous inference trigger
+- [x] Mediator coordination between all modules
+- [x] Lifecycle cleanup on `beforeunload`
 
-### 📋 9. Testing & Polish
-- [x] Camera access test (desktop)
-- [x] Camera access test (mobile)
-- [x] Model loading verification
-- [x] Rim detection test (real hoop or image)
-- [x] Ball detection test
-- [x] Shot counting accuracy test
-- [x] Sound switching test
-- [x] Volume control test
-- [x] Custom sound upload test
-- [x] Reset button test
-- [x] Responsive layout test (mobile)
-- [x] Performance check (FPS monitoring)
-
-### 📋 10. Deployment
-- [x] Production build verification (`npm run build`)
-- [x] Deployment documentation (`docs/DEPLOYMENT.md`)
-- [x] HTTPS requirements & Mobile testing guide
+### 📋 9. Deployment & Mobile Utilities (`scripts/`)
+- [x] All-in-One Cloudflare Tunnel runner (`scripts/start-tunnel-cf.js` -> `npm run tunnel:cf`)
+- [x] Local LAN IP utility (`scripts/get-ip.js` -> `npm run ip`)
+- [x] In-browser hardware benchmark harness (`public/benchmark.html`)
 
 ---
 
-## Progress Summary
-
-| Component | Status | Notes |
-|-----------|--------|-------|
-| Documentation | ✅ Done | SPEC, SKILL, ARCHITECTURE, TASK, DEPLOYMENT created |
-| Project Setup | ✅ Done | npm, vite, inferencejs, skeleton files created |
-| Styling | ✅ Done | Dark theme, CSS variables, glassmorphism, responsive, animations |
-| Camera | ✅ Done | getUserMedia, resolution negotiation, device list & switch, error handlers |
-| Detection | ✅ Done | Roboflow inferencejs, model loading, throttling, bbox normalization |
-| Shot Tracking | ✅ Done | 5-state state machine, X-align, downward crossing, cooldown, rim caching |
-| Sound System | ✅ Done | Web Audio API, pre-decoded buffers (cha-ching, fahhhh, green-giant), custom upload |
-| UI | ✅ Done | Canvas overlay (#00FF88 / #FF6B35), settings drawer, animations, top bar layout |
-| Integration | ✅ Done | Mediator pattern, requestAnimationFrame loop, event pipeline, error recovery |
-| Testing | ✅ Done | Browser automation verified: Model load, settings drawer, volume, sounds, reset |
-| Deployment | ✅ Done | Production bundle tested, Vercel/Netlify/GitHub Pages guide in DEPLOYMENT.md |
-
----
-
-## Blockers & Decisions
-
-| # | Item | Status | Notes |
-|---|------|--------|-------|
-| 1 | Roboflow API Key | ✅ Resolved | ใส่ Publishable API Key ใน config.js แล้ว |
-| 2 | Detection Model | ✅ Resolved | เลือก `people_basketball_hoops/4` |
-| 3 | Sound Effect Files | ✅ Resolved | สร้างไฟล์เสียง swoosh, buzzer, crowd-cheer ใน sounds/ |
-| 4 | Camera angle | ✅ Decided | **ด้านหน้าห่วง (front-facing)** |
-| 5 | Accuracy target | ✅ Decided | **≥ 80% mAP@50** |
-| 6 | Model strategy | ✅ Decided | **Pre-trained → Fine-tune (progressive)** — เริ่ม pre-trained ก่อน, fine-tune ถ้า accuracy < 80% |
-| 7 | Fine-tune plan | 📝 Documented | ถ่ายรูป 100-300 รูป → annotate → train ด้วย checkpoint เดิม → เปลี่ยนแค่ model ID |
-
----
-
-## Changelog
+## 📈 Changelog
 
 | Date | Change |
 |------|--------|
-| 2026-09-01 | 🚀 WebGPU Hardware Acceleration: Enabled `onnxruntime-web/all` WebGPU JSEP execution provider in `src/worker/onnx.worker.js` and `src/onnx-detector.js`, boosting Local ONNX inference speed by 10.7x (330ms -> 30.9ms) |
-| 2026-09-01 | 🧮 True 60 FPS Kinematic Projectile Extrapolator: Upgraded `src/ui.js` with timestamp-aware continuous projectile physics ($g=980\text{ px/s}^2$) gliding smoothly during inference intervals |
-| 2026-09-01 | 📐 Continuous Trajectory Raycast Crossing: Upgraded `src/shot-tracker.js` with line-segment intersection math to catch ultra-high-speed swishes and dunks without frame tunneling |
-| 2026-09-01 | ⚡ Hoop ROI Turbo Mode: Added Action Zone GPU cropping (Top $+2.0\times$, Bottom $+2.8\times$, X $\pm 1.5\times$) reducing compute pixels by 75% and accelerating heavy models by 3x |
-| 2026-09-01 | 🎯 Universal Manual Rim ROI Pinning Mode: Added interactive touch/drag rim pinning on canvas with `localStorage` persistence, single-rim locking filter, and Devin Ross Made Basket SOTA model preset (`devin-ross-g0rqc/basketball-ls818/15`) |
-| 2026-09-01 | 🏀 3-Phase Shot Physics Engine: Upgraded `src/shot-tracker.js` state machine to BALL_ENTERING cylinder check and upward rebound rejection to prevent premature scoring |
-| 2026-08-31 | Multi-Model & Local ONNX Offline Mode: Added Model Switcher UI in Settings, Local ONNX Detector via `onnxruntime-web` (WebGPU/WASM), auto-fallback pipeline, and localStorage memory for custom Model ID and API Key |
-| 2026-08-31 | Task 9 Done: Testing & Polish in browser (Model loading, settings drawer, audio selection, volume drag, score reset, error handling verified) |
-| 2026-08-31 | Task 8 Done: Main App Integration in src/main.js (Mediator pattern, requestAnimationFrame frame loop, score event pipeline, UI bindings) |
-| 2026-08-31 | Task 7 Done: UI Controller in src/ui.js & index.html markup (canvas bbox #00FF88/#FF6B35, score animation, settings drawer, mediator bindings) |
-| 2026-08-31 | Task 6 Done: Sound System in src/sound-manager.js (Web Audio API, GainNode volume, custom upload, sound files in sounds/) |
-| 2026-08-31 | Task 5 Done: Shot Tracking in src/shot-tracker.js (5-state machine, downward crossing check, X-axis alignment, 2s cooldown) |
-| 2026-08-31 | Task 4 Done: Object Detection in src/detector.js (InferenceEngine, throttling, bbox normalization to top-left, error handling) & updated src/config.js |
-| 2026-08-31 | Task 3 Done: Camera Module in src/camera.js (getUserMedia, enumerateDevices, switchCamera, fallback constraints, error mapping) |
-| 2026-08-31 | Task 2 Done: Styling & Design system in styles/index.css (dark theme, glassmorphism, animations, responsive) |
-| 2026-08-31 | Task 1 Done: Project setup, npm init, vite, inferencejs, skeleton files & folders created |
-| 2026-08-24 | สร้างเอกสารทั้งหมด: SPEC.md, SKILL.md, ARCHITECTURE.md, TASK.md |
-| 2026-08-24 | วิจัยเทคโนโลยี: Roboflow inferencejs, Web Audio API, Shot detection algorithm |
-| 2026-08-24 | ตัดสินใจ: มุมกล้อง=ด้านหน้า, accuracy ≥80%, model strategy=pre-trained→fine-tune |
-| 2026-08-24 | เพิ่ม Model Strategy (progressive fine-tuning) ใน SPEC.md, IMPLEMENTATION_PLAN.md, TASK.md |
-| 2026-08-24 | ปรับปรุงความสอดคล้องของเอกสารทั้งหมด: เพิ่ม PROMPT_GUIDE.md ในสารบัญ, ปรับ DEFAULT_CONFIG ให้ตรงกัน, ระบุมาตรฐาน Bounding Box format |
-
-
+| 2026-09-01 | 🚀 WebGPU Hardware Acceleration: Enabled `onnxruntime-web/all` WebGPU JSEP execution provider in `src/worker/onnx.worker.js`, boosting Local ONNX inference speed to ~30.9ms (10.7x speedup) |
+| 2026-09-01 | 🧮 True 60 FPS Kinematic Projectile Extrapolator: Upgraded `src/ui.js` with continuous projectile physics ($g=980\text{ px/s}^2$) gliding smoothly during inference intervals |
+| 2026-09-01 | 📐 Continuous Trajectory Raycast Crossing: Upgraded `src/shot-tracker.js` with line-segment intersection math to catch ultra-high-speed swishes without frame tunneling |
+| 2026-09-01 | ⚡ Hoop ROI Turbo Mode: Added Action Zone GPU cropping reducing compute pixels by 75% and accelerating heavy models by 3x |
+| 2026-09-01 | 🎯 Universal Manual Rim ROI Pinning Mode: Added interactive touch/drag rim pinning on canvas with `localStorage` persistence and single-rim locking filter |
+| 2026-09-01 | 🏀 Devin Ross Made Basket SOTA Preset: Added `devin-ross-g0rqc/basketball-ls818/15` preset and direct event trigger |
+| 2026-08-31 | Multi-Model & Local ONNX Offline Mode: Added Model Switcher UI in Settings, Local ONNX Detector via `onnxruntime-web`, auto-fallback pipeline, and localStorage memory |
+| 2026-08-31 | Sound System Implementation: Added `cha-ching.wav`, `fahhhh.wav`, `green-giant.wav` with Web Audio API |
+| 2026-08-31 | Initial Release: Camera module, Roboflow inferencejs detector, 5-state shot tracker, responsive dark UI |
