@@ -633,14 +633,77 @@ export class UIController {
       renderList.push(d);
     }
 
+    // 60 FPS Kinematic Trajectory Interpolator for Ball Tracking
+    const now = performance.now();
+    const hasBallInDetections = list.some((d) => d && d.class && (d.class === '2' || d.class.toLowerCase().includes('ball')));
+
+    if (hasBallInDetections) {
+      const ballDet = list.find((d) => d && d.class && (d.class === '2' || d.class.toLowerCase().includes('ball')));
+      if (ballDet && ballDet.bbox) {
+        if (!this.ballInterpolatedBox) {
+          this.ballInterpolatedBox = {
+            x: ballDet.bbox.x,
+            y: ballDet.bbox.y,
+            width: ballDet.bbox.width,
+            height: ballDet.bbox.height,
+            vx: 0,
+            vy: 0,
+            lastSeen: now,
+          };
+        } else {
+          const dt = Math.max(0.001, Math.min(0.5, (now - (this.lastInterpolationTime || now)) / 1000));
+          const rawVx = (ballDet.bbox.x - this.ballInterpolatedBox.x) / dt;
+          const rawVy = (ballDet.bbox.y - this.ballInterpolatedBox.y) / dt;
+          this.ballInterpolatedBox.vx = this.ballInterpolatedBox.vx * 0.35 + rawVx * 0.65;
+          this.ballInterpolatedBox.vy = this.ballInterpolatedBox.vy * 0.35 + rawVy * 0.65;
+
+          // Smooth EMA follow
+          this.ballInterpolatedBox.x += (ballDet.bbox.x - this.ballInterpolatedBox.x) * 0.5;
+          this.ballInterpolatedBox.y += (ballDet.bbox.y - this.ballInterpolatedBox.y) * 0.5;
+          this.ballInterpolatedBox.width += (ballDet.bbox.width - this.ballInterpolatedBox.width) * 0.5;
+          this.ballInterpolatedBox.height += (ballDet.bbox.height - this.ballInterpolatedBox.height) * 0.5;
+          this.ballInterpolatedBox.lastSeen = now;
+        }
+      }
+    } else if (this.ballInterpolatedBox && (now - this.ballInterpolatedBox.lastSeen < 220)) {
+      // Extrapolate between slower AI detection intervals using gravity kinematics
+      const dt = Math.max(0.001, Math.min(0.05, (now - (this.lastInterpolationTime || now)) / 1000));
+      this.ballInterpolatedBox.vy += 980 * dt; // Gravity
+      this.ballInterpolatedBox.x += this.ballInterpolatedBox.vx * dt;
+      this.ballInterpolatedBox.y += this.ballInterpolatedBox.vy * dt;
+
+      renderList.push({
+        class: 'ball',
+        confidence: 0.9,
+        isInterpolated: true,
+        bbox: {
+          x: Math.round(this.ballInterpolatedBox.x),
+          y: Math.round(this.ballInterpolatedBox.y),
+          width: Math.round(this.ballInterpolatedBox.width),
+          height: Math.round(this.ballInterpolatedBox.height),
+        },
+      });
+    } else if (this.ballInterpolatedBox && (now - this.ballInterpolatedBox.lastSeen >= 220)) {
+      this.ballInterpolatedBox = null;
+    }
+    this.lastInterpolationTime = now;
+
     for (const d of renderList) {
       if (!d || !d.bbox) continue;
-      const { x, y, width, height } = d.bbox;
+      let { x, y, width, height } = d.bbox;
       const cls = (d.class || '').toLowerCase();
       const isBall = cls === '2' || cls.includes('ball');
       const isMade = cls.includes('made');
       const isRim = !isBall && !isMade && (cls === '1' || cls.includes('rim') || cls.includes('hoop') || cls.includes('backboard') || cls === 'basket');
       const isPerson = !isBall && !isMade && !isRim && (cls === '0' || cls.includes('peop') || cls.includes('person') || cls.includes('player') || cls.includes('human'));
+
+      // Use smoothed interpolated coordinates for rendering ball
+      if (isBall && this.ballInterpolatedBox) {
+        x = Math.round(this.ballInterpolatedBox.x);
+        y = Math.round(this.ballInterpolatedBox.y);
+        width = Math.round(this.ballInterpolatedBox.width);
+        height = Math.round(this.ballInterpolatedBox.height);
+      }
 
       let color = '#FF6B35';
       let label = cls.toUpperCase();
