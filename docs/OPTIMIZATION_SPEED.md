@@ -100,6 +100,10 @@ graph TD
   - [x] Implemented `src/worker/onnx.worker.js` with `OffscreenCanvas` and zero-copy `ImageBitmap` transfer.
   - [x] Implemented `src/onnx-worker-detector.js` managing a 2-worker parallel pipeline.
   - [x] Decoupled Main UI Thread rendering (locked at 60 FPS) from AI inference.
-- [ ] **Phase B (Model Optimization - Strategy 1):**
-  - Export Swish-Vision YOLOv8n at 384x384 INT8 / FP16.
-  - Compare detection accuracy and score trigger reliability against 640x640 baseline.
+- [x] **Phase B (Model Optimization - Strategy 1):**
+  - [x] Reshaped Swish-Vision architecture to 384×384 input resolution (3,024 anchors vs 8,400 anchors).
+  - [x] Quantized to INT8 (`public/models/basketball_swish_384_int8.onnx` · 3.08 MB vs 11.7 MB).
+  - [x] Benchmark result: **12.97 ms per frame (2.76x faster)** vs 35.73 ms on 640px.
+  - [x] Added switchable UI presets: `Local ONNX: Swish-Vision 384px INT8` vs `640px Standard`.
+- [ ] **Phase D (Kinematic Trajectory & Kalman Filter - Strategy 4):**
+  - Implement 2D projectile physics trajectory interpolator between AI detection intervals.

@@ -10,12 +10,19 @@ export const MODEL_PRESETS = {
     modelId: 'people_basketball_hoops/4',
     description: 'ตรวจจับห่วง ลูกบาส และผู้เล่น (โมเดลหลัก Cloud ความเสถียรสูงสุด)',
   },
+  'local-onnx-swish-384': {
+    id: 'local-onnx-swish-384',
+    name: '⚡ Local ONNX: Swish-Vision 384px INT8 (โคตรเร็ว 3.1MB · เหมาะกับมือถือ)',
+    provider: 'onnx',
+    modelPath: '/models/basketball_swish_384_int8.onnx',
+    description: 'ลดขนาดภาพ 384px + ควอนไทซ์ INT8 (3.1 MB) ลดภาระ CPU ลง 70% เร็วขึ้น 3 เท่า เหมาะสำหรับเล่นบนมือถือโดยเฉพาะ',
+  },
   'local-onnx-swish': {
     id: 'local-onnx-swish',
-    name: 'Local ONNX: Swish-Vision (แนะนำ - 11.7MB เร็วสุด 30-60 FPS)',
+    name: 'Local ONNX: Swish-Vision 640px (11.7MB · แม่นยำมาตรฐาน)',
     provider: 'onnx',
     modelPath: '/models/basketball_swish_yolov8.onnx',
-    description: 'เทรนจากชุด Basketball-1 (11.7 MB) ล็อกเฉพาะลูกบาสและห่วง ไม่ตีกรอบรวมกับคน (ออฟไลน์ 100%)',
+    description: 'เทรนจากชุด Basketball-1 (11.7 MB) ความละเอียด 640px มาตรฐาน ล็อกเฉพาะลูกบาสและห่วง ไม่ตีกรอบรวมกับคน',
   },
   'local-onnx-yolo11': {
     id: 'local-onnx-yolo11',

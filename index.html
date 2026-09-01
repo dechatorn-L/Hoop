@@ -116,7 +116,8 @@
             <label for="model-preset-select" class="visually-hidden">เลือกโมเดลตรวจจับ</label>
             <select id="model-preset-select" class="select-input">
               <option value="roboflow-default">Roboflow v4: People + Basketball + Hoops (Cloud)</option>
-              <option value="local-onnx-swish">Local ONNX: Swish-Vision (แนะนำ - 11.7MB 30-60 FPS)</option>
+              <option value="local-onnx-swish-384">⚡ Local ONNX: Swish-Vision 384px INT8 (โคตรเร็ว 3.1MB · มือถือ)</option>
+              <option value="local-onnx-swish">Local ONNX: Swish-Vision 640px (11.7MB · มาตรฐาน)</option>
               <option value="local-onnx-yolo11">Local ONNX: YOLO11s Basketball (ยุคใหม่ 36.2MB - แม่นยำ & Motion Blur)</option>
               <option value="local-onnx-world">Local ONNX: YOLO-World (47.8MB - Open-Vocabulary ฉลาดสุด)</option>
               <option value="local-onnx-pro">Local ONNX: Pro High-Precision (Offline 42.7MB - YOLOv8s)</option>
@@ -173,17 +174,31 @@
               </ul>
             </div>
 
-            <!-- Card 2 -->
+            <!-- Card 2 (384px INT8) -->
             <div class="guide-card highlight-border">
               <div class="guide-card-header">
-                <span class="guide-badge badge-green">แนะนำออฟไลน์ (เร็วสุด)</span>
-                <h4>2. Local ONNX: Swish-Vision (11.7 MB)</h4>
+                <span class="guide-badge badge-green">⚡ ไฮสปีดมือถือ (เร็วสุด 3.1 MB)</span>
+                <h4>2. Local ONNX: Swish-Vision 384px INT8</h4>
+              </div>
+              <div class="guide-classes">🎯 คลาส: <code>basketball</code>, <code>rim</code> (3.1 MB · 384×384)</div>
+              <ul class="guide-list">
+                <li><strong class="text-green">ข้อดี:</strong> <strong>เร็วขึ้น 3 เท่า</strong> ลดขนาดภาพและควอนไทซ์ INT8 กิน CPU น้อยมาก ไม่ดึงเฟรมกล้อง เหมาะกับมือถือ 100%</li>
+                <li><strong class="text-amber">ข้อเสีย:</strong> ความละเอียด 384px เหมาะกับระยะใกล้-ปานกลาง (2–5 เมตร)</li>
+                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> เล่นบนสมาร์ตโฟน (Xiaomi / iPhone / Samsung) ออฟไลน์ ลื่นสุด</li>
+              </ul>
+            </div>
+
+            <!-- Card 3 (640px Standard) -->
+            <div class="guide-card">
+              <div class="guide-card-header">
+                <span class="guide-badge badge-cyan">มาตรฐานความแม่นยำ (PC)</span>
+                <h4>3. Local ONNX: Swish-Vision 640px (11.7 MB)</h4>
               </div>
               <div class="guide-classes">🎯 คลาส: <code>basketball</code>, <code>rim</code>, <code>sports ball</code></div>
               <ul class="guide-list">
-                <li><strong class="text-green">ข้อดี:</strong> <strong>ออฟไลน์ 100%</strong> Fine-tuned จากชุด Basketball-1 ล็อกเฉพาะลูกบาส ไม่ตีกรอบรวมกับคน (30–60 FPS)</li>
-                <li><strong class="text-amber">ข้อเสีย:</strong> ขนาดโมเดลเล็ก เหมาะกับระยะใกล้ถึงปานกลาง</li>
-                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> ซ้อมยิงเดี่ยว เล่นกลางแจ้ง ประหยัดแบตเตอรี่สูงสุด</li>
+                <li><strong class="text-green">ข้อดี:</strong> <strong>ความแม่นยำเต็มพิกัด 640px</strong> สำหรับคอมพิวเตอร์หรือโน้ตบุ๊กที่ชิปประมวลผลแรง</li>
+                <li><strong class="text-amber">ข้อเสีย:</strong> บนมือถือรุ่นเก่าอาจกิน CPU มากกว่าตัว 384px</li>
+                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> เล่นผ่านคอมพิวเตอร์ หรือตั้งกล้องระยะไกล</li>
               </ul>
             </div>
 

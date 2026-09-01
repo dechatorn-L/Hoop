@@ -196,7 +196,8 @@ export class UIController {
     if (this.modelInfoText) {
       const descriptions = {
         'roboflow-default': 'ตรวจจับห่วง ลูกบาส และผู้เล่น (Roboflow Universe v4 · โมเดลหลัก Cloud ความเสถียรสูงสุด)',
-        'local-onnx-swish': '⚡ Local ONNX: Swish-Vision (11.7 MB) Fine-tuned Basketball-1 คมชัด ไม่ตีกรอบรวมกับคน (30-60 FPS)',
+        'local-onnx-swish-384': '⚡ Local ONNX: Swish-Vision 384px INT8 (3.1 MB) สปีดเร็วขึ้น 3 เท่า กิน CPU น้อย เหมาะสำหรับมือถือ',
+        'local-onnx-swish': '⚡ Local ONNX: Swish-Vision 640px (11.7 MB) Fine-tuned Basketball-1 ความละเอียดมาตรฐานสำหรับ PC',
         'local-onnx-yolo11': '⚡ Local ONNX: YOLO11s Basketball (36.2 MB) สถาปัตยกรรมล่าสุด Attention C2PSA จับลูกความเร็วสูงและแสงแดดย้อนกลางแจ้ง',
         'local-onnx-world': '⚡ Local ONNX: YOLO-World (47.8 MB) Open-Vocabulary AI วิเคราะห์ภาษา ไม่หลอนพัดลม/โคมไฟ',
         'local-onnx-pro': '⚡ Local ONNX: Pro High-Precision (42.7 MB - YOLOv8s) แม่นยำสูงระดับโปร สำหรับชู้ตระยะไกล 3–8 เมตร',
