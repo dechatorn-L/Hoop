@@ -139,18 +139,28 @@ export class ObjectDetector {
       this.roboflowWorkerId = null;
     }
 
+    const parts = modelId.split('/').filter(Boolean);
+    const versionNum = parseInt(parts[parts.length - 1], 10);
+    const projectSlug = parts.length >= 2 ? parts[parts.length - 2] : parts[0];
+
     try {
-      console.log(`[ObjectDetector] Starting worker by modelId: ${modelId}`);
-      this.roboflowWorkerId = await this.roboflowEngine.startWorkerByModelId(modelId, apiKey);
-    } catch (err) {
-      console.warn('[ObjectDetector] startWorkerByModelId failed, trying legacy startWorker:', err);
-      const parts = modelId.split('/');
-      const projectSlug = parts[parts.length - 2] || parts[0];
-      const versionNum = parseInt(parts[parts.length - 1], 10);
-      if (!isNaN(versionNum)) {
+      if (!isNaN(versionNum) && projectSlug) {
+        console.log(`[ObjectDetector] Starting worker: project="${projectSlug}", version=${versionNum}`);
         this.roboflowWorkerId = await this.roboflowEngine.startWorker(projectSlug, versionNum, apiKey);
       } else {
-        throw err;
+        console.log(`[ObjectDetector] Starting worker by modelId: ${modelId}`);
+        this.roboflowWorkerId = await this.roboflowEngine.startWorkerByModelId(modelId, apiKey);
+      }
+    } catch (err) {
+      console.warn('[ObjectDetector] Primary worker start failed, trying fallback method:', err);
+      try {
+        this.roboflowWorkerId = await this.roboflowEngine.startWorkerByModelId(modelId, apiKey);
+      } catch (err2) {
+        if (!isNaN(versionNum) && projectSlug) {
+          this.roboflowWorkerId = await this.roboflowEngine.startWorker(projectSlug, versionNum, apiKey);
+        } else {
+          throw err2;
+        }
       }
     }
 
