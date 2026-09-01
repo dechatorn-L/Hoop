@@ -336,13 +336,19 @@ html, body {
 /* Select Input */
 .select-input {
   font-family: var(--font-body);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 500;
   background: var(--surface-dark);
   color: var(--text-main);
   border: 1.5px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 10px 16px;
+  padding: 10px 14px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
   outline: none;
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -486,18 +492,21 @@ html, body {
   top: 0;
   right: 0;
   width: 360px;
+  max-width: 92vw;
   height: 100%;
   background: rgba(22, 22, 42, 0.92);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border-left: 1px solid var(--surface-glass-border);
-  padding: 28px;
+  padding: 24px 20px;
   z-index: 30;
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 24px;
   box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
   transition: transform var(--transition-smooth);
+  box-sizing: border-box;
+  overflow-x: hidden !important;
 }
 
 .settings-drawer.hidden {
@@ -524,12 +533,17 @@ html, body {
   flex-direction: column;
   gap: 24px;
   overflow-y: auto;
+  overflow-x: hidden !important;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .settings-section {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .settings-section h3,
