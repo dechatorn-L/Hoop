@@ -38,32 +38,54 @@ Powered by **Roboflow Inference.js** and pre-trained YOLO object detection model
 
 ## 🏗️ System Architecture
 
-```mermaid
-graph TD
-    subgraph Input Layer
-        A1["Camera Stream"] --> A2["HTML5 Video Element"]
-        A2 --> A3["Canvas 2D Overlay (Locked 60 FPS)"]
-    end
-
-    subgraph Detection Layer (Background Async)
-        A2 --> B1["Unified Detector"]
-        B1 -->|GPU WebGL| B2["Roboflow Engine"]
-        B1 -->|Web Worker WebGPU| B3["ONNX Suite (30.9ms)"]
-        B2 -.->|Auto Fallback| B3
-    end
-
-    subgraph Tracking & Kinematics Engine
-        B1 --> C1["Spatial Trajectory Tracker"]
-        C1 --> C2{"Raycast Rim Crossing?"}
-        C2 -->|Yes| C3["Score Increment +1"]
-        C2 -->|No| C4["Kinematic Extrapolator (60 FPS)"]
-        C4 --> A3
-    end
-
-    subgraph Audio and HUD
-        C3 --> D1["Web Audio (Low Latency)"]
-        C3 --> D2["HUD Scoreboard Glow"]
-    end
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         INPUT LAYER                                 │
+│                                                                     │
+│   📷 Camera Stream ──► HTML5 Video Element                         │
+│                              │                                      │
+│                              ▼                                      │
+│                   Canvas 2D Overlay (Locked 60 FPS)                 │
+│                              ▲                                      │
+└──────────────────────────────┼──────────────────────────────────────┘
+                               │
+          ┌────────────────────┴────────────────────┐
+          │                                         │
+          ▼                                         │
+┌─────────────────────────────────────┐             │
+│   DETECTION LAYER (Background Async)│             │
+│                                     │             │
+│   Unified Detector                  │             │
+│     ├── GPU WebGL ──► Roboflow      │             │
+│     │                  Engine       │             │
+│     └── Web Worker ──► ONNX Suite   │             │
+│          WebGPU        (30.9ms)     │             │
+│                                     │             │
+│   (Auto Fallback: Cloud → Local)    │             │
+└──────────────┬──────────────────────┘             │
+               │                                    │
+               ▼                                    │
+┌─────────────────────────────────────┐             │
+│   TRACKING & KINEMATICS ENGINE      │             │
+│                                     │             │
+│   Spatial Trajectory Tracker        │             │
+│         │                           │             │
+│         ▼                           │             │
+│   Raycast Rim Crossing?             │             │
+│     ├── Yes ──► Score +1 ───────┐   │             │
+│     └── No  ──► Kinematic       │   │             │
+│                 Extrapolator ───┼───┼─────────────┘
+│                 (60 FPS)        │   │    (feeds Canvas)
+└─────────────────────────────────┼───┘
+                                  │
+               ┌──────────────────┘
+               ▼
+┌─────────────────────────────────────┐
+│   AUDIO & HUD                       │
+│                                     │
+│   🔊 Web Audio (Low Latency <10ms) │
+│   🏆 HUD Scoreboard Glow           │
+└─────────────────────────────────────┘
 ```
 
 ---
@@ -117,11 +139,6 @@ hoop/
 │
 ├── styles/
 │   └── index.css               # Design system & dark glassmorphism styling
-├── .env.example                # Environment variables template
-├── index.html                  # Main application markup & Settings drawer
-├── package.json                # Project dependencies & npm scripts
-└── vite.config.js              # Vite configuration & HTTPS plugin
-```� index.css               # Design system & dark glassmorphism styling
 ├── .env.example                # Environment variables template
 ├── index.html                  # Main application markup & Settings drawer
 ├── package.json                # Project dependencies & npm scripts
