@@ -117,6 +117,7 @@
             <select id="model-preset-select" class="select-input">
               <option value="roboflow-default">Roboflow v4: People + Basketball + Hoops (Cloud)</option>
               <option value="roboflow-cricket">Roboflow: Basketball 9.5K Images (Ball + Person + Rim)</option>
+              <option value="roboflow-tracer">Roboflow: Tracer Basketball (UC Berkeley)</option>
               <option value="local-onnx-swish">Local ONNX: Swish-Vision (11.7MB · ออฟไลน์ 100%)</option>
               <option value="roboflow-custom">Roboflow: Custom Model ID (กำหนดเอง)</option>
             </select>
@@ -187,9 +188,21 @@
               </ul>
             </div>
 
+            <!-- Card 3 (Tracer UC Berkeley) -->
+            <div class="guide-card">
+              <div class="guide-card-header">
+                <span class="guide-badge badge-cyan">UC Berkeley Capstone</span>
+                <h4>3. Roboflow: Tracer Basketball (tracer-basketball/3)</h4>
+              </div>
+              <div class="guide-classes">🎯 คลาส: <code>basketball</code>, <code>rim</code>, <code>people</code></div>
+              <ul class="guide-list">
+                <li><strong class="text-green">ข้อดี:</strong> ออกแบบมาเพื่อแทร็กวิถีการชู้ตและลูกบาสโดยเฉพาะ คลาสสะอาด ไม่มีคลาสหลอน</li>
+                <li><strong class="text-amber">ข้อเสีย:</strong> ประมวลผลผ่าน Cloud</li>
+                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> ตรวจจับลูกบาสและห่วงแบบแม่นยำ</li>
+              </ul>
+            </div>
 
-
-            <!-- Card 2 (Swish-Vision) -->
+            <!-- Card 4 (Swish-Vision) -->
             <div class="guide-card highlight-border">
               <div class="guide-card-header">
                 <span class="guide-badge badge-green">แนะนำออฟไลน์ (Local ONNX)</span>
