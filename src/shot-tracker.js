@@ -156,61 +156,52 @@ export class ShotTracker {
     const trackingZoneX = rimBox.width * this.rimProximityFactor;
     const isWithinTrackingZone = deltaX <= trackingZoneX;
 
-    // State Machine Transitions (3-Phase Physical Shot Engine)
+    // State Machine Transitions (Continuous Trajectory Intersection Engine)
     let scored = false;
+
+    // Check Continuous Downward Raycast Crossing through the Rim Plane (rimCenterY)
+    const prevY = this.previousBallCenterY;
+    const prevX = this.previousBallCenterX ?? ballCenterX;
+    const dy = prevY !== null ? (ballCenterY - prevY) : 0;
+
+    let crossedX = ballCenterX;
+    if (prevY !== null && dy > 0 && prevY < rimCenterY && ballCenterY >= rimCenterY) {
+      const t = (rimCenterY - prevY) / dy;
+      crossedX = prevX + t * (ballCenterX - prevX);
+    }
+
+    const xTrajectoryAligned = Math.abs(crossedX - rimCenterX) <= rimBox.width * 0.52;
+    const isCrossingDownward = prevY !== null && prevY < rimCenterY && ballCenterY >= rimCenterY && dy >= 2;
 
     switch (this.state) {
       case 'IDLE':
       case 'TRACKING':
         if (isWithinTrackingZone) {
-          // Ball must start clearly ABOVE the rim iron (top edge of rim bounding box)
-          if (ballCenterY < rimBox.y) {
+          // Ball is approaching from above the rim plane
+          if (ballCenterY <= rimCenterY) {
             this._transitionTo('BALL_ABOVE');
           }
         }
         break;
 
       case 'BALL_ABOVE':
-        if (!isWithinTrackingZone) {
+        if (!isWithinTrackingZone && deltaX > rimBox.width * 1.5) {
           this._transitionTo('IDLE');
-        } else if (ballCenterY >= rimBox.y && ballCenterY <= rimCenterY + rimBox.height * 0.3) {
-          // Ball must be moving DOWNWARD and aligned horizontally with hoop cylinder
-          const xAligned = Math.abs(ballCenterX - rimCenterX) <= rimBox.width * 0.48;
-          const isMovingDown = this.previousBallCenterY !== null && (ballCenterY > this.previousBallCenterY);
+        } else if (isCrossingDownward && xTrajectoryAligned) {
+          // Continuous Trajectory Match: Ball cleanly crossed downward through the rim plane!
+          scored = true;
+          this.score++;
+          this._transitionTo('SCORED');
 
-          if (xAligned && isMovingDown) {
-            this._transitionTo('BALL_ENTERING');
-          }
-        } else if (ballCenterY > rimCenterY + rimBox.height * 2.0) {
-          // Ball bypassed or fell outside without entering cylinder
+          // Immediately enter COOLDOWN
+          this.cooldownEndTime = now + this.scoreCooldownMs;
+          this._transitionTo('COOLDOWN');
+        } else if (dy < -6 && ballCenterY < rimBox.y) {
+          // Ball bounced upward high away from rim -> Reset
           this._transitionTo('IDLE');
-        }
-        break;
-
-      case 'BALL_ENTERING':
-        if (!isWithinTrackingZone) {
+        } else if (ballCenterY > rimCenterY + rimBox.height * 2.8) {
+          // Ball fell way below outside rim
           this._transitionTo('IDLE');
-        } else {
-          const isMovingDown = this.previousBallCenterY !== null && (ballCenterY >= this.previousBallCenterY);
-          const xAligned = Math.abs(ballCenterX - rimCenterX) <= rimBox.width * 0.52;
-
-          // Check if ball bounced UP off the rim iron (Missed shot / Rebound)
-          if (this.previousBallCenterY !== null && (this.previousBallCenterY - ballCenterY >= 4)) {
-            // Ball bounced upwards -> Reject shot!
-            this._transitionTo('IDLE');
-          } else if (xAligned && isMovingDown && ballCenterY >= rimCenterY) {
-            // Ball passed cleanly through the cylinder downward -> SCORE!
-            scored = true;
-            this.score++;
-            this._transitionTo('SCORED');
-
-            // Immediately enter COOLDOWN
-            this.cooldownEndTime = now + this.scoreCooldownMs;
-            this._transitionTo('COOLDOWN');
-          } else if (ballCenterY > rimCenterY + rimBox.height * 2.5) {
-            // Dropped out of zone
-            this._transitionTo('IDLE');
-          }
         }
         break;
 
