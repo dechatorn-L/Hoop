@@ -17,13 +17,7 @@ export const MODEL_PRESETS = {
     modelId: 'cricket-qnb5l/basketball-xil7x/1',
     description: 'โมเดลชุดใหญ่ 9,500+ รูป (cricket-qnb5l/basketball-xil7x/1 ตรวจจับ ball, person, rim)',
   },
-  'roboflow-ketov': {
-    id: 'roboflow-ketov',
-    name: 'Roboflow: Basketball 7.5K SOTA (98.8% mAP)',
-    provider: 'roboflow',
-    modelId: 'basketball-zevnt/basketball-ketov/1',
-    description: 'โมเดลความแม่นยำสูง 98.8% mAP (7,468 รูป · basketball-zevnt/basketball-ketov/1)',
-  },
+
 
 
   'local-onnx-swish': {
