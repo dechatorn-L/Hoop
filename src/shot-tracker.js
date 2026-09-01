@@ -120,11 +120,12 @@ export class ShotTracker {
       const mbCenterX = mbBox.x + mbBox.width / 2;
       const mbCenterY = mbBox.y + mbBox.height / 2;
       const rimCenterX = rimBox.x + rimBox.width / 2;
-      const rimCenterY = rimBox.y + rimBox.height / 2;
-      const dist = Math.hypot(mbCenterX - rimCenterX, mbCenterY - rimCenterY);
-      const maxAllowedDist = Math.max(rimBox.width, rimBox.height) * 2.0;
 
-      if (dist <= maxAllowedDist) {
+      // Must be horizontally aligned with rim and vertically at/below the rim iron
+      const xDist = Math.abs(mbCenterX - rimCenterX);
+      const yRel = mbCenterY - rimBox.y;
+
+      if (xDist <= rimBox.width * 0.55 && yRel >= 0 && yRel <= rimBox.height * 2.2) {
         this.score++;
         this._transitionTo('SCORED');
         this.cooldownEndTime = now + this.scoreCooldownMs;
@@ -135,7 +136,7 @@ export class ShotTracker {
 
     // If no stationary rim or no ball detected
     if (!rimBox || !ballBox) {
-      if ((this.state === 'TRACKING' || this.state === 'BALL_ABOVE') && now - this.lastSeenTime > this.trackingTimeoutMs) {
+      if ((this.state === 'TRACKING' || this.state === 'BALL_ABOVE' || this.state === 'BALL_ENTERING') && now - this.lastSeenTime > this.trackingTimeoutMs) {
         this._transitionTo('IDLE');
         this.previousBallCenterY = null;
         this.previousBallCenterX = null;
@@ -155,35 +156,50 @@ export class ShotTracker {
     const trackingZoneX = rimBox.width * this.rimProximityFactor;
     const isWithinTrackingZone = deltaX <= trackingZoneX;
 
-    // State Machine Transitions
+    // State Machine Transitions (3-Phase Physical Shot Engine)
     let scored = false;
 
     switch (this.state) {
       case 'IDLE':
+      case 'TRACKING':
         if (isWithinTrackingZone) {
-          // Ball must start clearly ABOVE the rim (not just inside or below)
+          // Ball must start clearly ABOVE the rim iron (top edge of rim bounding box)
           if (ballCenterY < rimBox.y) {
             this._transitionTo('BALL_ABOVE');
-          } else {
-            this._transitionTo('TRACKING');
           }
-        }
-        break;
-
-      case 'TRACKING':
-        if (!isWithinTrackingZone) {
-          this._transitionTo('IDLE');
-        } else if (ballCenterY < rimBox.y) {
-          this._transitionTo('BALL_ABOVE');
         }
         break;
 
       case 'BALL_ABOVE':
         if (!isWithinTrackingZone) {
           this._transitionTo('IDLE');
+        } else if (ballCenterY >= rimBox.y && ballCenterY <= rimCenterY + rimBox.height * 0.3) {
+          // Ball must be moving DOWNWARD and aligned horizontally with hoop cylinder
+          const xAligned = Math.abs(ballCenterX - rimCenterX) <= rimBox.width * 0.48;
+          const isMovingDown = this.previousBallCenterY !== null && (ballCenterY > this.previousBallCenterY);
+
+          if (xAligned && isMovingDown) {
+            this._transitionTo('BALL_ENTERING');
+          }
+        } else if (ballCenterY > rimCenterY + rimBox.height * 2.0) {
+          // Ball bypassed or fell outside without entering cylinder
+          this._transitionTo('IDLE');
+        }
+        break;
+
+      case 'BALL_ENTERING':
+        if (!isWithinTrackingZone) {
+          this._transitionTo('IDLE');
         } else {
-          // Check scoring conditions (must cross downward through the rim plane)
-          if (this._checkScore(rimBox, ballCenterX, ballCenterY, rimCenterX, rimCenterY)) {
+          const isMovingDown = this.previousBallCenterY !== null && (ballCenterY >= this.previousBallCenterY);
+          const xAligned = Math.abs(ballCenterX - rimCenterX) <= rimBox.width * 0.52;
+
+          // Check if ball bounced UP off the rim iron (Missed shot / Rebound)
+          if (this.previousBallCenterY !== null && (this.previousBallCenterY - ballCenterY >= 4)) {
+            // Ball bounced upwards -> Reject shot!
+            this._transitionTo('IDLE');
+          } else if (xAligned && isMovingDown && ballCenterY >= rimCenterY) {
+            // Ball passed cleanly through the cylinder downward -> SCORE!
             scored = true;
             this.score++;
             this._transitionTo('SCORED');
@@ -192,7 +208,7 @@ export class ShotTracker {
             this.cooldownEndTime = now + this.scoreCooldownMs;
             this._transitionTo('COOLDOWN');
           } else if (ballCenterY > rimCenterY + rimBox.height * 2.5) {
-            // Ball fell way below without crossing basket center
+            // Dropped out of zone
             this._transitionTo('IDLE');
           }
         }
