@@ -47,12 +47,23 @@ self.onmessage = async (e) => {
   const { type, data, id } = e.data;
 
   switch (type) {
+    case 'SET_THREADS':
+      if (data && typeof data.numThreads === 'number') {
+        ort.env.wasm.numThreads = data.numThreads;
+        console.log(`[ONNX Worker] WASM numThreads set to: ${ort.env.wasm.numThreads}`);
+        self.postMessage({ type: 'THREADS_SET', numThreads: ort.env.wasm.numThreads });
+      }
+      break;
+
     case 'INIT_MODEL':
       try {
         modelPath = data.modelPath || '/models/basketball_swish_yolov8.onnx';
         confidenceThreshold = data.confidenceThreshold ?? confidenceThreshold;
+        if (data.numThreads && typeof data.numThreads === 'number') {
+          ort.env.wasm.numThreads = data.numThreads;
+        }
         
-        console.log(`[ONNX Worker] Loading session: ${modelPath}`);
+        console.log(`[ONNX Worker] Loading session (threads=${ort.env.wasm.numThreads}): ${modelPath}`);
         
         // Attempt WebGPU first, then WASM
         try {

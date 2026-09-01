@@ -20,6 +20,8 @@ export class OnnxWorkerDetector {
     this.inferenceRate = config.inferenceRate ?? 25;
     this.modelPath = config.modelPath || '/models/basketball_swish_yolov8.onnx';
     this.poolSize = Math.min(2, Math.max(1, config.poolSize || 1));
+    const cpuCores = typeof navigator !== 'undefined' && navigator.hardwareConcurrency ? navigator.hardwareConcurrency : 4;
+    this.numThreads = config.numThreads ?? (cpuCores >= 4 ? 2 : 1);
 
     this.workers = [];
     this.isLoaded = false;
@@ -155,6 +157,7 @@ export class OnnxWorkerDetector {
           data: {
             modelPath: this.modelPath,
             confidenceThreshold: this.confidenceThreshold,
+            numThreads: this.numThreads,
           },
         });
       });
@@ -172,6 +175,23 @@ export class OnnxWorkerDetector {
       console.error('[OnnxWorkerDetector] Worker pool load failed:', err);
       throw err;
     }
+  }
+
+  /**
+   * Dynamically change WASM thread count on all workers
+   * @param {number} threads 1 or 2
+   */
+  setNumThreads(threads) {
+    this.numThreads = threads;
+    console.log(`[OnnxWorkerDetector] Setting numThreads = ${threads} across all workers`);
+    this.workers.forEach((w) => {
+      if (w.worker) {
+        w.worker.postMessage({
+          type: 'SET_THREADS',
+          data: { numThreads: threads },
+        });
+      }
+    });
   }
 
   /**

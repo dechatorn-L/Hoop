@@ -308,6 +308,12 @@ export class HoopCounterApp {
       console.log('🤖 Model change requested:', settings);
       await this.loadActiveModel(settings);
     });
+
+    // WASM Thread count Toggle
+    this.ui.bindWasmThreadsChange((threads) => {
+      console.log('🧵 Switching WASM threads to:', threads);
+      this.detector.setWasmThreads(threads);
+    });
   }
 }
 

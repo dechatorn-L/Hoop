@@ -56,12 +56,15 @@ export class UIController {
     this.rimDrawBanner = document.getElementById('rim-draw-banner');
     this.btnCancelDrawRim = document.getElementById('btn-cancel-draw-rim');
     this.toggleHoopRoi = document.getElementById('toggle-hoop-roi');
+    this.toggleWasmThreads = document.getElementById('toggle-wasm-threads');
 
     this.isDrawingRim = false;
     this.dragStart = null;
     this.currentDragBox = null;
     this.manualRimRoi = null;
     this.isHoopRoiTurboEnabled = true;
+    this.wasmThreads = 2;
+    this.onWasmThreadsChange = null;
 
     this.currentScore = 0;
 
@@ -86,6 +89,11 @@ export class UIController {
       this.isHoopRoiTurboEnabled = savedTurbo !== null ? (savedTurbo === 'true') : true;
       if (this.toggleHoopRoi) {
         this.toggleHoopRoi.checked = this.isHoopRoiTurboEnabled;
+      }
+      const savedThreads = localStorage.getItem('hoop_wasm_threads');
+      this.wasmThreads = savedThreads !== null ? parseInt(savedThreads, 10) : 2;
+      if (this.toggleWasmThreads) {
+        this.toggleWasmThreads.checked = this.wasmThreads === 2;
       }
     } catch (err) {
       console.warn('[UIController] Could not load saved manual rim ROI:', err);
@@ -1036,6 +1044,21 @@ export class UIController {
     const btn = document.getElementById('btn-test-sound');
     if (btn && typeof handler === 'function') {
       btn.addEventListener('click', handler);
+    }
+  }
+
+  /**
+   * Bind WASM thread count change handler
+   * @param {Function} handler (threads: number) => void
+   */
+  bindWasmThreadsChange(handler) {
+    if (this.toggleWasmThreads && typeof handler === 'function') {
+      this.toggleWasmThreads.addEventListener('change', (e) => {
+        const threads = e.target.checked ? 2 : 1;
+        this.wasmThreads = threads;
+        localStorage.setItem('hoop_wasm_threads', String(threads));
+        handler(threads);
+      });
     }
   }
 

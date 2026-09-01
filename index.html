@@ -163,6 +163,18 @@
             ตรวจจับห่วง ลูกบาส และผู้เล่น (โมเดลหลัก Cloud ความเสถียรสูงสุด)
           </div>
 
+          <!-- WASM Multi-Threading (2 Threads) Toggle -->
+          <div class="wasm-threads-wrap" id="wasm-threads-container" style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center; background: rgba(0, 229, 255, 0.06); padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid rgba(0, 229, 255, 0.2);">
+            <div style="display: flex; flex-direction: column;">
+              <span style="font-size: 12.5px; font-weight: 700; color: #00E5FF;">🧵 Multi-Threading (2 Cores)</span>
+              <span style="font-size: 11px; color: var(--text-subtle);">เปิด 2 คอร์ CPU สำหรับ Local ONNX (เร็วขึ้น 1.6 เท่า)</span>
+            </div>
+            <label class="switch-toggle" style="margin: 0; cursor: pointer;">
+              <input type="checkbox" id="toggle-wasm-threads" checked />
+              <span class="slider-toggle round"></span>
+            </label>
+          </div>
+
           <!-- Custom Model ID & API Key Container -->
           <div id="custom-model-fields" class="custom-model-fields hidden">
             <div>

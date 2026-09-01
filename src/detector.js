@@ -190,6 +190,16 @@ export class ObjectDetector {
   }
 
   /**
+   * Dynamically set WASM thread count for local ONNX
+   * @param {number} threads 1 or 2
+   */
+  setWasmThreads(threads) {
+    if (this.onnxDetector && typeof this.onnxDetector.setNumThreads === 'function') {
+      this.onnxDetector.setNumThreads(threads);
+    }
+  }
+
+  /**
    * Check if active model is loaded and ready
    * @returns {boolean}
    */
