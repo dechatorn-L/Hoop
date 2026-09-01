@@ -196,6 +196,7 @@ export class UIController {
     if (this.modelInfoText) {
       const descriptions = {
         'roboflow-default': 'ตรวจจับห่วง ลูกบาส และผู้เล่น (Roboflow Universe v4 · โมเดลหลัก Cloud ความเสถียรสูงสุด)',
+        'roboflow-stat-tracker': 'โมเดลเทรนจากชุด Basketball Stat Tracker โดยเฉพาะ (ตรวจจับ hoop, ball, player ผ่าน Cloud)',
         'local-onnx-swish': '⚡ Local ONNX: Swish-Vision (11.7 MB) Fine-tuned Basketball-1 ล็อกเฉพาะลูกบาสและห่วง ไม่ตีกรอบรวมกับคน (ออฟไลน์ 100%)',
         'roboflow-custom': 'ใช้โมเดล Roboflow Universe ของคุณเอง (กรอก Model ID และ API Key ด้านล่าง)',
       };

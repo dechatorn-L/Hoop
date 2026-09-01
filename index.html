@@ -116,6 +116,7 @@
             <label for="model-preset-select" class="visually-hidden">เลือกโมเดลตรวจจับ</label>
             <select id="model-preset-select" class="select-input">
               <option value="roboflow-default">Roboflow v4: People + Basketball + Hoops (Cloud)</option>
+              <option value="roboflow-stat-tracker">Roboflow: Stat Tracker (Basketball + Hoop + Player v4)</option>
               <option value="local-onnx-swish">Local ONNX: Swish-Vision (11.7MB · ออฟไลน์ 100%)</option>
               <option value="roboflow-custom">Roboflow: Custom Model ID (กำหนดเอง)</option>
             </select>
@@ -167,6 +168,20 @@
                 <li><strong class="text-green">ข้อดี:</strong> เสถียรสูงสุด มีคลาสคน ช่วยแยกแยะผู้เล่นกับลูกบาสไม่ให้สับสน</li>
                 <li><strong class="text-amber">ข้อเสีย:</strong> ต้องต่อเน็ตและใช้ Roboflow API Key</li>
                 <li><strong class="text-cyan">เหมาะสำหรับ:</strong> เล่นทั่วไป สนามมาตรฐาน มีคนยืนใต้แป้น</li>
+              </ul>
+            </div>
+
+            <!-- Card 2 (Stat Tracker) -->
+            <div class="guide-card">
+              <div class="guide-card-header">
+                <span class="guide-badge badge-cyan">ชุดพิเศษ (Stat Tracker)</span>
+                <h4>2. Roboflow: Stat Tracker (Hoop + Ball + Player v4)</h4>
+              </div>
+              <div class="guide-classes">🎯 คลาส: <code>hoop</code>, <code>ball</code>, <code>player</code> (Cloud Inference)</div>
+              <ul class="guide-list">
+                <li><strong class="text-green">ข้อดี:</strong> โมเดลเทรนจากชุด Basketball Stat Tracker โดยเฉพาะ จับวิถีลูกบาสและการชู้ตลงห่วงได้แม่นยำ</li>
+                <li><strong class="text-amber">ข้อเสีย:</strong> ประมวลผลผ่าน Cloud ต้องต่อเน็ต</li>
+                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> ทดสอบเปรียบเทียบกับโมเดล v4 หลัก</li>
               </ul>
             </div>
 
