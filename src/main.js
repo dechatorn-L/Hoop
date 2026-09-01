@@ -254,4 +254,12 @@ export class HoopCounterApp {
 window.addEventListener('DOMContentLoaded', () => {
   const app = new HoopCounterApp();
   app.init();
+
+  window.addEventListener('beforeunload', () => {
+    try {
+      if (app.detector && app.detector.onnxDetector) {
+        app.detector.onnxDetector.dispose();
+      }
+    } catch (_) {}
+  });
 });

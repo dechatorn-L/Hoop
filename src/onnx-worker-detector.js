@@ -27,6 +27,7 @@ export class OnnxWorkerDetector {
     this.lastDetections = [];
     this.lastInferenceTime = 0;
     this.reqCounter = 0;
+    this.watchdogTimeoutMs = 2000; // Auto-recovery timeout if worker hangs
 
     this._initWorkerPool();
   }
@@ -45,10 +46,14 @@ export class OnnxWorkerDetector {
           worker,
           isBusy: false,
           isReady: false,
+          watchdogTimer: null,
         };
 
         worker.onmessage = (e) => this._handleWorkerMessage(workerState, e.data);
-        worker.onerror = (err) => console.error(`[OnnxWorkerDetector] Worker ${i} error:`, err);
+        worker.onerror = (err) => {
+          console.error(`[OnnxWorkerDetector] Worker ${i} fatal error:`, err);
+          this._recoverWorker(workerState);
+        };
 
         this.workers.push(workerState);
       } catch (err) {
@@ -62,6 +67,12 @@ export class OnnxWorkerDetector {
    * @private
    */
   _handleWorkerMessage(workerState, msg) {
+    // Clear watchdog timer as worker responded
+    if (workerState.watchdogTimer) {
+      clearTimeout(workerState.watchdogTimer);
+      workerState.watchdogTimer = null;
+    }
+
     const { type, detections, error } = msg;
 
     if (type === 'INIT_SUCCESS') {
@@ -77,6 +88,19 @@ export class OnnxWorkerDetector {
         this.lastDetections = detections;
       }
     }
+  }
+
+  /**
+   * Recover stuck or crashed worker
+   * @private
+   */
+  _recoverWorker(workerState) {
+    console.warn(`[OnnxWorkerDetector] Auto-recovering Worker ${workerState.id}...`);
+    if (workerState.watchdogTimer) {
+      clearTimeout(workerState.watchdogTimer);
+      workerState.watchdogTimer = null;
+    }
+    workerState.isBusy = false;
   }
 
   /**
@@ -101,6 +125,11 @@ export class OnnxWorkerDetector {
 
     const loadPromises = this.workers.map((w) => {
       return new Promise((resolve, reject) => {
+        if (w.watchdogTimer) {
+          clearTimeout(w.watchdogTimer);
+          w.watchdogTimer = null;
+        }
+
         w.isReady = false;
         w.isBusy = true;
         const reqId = ++this.reqCounter;
@@ -180,19 +209,27 @@ export class OnnxWorkerDetector {
     // Find first available idle worker
     const idleWorker = this.workers.find((w) => w.isReady && !w.isBusy);
     if (!idleWorker) {
-      // All workers are currently busy: skip frame submission to prevent queue delay!
+      // All workers are busy: drop frame to prevent queue lag accumulation!
       return this.lastDetections;
     }
 
     this.lastInferenceTime = now;
     idleWorker.isBusy = true;
 
+    // Armed Watchdog Timer (resets worker if inference hangs > 2s)
+    idleWorker.watchdogTimer = setTimeout(() => {
+      console.warn(`[OnnxWorkerDetector] Watchdog triggered on Worker ${idleWorker.id} (stalled inference). Resetting...`);
+      idleWorker.isBusy = false;
+      idleWorker.watchdogTimer = null;
+    }, this.watchdogTimeoutMs);
+
+    let imageBitmap = null;
     try {
       const originalWidth = videoElement.videoWidth || 1280;
       const originalHeight = videoElement.videoHeight || 720;
 
-      // Zero-copy ImageBitmap generation (< 1 ms on main thread)
-      const imageBitmap = await createImageBitmap(videoElement);
+      // Zero-copy ImageBitmap generation (< 1 ms)
+      imageBitmap = await createImageBitmap(videoElement);
 
       const reqId = ++this.reqCounter;
       idleWorker.worker.postMessage(
@@ -208,7 +245,14 @@ export class OnnxWorkerDetector {
         [imageBitmap] // Transfer ownership without copying
       );
     } catch (err) {
+      if (idleWorker.watchdogTimer) {
+        clearTimeout(idleWorker.watchdogTimer);
+        idleWorker.watchdogTimer = null;
+      }
       idleWorker.isBusy = false;
+      if (imageBitmap && typeof imageBitmap.close === 'function') {
+        try { imageBitmap.close(); } catch (_) {}
+      }
       console.warn('[OnnxWorkerDetector] Frame capture error:', err);
     }
 
@@ -216,10 +260,14 @@ export class OnnxWorkerDetector {
   }
 
   /**
-   * Terminate all workers
+   * Terminate all workers cleanly
    */
   dispose() {
     this.workers.forEach((w) => {
+      if (w.watchdogTimer) {
+        clearTimeout(w.watchdogTimer);
+        w.watchdogTimer = null;
+      }
       try {
         w.worker.terminate();
       } catch (_) {}
