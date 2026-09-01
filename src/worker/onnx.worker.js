@@ -7,7 +7,7 @@ import * as ort from 'onnxruntime-web';
 
 // Configure WebAssembly paths & environment for worker context
 ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.29.0/dist/';
-ort.env.wasm.numThreads = 2;
+ort.env.wasm.numThreads = 1; // Single-thread to prevent mobile CPU overload and camera stutter
 ort.env.wasm.simd = true;
 
 const COCO_CLASSES = [
