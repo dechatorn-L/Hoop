@@ -38,6 +38,13 @@ export const MODEL_PRESETS = {
     modelPath: '/models/basketball_rim_focused.onnx',
     description: 'โมเดลขนาดใหญ่ 42.7 MB ความแม่นยำสูง สำหรับตั้งกล้องระยะสนามจริง 3–8 เมตร',
   },
+  'local-tfjs-webgl': {
+    id: 'local-tfjs-webgl',
+    name: '⚡ Local TFJS: WebGL Engine (12.2 MB - ลื่นสุดบนมือถือ)',
+    provider: 'tfjs',
+    modelPath: '/models/tfjs_yolov8n/model.json',
+    description: 'รันผ่าน WebGL GPU Shaders โดยตรง ไม่ติดข้อจำกัด WebGPU ให้ความเร็ว 30-60 FPS บนมือถือทุกรุ่น (ออฟไลน์ 100%)',
+  },
   'roboflow-custom': {
     id: 'roboflow-custom',
     name: 'Roboflow: Custom Model ID (กำหนดเอง)',
