@@ -95,9 +95,11 @@ graph TD
 
 ## 📋 Implementation Milestones
 
-- [ ] **Phase A (Immediate / Experimental):**
-  - Test TensorFlow.js WebGL integration alongside Roboflow & ONNX.
-  - Benchmark inference latency across mobile chipsets (Snapdragon, Dimensity, Apple Silicon).
+- [x] **Phase A (Immediate / Experimental):**
+  - [x] Test TensorFlow.js WebGL integration alongside Roboflow & ONNX (`src/tfjs-detector.js`).
+  - [x] Bundle `public/models/tfjs_yolov8n` graph model shards (12.2 MB).
+  - [x] Integrate TFJS into unified `src/detector.js`, `src/config.js`, and UI selection.
+  - [ ] Benchmark inference latency across mobile chipsets (Snapdragon, Dimensity, Apple Silicon).
 - [ ] **Phase B (Model Optimization):**
   - Export Swish-Vision YOLOv8n at 384x384 INT8.
   - Compare detection accuracy and score trigger reliability against 640x640 baseline.

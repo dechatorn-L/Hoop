@@ -116,7 +116,8 @@
             <label for="model-preset-select" class="visually-hidden">เลือกโมเดลตรวจจับ</label>
             <select id="model-preset-select" class="select-input">
               <option value="roboflow-default">Roboflow v4: People + Basketball + Hoops (Cloud)</option>
-              <option value="local-onnx-swish">Local ONNX: Swish-Vision (แนะนำ - 11.7MB เร็วสุด 30-60 FPS)</option>
+              <option value="local-tfjs-webgl">⚡ Local TFJS: WebGL Engine (12.2 MB - ลื่นสุดบนมือถือ)</option>
+              <option value="local-onnx-swish">Local ONNX: Swish-Vision (แนะนำ - 11.7MB 30-60 FPS)</option>
               <option value="local-onnx-yolo11">Local ONNX: YOLO11s Basketball (ยุคใหม่ 36.2MB - แม่นยำ & Motion Blur)</option>
               <option value="local-onnx-world">Local ONNX: YOLO-World (47.8MB - Open-Vocabulary ฉลาดสุด)</option>
               <option value="local-onnx-pro">Local ONNX: Pro High-Precision (Offline 42.7MB - YOLOv8s)</option>
@@ -173,11 +174,25 @@
               </ul>
             </div>
 
-            <!-- Card 2 -->
+            <!-- Card TFJS WebGL -->
             <div class="guide-card highlight-border">
               <div class="guide-card-header">
-                <span class="guide-badge badge-green">แนะนำออฟไลน์ (เร็วสุด)</span>
-                <h4>2. Local ONNX: Swish-Vision (11.7 MB)</h4>
+                <span class="guide-badge badge-green">⚡ ไฮสปีด GPU (ลื่นสุดบนมือถือ)</span>
+                <h4>2. Local TFJS: WebGL Engine (12.2 MB)</h4>
+              </div>
+              <div class="guide-classes">🎯 คลาส: <code>sports ball</code> (ball), <code>person</code> (12.2 MB Shards)</div>
+              <ul class="guide-list">
+                <li><strong class="text-green">ข้อดี:</strong> <strong>รันผ่าน WebGL Shaders 100%</strong> ปลดล็อกพลัง GPU มือถือ Adreno / Mali / Apple โดยไม่ต้องเปิด Flag ให้ความเร็ว 30-60 FPS ลื่นไหล ไร้อาการหน่วง</li>
+                <li><strong class="text-amber">ข้อเสีย:</strong> โหลดครั้งแรกจะใช้เวลา 1-2 วินาทีเพื่อคอมไพล์ Shaders</li>
+                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> เล่นบนสมาร์ตโฟน (Xiaomi 13 / iPhone / Samsung) ออฟไลน์ 100%</li>
+              </ul>
+            </div>
+
+            <!-- Card 3 -->
+            <div class="guide-card">
+              <div class="guide-card-header">
+                <span class="guide-badge badge-cyan">แนะนำออฟไลน์ (PC/Laptop)</span>
+                <h4>3. Local ONNX: Swish-Vision (11.7 MB)</h4>
               </div>
               <div class="guide-classes">🎯 คลาส: <code>basketball</code>, <code>rim</code>, <code>sports ball</code></div>
               <ul class="guide-list">
