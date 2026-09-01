@@ -10,13 +10,6 @@ export const MODEL_PRESETS = {
     modelId: 'people_basketball_hoops/4',
     description: 'ตรวจจับห่วง ลูกบาส และผู้เล่น (โมเดลหลัก Cloud ความเสถียรสูงสุด)',
   },
-  'roboflow-stat-tracker': {
-    id: 'roboflow-stat-tracker',
-    name: 'Roboflow: Stat Tracker (Hoop + Ball + Player v4)',
-    provider: 'roboflow',
-    modelId: 'basketball-stat-tracker/basketball-hoop-ball-and-player/4',
-    description: 'โมเดลชุดพิเศษสำหรับนับสถิติชู้ตบาส (ตรวจจับ hoop, ball, player ผ่าน Cloud)',
-  },
   'roboflow-cricket': {
     id: 'roboflow-cricket',
     name: 'Roboflow: Basketball 9.5K Images (Ball + Person + Rim)',

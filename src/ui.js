@@ -196,7 +196,6 @@ export class UIController {
     if (this.modelInfoText) {
       const descriptions = {
         'roboflow-default': 'ตรวจจับห่วง ลูกบาส และผู้เล่น (Roboflow Universe v4 · โมเดลหลัก Cloud ความเสถียรสูงสุด)',
-        'roboflow-stat-tracker': 'โมเดลเทรนจากชุด Basketball Stat Tracker โดยเฉพาะ (basketball-stat-tracker/basketball-hoop-ball-and-player/4)',
         'roboflow-cricket': 'โมเดลชุดใหญ่ 9,500+ รูป (cricket-qnb5l/basketball-xil7x/1 · ตรวจจับ ball, person, rim)',
         'roboflow-swishai': 'โมเดลชุด SwishAI (basketball-6vyfz/basketball-detection-srfkd/1 · ตรวจจับ Basket, Ball in Basket)',
         'local-onnx-swish': '⚡ Local ONNX: Swish-Vision (11.7 MB) Fine-tuned Basketball-1 ล็อกเฉพาะลูกบาสและห่วง ไม่ตีกรอบรวมกับคน (ออฟไลน์ 100%)',
@@ -220,7 +219,6 @@ export class UIController {
       // If localStorage had a removed/stale model type, fallback to roboflow-default
       const validTypes = [
         'roboflow-default',
-        'roboflow-stat-tracker',
         'roboflow-cricket',
         'roboflow-swishai',
         'local-onnx-swish',
