@@ -68,6 +68,11 @@ export class ObjectDetector {
 
     this.isLoading = true;
     this.isLoaded = false;
+    this.lastDetections = [];
+    this.isInferring = false;
+    if (this.onnxDetector) {
+      this.onnxDetector.lastDetections = [];
+    }
 
     // 1. If ONNX Provider requested
     if (provider === 'onnx') {
@@ -139,30 +144,18 @@ export class ObjectDetector {
       this.roboflowWorkerId = null;
     }
 
-    const parts = modelId.split('/');
-    const isProjectVersion = parts.length === 2 && !isNaN(parseInt(parts[1], 10));
-
-    if (isProjectVersion) {
-      const projectSlug = parts[0];
-      const versionNum = parseInt(parts[1], 10);
-      try {
+    try {
+      console.log(`[ObjectDetector] Starting worker by modelId: ${modelId}`);
+      this.roboflowWorkerId = await this.roboflowEngine.startWorkerByModelId(modelId, apiKey);
+    } catch (err) {
+      console.warn('[ObjectDetector] startWorkerByModelId failed, trying legacy startWorker:', err);
+      const parts = modelId.split('/');
+      const projectSlug = parts[parts.length - 2] || parts[0];
+      const versionNum = parseInt(parts[parts.length - 1], 10);
+      if (!isNaN(versionNum)) {
         this.roboflowWorkerId = await this.roboflowEngine.startWorker(projectSlug, versionNum, apiKey);
-      } catch (err) {
-        console.warn('[ObjectDetector] startWorker failed, trying startWorkerByModelId:', err);
-        this.roboflowWorkerId = await this.roboflowEngine.startWorkerByModelId(modelId, apiKey);
-      }
-    } else {
-      try {
-        this.roboflowWorkerId = await this.roboflowEngine.startWorkerByModelId(modelId, apiKey);
-      } catch (err) {
-        console.warn('[ObjectDetector] startWorkerByModelId failed, trying startWorker:', err);
-        const projectSlug = parts[parts.length - 2];
-        const versionNum = parseInt(parts[parts.length - 1], 10);
-        if (!isNaN(versionNum)) {
-          this.roboflowWorkerId = await this.roboflowEngine.startWorker(projectSlug, versionNum, apiKey);
-        } else {
-          throw err;
-        }
+      } else {
+        throw err;
       }
     }
 
@@ -211,7 +204,7 @@ export class ObjectDetector {
    */
   async detect(videoElement) {
     if (!this.isReady() || !videoElement || videoElement.readyState < 2) {
-      return this.lastDetections;
+      return [];
     }
 
     // Delegate to ONNX if provider is onnx

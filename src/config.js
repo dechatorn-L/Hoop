@@ -10,6 +10,14 @@ export const MODEL_PRESETS = {
     modelId: 'people_basketball_hoops/4',
     description: 'ตรวจจับห่วง ลูกบาส และผู้เล่น (โมเดลหลัก Cloud ความเสถียรสูงสุด)',
   },
+  'roboflow-cricket': {
+    id: 'roboflow-cricket',
+    name: 'Roboflow: Basketball 9.5K Images (Ball + Person + Rim)',
+    provider: 'roboflow',
+    modelId: 'cricket-qnb5l/basketball-xil7x/1',
+    description: 'โมเดลชุดใหญ่ 9,500+ รูป (cricket-qnb5l/basketball-xil7x/1 ตรวจจับ ball, person, rim)',
+  },
+
   'local-onnx-swish': {
     id: 'local-onnx-swish',
     name: 'Local ONNX: Swish-Vision (11.7MB · ออฟไลน์ 100%)',

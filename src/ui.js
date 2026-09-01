@@ -196,6 +196,7 @@ export class UIController {
     if (this.modelInfoText) {
       const descriptions = {
         'roboflow-default': 'ตรวจจับห่วง ลูกบาส และผู้เล่น (Roboflow Universe v4 · โมเดลหลัก Cloud ความเสถียรสูงสุด)',
+        'roboflow-cricket': 'โมเดลชุดใหญ่ 9,500+ รูป (cricket-qnb5l/basketball-xil7x/1 · ตรวจจับ ball, person, rim)',
         'local-onnx-swish': '⚡ Local ONNX: Swish-Vision (11.7 MB) Fine-tuned Basketball-1 ล็อกเฉพาะลูกบาสและห่วง ไม่ตีกรอบรวมกับคน (ออฟไลน์ 100%)',
         'roboflow-custom': 'ใช้โมเดล Roboflow Universe ของคุณเอง (กรอก Model ID และ API Key ด้านล่าง)',
       };
@@ -215,7 +216,12 @@ export class UIController {
       const savedApiKey = localStorage.getItem('hoop_custom_api_key');
 
       // If localStorage had a removed/stale model type, fallback to roboflow-default
-      const validTypes = ['roboflow-default', 'local-onnx-swish', 'roboflow-custom'];
+      const validTypes = [
+        'roboflow-default',
+        'roboflow-cricket',
+        'local-onnx-swish',
+        'roboflow-custom',
+      ];
       if (!savedType || !validTypes.includes(savedType)) {
         savedType = 'roboflow-default';
         localStorage.setItem('hoop_selected_model_type', savedType);
@@ -298,6 +304,18 @@ export class UIController {
   }
 
   /**
+   * Clear bounding box canvas overlay
+   */
+  clearDetections() {
+    if (this.canvas) {
+      const ctx = this.canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      }
+    }
+  }
+
+  /**
    * Draw bounding box detections on canvas overlay
    * Rim = Green (#00FF88), Ball = Orange (#FF6B35)
    * @param {HTMLCanvasElement|Array} canvasOrDetections
@@ -334,9 +352,9 @@ export class UIController {
       if (!d || !d.bbox) continue;
       const { x, y, width, height } = d.bbox;
       const cls = (d.class || '').toLowerCase();
-      const isRim = cls.includes('rim') || cls.includes('hoop');
+      const isRim = cls.includes('rim') || cls.includes('hoop') || cls.includes('basket');
       const isBall = cls.includes('ball');
-      const isPerson = cls.includes('peop') || cls.includes('person');
+      const isPerson = cls.includes('peop') || cls.includes('person') || cls.includes('player') || cls.includes('human');
 
       let color = '#FF6B35';
       let label = cls.toUpperCase();

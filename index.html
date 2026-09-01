@@ -116,6 +116,7 @@
             <label for="model-preset-select" class="visually-hidden">เลือกโมเดลตรวจจับ</label>
             <select id="model-preset-select" class="select-input">
               <option value="roboflow-default">Roboflow v4: People + Basketball + Hoops (Cloud)</option>
+              <option value="roboflow-cricket">Roboflow: Basketball 9.5K Images (Ball + Person + Rim)</option>
               <option value="local-onnx-swish">Local ONNX: Swish-Vision (11.7MB · ออฟไลน์ 100%)</option>
               <option value="roboflow-custom">Roboflow: Custom Model ID (กำหนดเอง)</option>
             </select>
@@ -169,6 +170,24 @@
                 <li><strong class="text-cyan">เหมาะสำหรับ:</strong> เล่นทั่วไป สนามมาตรฐาน มีคนยืนใต้แป้น</li>
               </ul>
             </div>
+
+
+
+            <!-- Card 3 (Cricket 9.5K) -->
+            <div class="guide-card">
+              <div class="guide-card-header">
+                <span class="guide-badge badge-purple">บิ๊กดาต้า 9,500+ รูป</span>
+                <h4>3. Roboflow: Basketball 9.5K (cricket-qnb5l)</h4>
+              </div>
+              <div class="guide-classes">🎯 คลาส: <code>ball</code>, <code>person</code>, <code>rim</code></div>
+              <ul class="guide-list">
+                <li><strong class="text-green">ข้อดี:</strong> ชุดข้อมูลขนาดใหญ่มาก 9,500+ รูป ครอบคลุมหลากหลายมุมมองและสภาพแสง</li>
+                <li><strong class="text-amber">ข้อเสีย:</strong> ประมวลผลผ่าน Cloud</li>
+                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> ทดสอบความแม่นยำในสนามแสงยาก</li>
+              </ul>
+            </div>
+
+
 
             <!-- Card 2 (Swish-Vision) -->
             <div class="guide-card highlight-border">

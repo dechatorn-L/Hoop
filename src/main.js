@@ -87,6 +87,9 @@ export class HoopCounterApp {
     const { modelType, customModelId, customApiKey } = settings;
     const preset = MODEL_PRESETS[modelType] || MODEL_PRESETS['roboflow-default'];
 
+    // Clear old visual bounding boxes immediately
+    this.ui.clearDetections();
+
     try {
       this.ui.showLoading(`กำลังโหลดโมเดล (${preset.name || modelType})...`);
 
@@ -227,7 +230,7 @@ export class HoopCounterApp {
         this.ui.drawDetections(detections);
 
         // 3. Extract rim & ball detections
-        const rim = detections.find((d) => d.class && (d.class.includes('rim') || d.class.includes('hoop')));
+        const rim = detections.find((d) => d.class && (d.class.includes('rim') || d.class.includes('hoop') || d.class.includes('basket')));
         const ball = detections.find((d) => d.class && d.class.includes('ball'));
 
         // 4. Update shot tracker state machine
