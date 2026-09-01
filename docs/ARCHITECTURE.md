@@ -7,52 +7,56 @@
 
 ## 1. System Architecture
 
-### 1.1 High-Level Data Flow
+### 1.1 High-Level Data Flow (Decoupled 60 FPS Architecture)
 
 ```
-┌──────────┐    getUserMedia     ┌──────────┐    frames     ┌──────────────┐
-│  Camera  │ ─────────────────▶  │  Video   │ ──────────▶   │  Inference   │
-│  (HW)   │                     │  Element │               │  Engine      │
-└──────────┘                     └──────────┘               │ (Roboflow)   │
-                                      │                     └──────┬───────┘
-                                      │                            │
-                                      ▼                            ▼ detections[]
-                                ┌──────────┐               ┌──────────────┐
-                                │  Canvas  │ ◀───────────── │  Detection   │
-                                │  Overlay │  draw boxes    │  Processor   │
-                                └──────────┘               └──────┬───────┘
-                                                                   │
-                                                    rim bbox + ball bbox
-                                                                   │
-                                                                   ▼
-                                                           ┌──────────────┐
-                                                           │ Shot Tracker │
-                                                           │ State Machine│
-                                                           └──────┬───────┘
-                                                                   │
-                                                            SCORED event
-                                                                   │
-                                                    ┌──────────────┼──────────────┐
-                                                    ▼                             ▼
-                                             ┌──────────┐                  ┌──────────┐
-                                             │  Sound   │                  │   UI     │
-                                             │  Manager │                  │  Score   │
-                                             └──────────┘                  └──────────┘
+┌──────────┐    getUserMedia     ┌──────────┐    (Background Async)    ┌───────────────────────────┐
+│  Camera  │ ─────────────────▶  │  Video   │ ───────────────────────▶ │     Unified Detector      │
+│  (HW)   │                     │  Element │                          │ (Roboflow GPU /           │
+└──────────┘                     └────┬─────┘                          │  ONNX Web Worker WebGPU)  │
+                                      │                                └─────────────┬─────────────┘
+                                      │                                              │
+                                      │ (Locked 60 FPS Render Loop)                  ▼ raw detections[]
+                                      ▼                                ┌───────────────────────────┐
+                                ┌──────────┐   (60 FPS Interpolation)  │    Detection Processor    │
+                                │  Canvas  │ ◀──────────────────────── │ (Spatial Anchor, Rim Lock │
+                                │  Overlay │                           │  & Action Zone Remap)     │
+                                └──────────┘                           └─────────────┬─────────────┘
+                                                                                     │
+                                                                      rim bbox + continuous ball ray
+                                                                                     │
+                                                                                     ▼
+                                                                       ┌───────────────────────────┐
+                                                                       │       Shot Tracker        │
+                                                                       │ (Continuous Line Raycast  │
+                                                                       │  & Rebound Rejection)     │
+                                                                       └─────────────┬─────────────┘
+                                                                                     │
+                                                                              SCORED event (<10ms)
+                                                                                     │
+                                                                      ┌──────────────┴──────────────┐
+                                                                      ▼                             ▼
+                                                               ┌──────────────┐              ┌──────────────┐
+                                                               │    Sound     │              │      UI      │
+                                                               │   Manager    │              │  Score Glow  │
+                                                               │(Interactive) │              │  & HUD Stats │
+                                                               └──────────────┘              └──────────────┘
 ```
 
 ### 1.2 Module Dependency Graph
 
 ```
 main.js
-  ├── config.js          (no deps)
-  ├── camera.js          (no deps)
-  ├── detector.js        (depends on: inferencejs, config)
-  ├── shot-tracker.js    (depends on: config)
-  ├── sound-manager.js   (depends on: config)
-  └── ui.js              (no deps)
+  ├── config.js               (no deps)
+  ├── camera.js               (no deps)
+  ├── detector.js             (depends on: inferencejs, config, onnx-worker-detector.js)
+  │     └── onnx-worker-detector.js  (spawns: src/worker/onnx.worker.js [WebGPU / WASM])
+  ├── shot-tracker.js         (depends on: config)
+  ├── sound-manager.js        (depends on: config)
+  └── ui.js                   (no deps — 60 FPS Kinematic Projectile Interpolator)
 ```
 
-> **Design Principle:** ทุก module เป็น self-contained class ที่สื่อสารผ่าน `main.js` เท่านั้น (Mediator Pattern) — ไม่มี module ไหน import module อื่นโดยตรง ยกเว้น `config.js`
+> **Design Principle:** ทุก module เป็น self-contained class ที่สื่อสารผ่าน `main.js` เท่านั้น (Mediator Pattern) — Render Loop (60 FPS) แยกอิสระ 100% จาก Asynchronous AI Detection Loop.
 
 ---
 
