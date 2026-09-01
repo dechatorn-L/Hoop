@@ -17,13 +17,7 @@ export const MODEL_PRESETS = {
     modelId: 'cricket-qnb5l/basketball-xil7x/1',
     description: 'โมเดลชุดใหญ่ 9,500+ รูป (cricket-qnb5l/basketball-xil7x/1 ตรวจจับ ball, person, rim)',
   },
-  'roboflow-swishai': {
-    id: 'roboflow-swishai',
-    name: 'Roboflow: SwishAI Shot Detection (Ball + Basket + Player)',
-    provider: 'roboflow',
-    modelId: 'basketball-6vyfz/basketball-detection-srfkd/1',
-    description: 'โมเดลชุด SwishAI (basketball-6vyfz/basketball-detection-srfkd/1 ตรวจจับ Basket, Ball in Basket, Shooter)',
-  },
+
   'local-onnx-swish': {
     id: 'local-onnx-swish',
     name: 'Local ONNX: Swish-Vision (11.7MB · ออฟไลน์ 100%)',

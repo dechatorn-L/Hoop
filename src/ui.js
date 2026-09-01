@@ -197,7 +197,6 @@ export class UIController {
       const descriptions = {
         'roboflow-default': 'ตรวจจับห่วง ลูกบาส และผู้เล่น (Roboflow Universe v4 · โมเดลหลัก Cloud ความเสถียรสูงสุด)',
         'roboflow-cricket': 'โมเดลชุดใหญ่ 9,500+ รูป (cricket-qnb5l/basketball-xil7x/1 · ตรวจจับ ball, person, rim)',
-        'roboflow-swishai': 'โมเดลชุด SwishAI (basketball-6vyfz/basketball-detection-srfkd/1 · ตรวจจับ Basket, Ball in Basket)',
         'local-onnx-swish': '⚡ Local ONNX: Swish-Vision (11.7 MB) Fine-tuned Basketball-1 ล็อกเฉพาะลูกบาสและห่วง ไม่ตีกรอบรวมกับคน (ออฟไลน์ 100%)',
         'roboflow-custom': 'ใช้โมเดล Roboflow Universe ของคุณเอง (กรอก Model ID และ API Key ด้านล่าง)',
       };
@@ -220,7 +219,6 @@ export class UIController {
       const validTypes = [
         'roboflow-default',
         'roboflow-cricket',
-        'roboflow-swishai',
         'local-onnx-swish',
         'roboflow-custom',
       ];
