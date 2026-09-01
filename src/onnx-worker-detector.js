@@ -175,21 +175,6 @@ export class OnnxWorkerDetector {
   }
 
   /**
-   * Reset detector state and clear any pending detections
-   */
-  resetState() {
-    this.lastDetections = [];
-    this.lastInferenceTime = 0;
-    this.workers.forEach((w) => {
-      if (w.watchdogTimer) {
-        clearTimeout(w.watchdogTimer);
-        w.watchdogTimer = null;
-      }
-      w.isBusy = false;
-    });
-  }
-
-  /**
    * Set confidence threshold across all workers
    * @param {number} threshold
    */
@@ -212,7 +197,7 @@ export class OnnxWorkerDetector {
    */
   async detect(videoElement) {
     if (!this.isReady() || !videoElement || videoElement.readyState < 2) {
-      return [];
+      return this.lastDetections;
     }
 
     const now = performance.now();
