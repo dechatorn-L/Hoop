@@ -92,12 +92,7 @@ export class HoopCounterApp {
 
       let loadOptions = {};
 
-      if (preset.provider === 'tfjs') {
-        loadOptions = {
-          provider: 'tfjs',
-          modelPath: preset.modelPath || '/models/tfjs_yolov8n/model.json',
-        };
-      } else if (preset.provider === 'onnx') {
+      if (preset.provider === 'onnx') {
         loadOptions = {
           provider: 'onnx',
           modelPath: preset.modelPath || this.config.onnxModelPath,
