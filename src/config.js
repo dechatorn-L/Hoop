@@ -17,13 +17,7 @@ export const MODEL_PRESETS = {
     modelId: 'cricket-qnb5l/basketball-xil7x/1',
     description: 'โมเดลชุดใหญ่ 9,500+ รูป (cricket-qnb5l/basketball-xil7x/1 ตรวจจับ ball, person, rim)',
   },
-  'roboflow-tracer': {
-    id: 'roboflow-tracer',
-    name: 'Roboflow: Tracer Basketball (UC Berkeley)',
-    provider: 'roboflow',
-    modelId: 'uc-berkely-w210-tracer/tracer-basketball/3',
-    description: 'โมเดลจากทีมวิจัย UC Berkeley (tracer-basketball/3 ตรวจจับ basketball, rim, people)',
-  },
+
 
   'local-onnx-swish': {
     id: 'local-onnx-swish',
