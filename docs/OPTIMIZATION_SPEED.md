@@ -65,12 +65,12 @@ graph TD
 
 ---
 
-### 4. 🧵 Dedicated Web Worker & Adaptive WASM 2-Threading (Phase C — Completed)
-- **Concept:** Offload ONNX tensor construction and inference from the Main UI thread with multi-core parallelism.
-- **Implementation (`src/worker/onnx.worker.js`, `src/onnx-worker-detector.js`):**
-  - Dynamically detects CPU core count via `navigator.hardwareConcurrency`.
-  - Sets `ort.env.wasm.numThreads = 2` on 4+ core devices (e.g. Snapdragon 8 Gen 2 / Xiaomi 13 with 8 cores), with safe fallback to 1 thread on dual-core devices.
-  - Cuts `Swish-Vision (11.7 MB)` inference latency from **~38ms down to ~20–24ms**!
+### 4. 🧵 Dedicated Web Worker Pipeline (Single-Thread WASM SIMD) (Phase C — Completed)
+- **Concept:** Offload ONNX tensor construction and inference from the Main UI thread.
+- **Benchmark Evaluation (1 Thread vs 2 Threads):**
+  - **1 Thread (Single Core SIMD):** `320.99 ms` (Fastest, zero thread context-switch overhead).
+  - **2 Threads (Multi-Thread WASM):** `389.26 ms` (Slower due to browser WASM thread synchronization overhead without COOP/COEP SharedArrayBuffer).
+  - 💡 **Production Decision:** Locked to `numThreads = 1` for optimal CPU efficiency and zero thermal overhead.
 
 ---
 
@@ -84,10 +84,10 @@ graph TD
 
 | Preset | Model ID / Path | Architecture | Native Inference Time | With Hoop ROI Turbo | Visual Tracking FPS | Best Use Case |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| ⚡ **Local ONNX: Swish-Vision** | `/models/basketball_swish_yolov8.onnx` | YOLOv8n (11.7 MB · 2 Threads) | **~20–24 ms** | **~12–16 ms** | 🟢 **60 FPS** | 🥇 แนะนำใช้งานจริง (ลื่นไหลสุด + ออฟไลน์ 100%) |
-| ⚡ **Roboflow v4: Main** | `people_basketball_hoops/4` | YOLOv5/v8 Nano (Cloud) | **~45–60 ms** | **~25–35 ms** | 🟢 **45–60 FPS** | 🥈 แนะนำใช้งานทั่วไป (ตรวจจับ คน + ลูก + ห่วง) |
-| 🎯 **Roboflow: Cricket 9.5K** | `cricket-qnb5l/basketball-xil7x/1` | YOLOv8m (9.5K Dataset) | **~250–320 ms** | **~80–110 ms (⚡ 3x เร็วขึ้น)** | 🟢 **60 FPS** | 🎯 โมเดลชุดใหญ่ เน้นความแม่นยำสูง |
-| 🎯 **Roboflow: Devin Ross** | `devin-ross-g0rqc/basketball-ls818/15` | Roboflow Snap (8.1K Dataset) | **~280–350 ms** | **~85–120 ms (⚡ 3x เร็วขึ้น)** | 🟢 **60 FPS** | 🎯 ตรวจจับจังหวะ `made basket` ลงห่วง (ใช้คู่ล็อกห่วง) |
+| ⚡ **Roboflow v4: Main** | `people_basketball_hoops/4` | YOLOv5/v8 Nano (WebGL Cloud) | **~45–60 ms** | **~25–35 ms** | 🟢 **45–60 FPS** | 🥇 แนะนำใช้งานทั่วไป (เสถียร + ลื่นไหลสูงสุด) |
+| ⚡ **Local ONNX: Swish-Vision** | `/models/basketball_swish_yolov8.onnx` | YOLOv8n (11.7 MB · WASM SIMD) | **~320 ms (Inference)** | **~120 ms (ROI Crop)** | 🟢 **60 FPS (Via Interpolator)** | 🥈 ใช้งานออฟไลน์ 100% |
+| 🎯 **Roboflow: Cricket 9.5K** | `cricket-qnb5l/basketball-xil7x/1` | YOLOv8m (9.5K Dataset) | **~250–320 ms** | **~80–110 ms (⚡ 3x เร็วขึ้น)** | 🟢 **60 FPS (Via Interpolator)** | 🎯 โมเดลชุดใหญ่ เน้นความแม่นยำสูง |
+| 🎯 **Roboflow: Devin Ross** | `devin-ross-g0rqc/basketball-ls818/15` | Roboflow Snap (8.1K Dataset) | **~280–350 ms** | **~85–120 ms (⚡ 3x เร็วขึ้น)** | 🟢 **60 FPS (Via Interpolator)** | 🎯 ตรวจจับจังหวะ `made basket` ลงห่วง (ใช้คู่ล็อกห่วง) |
 
 ---
 

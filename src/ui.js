@@ -56,15 +56,12 @@ export class UIController {
     this.rimDrawBanner = document.getElementById('rim-draw-banner');
     this.btnCancelDrawRim = document.getElementById('btn-cancel-draw-rim');
     this.toggleHoopRoi = document.getElementById('toggle-hoop-roi');
-    this.toggleWasmThreads = document.getElementById('toggle-wasm-threads');
 
     this.isDrawingRim = false;
     this.dragStart = null;
     this.currentDragBox = null;
     this.manualRimRoi = null;
     this.isHoopRoiTurboEnabled = true;
-    this.wasmThreads = 2;
-    this.onWasmThreadsChange = null;
 
     this.currentScore = 0;
 
@@ -89,11 +86,6 @@ export class UIController {
       this.isHoopRoiTurboEnabled = savedTurbo !== null ? (savedTurbo === 'true') : true;
       if (this.toggleHoopRoi) {
         this.toggleHoopRoi.checked = this.isHoopRoiTurboEnabled;
-      }
-      const savedThreads = localStorage.getItem('hoop_wasm_threads');
-      this.wasmThreads = savedThreads !== null ? parseInt(savedThreads, 10) : 2;
-      if (this.toggleWasmThreads) {
-        this.toggleWasmThreads.checked = this.wasmThreads === 2;
       }
     } catch (err) {
       console.warn('[UIController] Could not load saved manual rim ROI:', err);
@@ -666,11 +658,17 @@ export class UIController {
 
     // 60 FPS Kinematic Trajectory Interpolator for Ball Tracking
     const now = performance.now();
-    const hasBallInDetections = list.some((d) => d && d.class && (d.class === '2' || d.class.toLowerCase().includes('ball')));
+    const ballDet = list.find((d) => d && d.class && (d.class === '2' || d.class.toLowerCase().includes('ball')));
 
-    if (hasBallInDetections) {
-      const ballDet = list.find((d) => d && d.class && (d.class === '2' || d.class.toLowerCase().includes('ball')));
-      if (ballDet && ballDet.bbox) {
+    if (ballDet && ballDet.bbox) {
+      const isNewAiUpdate = ballDet._timestamp && ballDet._timestamp !== this.lastBallAiTimestamp;
+
+      if (isNewAiUpdate) {
+        // AI ground truth arrived: update velocity vector and anchor
+        const dtAi = this.lastBallAiTime ? Math.max(0.015, Math.min(0.8, (now - this.lastBallAiTime) / 1000)) : 0.05;
+        this.lastBallAiTime = now;
+        this.lastBallAiTimestamp = ballDet._timestamp;
+
         if (!this.ballInterpolatedBox) {
           this.ballInterpolatedBox = {
             x: ballDet.bbox.x,
@@ -682,39 +680,33 @@ export class UIController {
             lastSeen: now,
           };
         } else {
-          const dt = Math.max(0.001, Math.min(0.5, (now - (this.lastInterpolationTime || now)) / 1000));
-          const rawVx = (ballDet.bbox.x - this.ballInterpolatedBox.x) / dt;
-          const rawVy = (ballDet.bbox.y - this.ballInterpolatedBox.y) / dt;
-          this.ballInterpolatedBox.vx = this.ballInterpolatedBox.vx * 0.35 + rawVx * 0.65;
-          this.ballInterpolatedBox.vy = this.ballInterpolatedBox.vy * 0.35 + rawVy * 0.65;
+          // Calculate true velocity from previous position to new AI ground truth
+          const rawVx = (ballDet.bbox.x - this.ballInterpolatedBox.x) / dtAi;
+          const rawVy = (ballDet.bbox.y - this.ballInterpolatedBox.y) / dtAi;
+          this.ballInterpolatedBox.vx = this.ballInterpolatedBox.vx * 0.3 + rawVx * 0.7;
+          this.ballInterpolatedBox.vy = this.ballInterpolatedBox.vy * 0.3 + rawVy * 0.7;
 
-          // Smooth EMA follow
-          this.ballInterpolatedBox.x += (ballDet.bbox.x - this.ballInterpolatedBox.x) * 0.5;
-          this.ballInterpolatedBox.y += (ballDet.bbox.y - this.ballInterpolatedBox.y) * 0.5;
-          this.ballInterpolatedBox.width += (ballDet.bbox.width - this.ballInterpolatedBox.width) * 0.5;
-          this.ballInterpolatedBox.height += (ballDet.bbox.height - this.ballInterpolatedBox.height) * 0.5;
+          // Anchor directly to the fresh AI ground truth
+          this.ballInterpolatedBox.x = ballDet.bbox.x;
+          this.ballInterpolatedBox.y = ballDet.bbox.y;
+          this.ballInterpolatedBox.width = ballDet.bbox.width;
+          this.ballInterpolatedBox.height = ballDet.bbox.height;
           this.ballInterpolatedBox.lastSeen = now;
         }
+      } else if (this.ballInterpolatedBox && (now - this.ballInterpolatedBox.lastSeen < 350)) {
+        // Intermediate 60 FPS render frame: Smoothly glide ball along velocity trajectory!
+        const dt = Math.max(0.001, Math.min(0.035, (now - (this.lastInterpolationTime || now)) / 1000));
+        this.ballInterpolatedBox.vy += 980 * dt; // Gravity
+        this.ballInterpolatedBox.x += this.ballInterpolatedBox.vx * dt;
+        this.ballInterpolatedBox.y += this.ballInterpolatedBox.vy * dt;
       }
-    } else if (this.ballInterpolatedBox && (now - this.ballInterpolatedBox.lastSeen < 220)) {
-      // Extrapolate between slower AI detection intervals using gravity kinematics
-      const dt = Math.max(0.001, Math.min(0.05, (now - (this.lastInterpolationTime || now)) / 1000));
-      this.ballInterpolatedBox.vy += 980 * dt; // Gravity
+    } else if (this.ballInterpolatedBox && (now - this.ballInterpolatedBox.lastSeen < 350)) {
+      // Extrapolate if ball momentarily undetected
+      const dt = Math.max(0.001, Math.min(0.035, (now - (this.lastInterpolationTime || now)) / 1000));
+      this.ballInterpolatedBox.vy += 980 * dt;
       this.ballInterpolatedBox.x += this.ballInterpolatedBox.vx * dt;
       this.ballInterpolatedBox.y += this.ballInterpolatedBox.vy * dt;
-
-      renderList.push({
-        class: 'ball',
-        confidence: 0.9,
-        isInterpolated: true,
-        bbox: {
-          x: Math.round(this.ballInterpolatedBox.x),
-          y: Math.round(this.ballInterpolatedBox.y),
-          width: Math.round(this.ballInterpolatedBox.width),
-          height: Math.round(this.ballInterpolatedBox.height),
-        },
-      });
-    } else if (this.ballInterpolatedBox && (now - this.ballInterpolatedBox.lastSeen >= 220)) {
+    } else if (this.ballInterpolatedBox && (now - this.ballInterpolatedBox.lastSeen >= 350)) {
       this.ballInterpolatedBox = null;
     }
     this.lastInterpolationTime = now;
@@ -1044,21 +1036,6 @@ export class UIController {
     const btn = document.getElementById('btn-test-sound');
     if (btn && typeof handler === 'function') {
       btn.addEventListener('click', handler);
-    }
-  }
-
-  /**
-   * Bind WASM thread count change handler
-   * @param {Function} handler (threads: number) => void
-   */
-  bindWasmThreadsChange(handler) {
-    if (this.toggleWasmThreads && typeof handler === 'function') {
-      this.toggleWasmThreads.addEventListener('change', (e) => {
-        const threads = e.target.checked ? 2 : 1;
-        this.wasmThreads = threads;
-        localStorage.setItem('hoop_wasm_threads', String(threads));
-        handler(threads);
-      });
     }
   }
 

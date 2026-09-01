@@ -59,6 +59,7 @@ export class HoopCounterApp {
    * @private
    */
   _processDetections(rawDetections) {
+    const timestamp = performance.now();
     const manualRim = this.ui.getManualRimRoi();
     let filtered = [];
     let rim = null;
@@ -79,7 +80,7 @@ export class HoopCounterApp {
       }
     }
 
-    this.latestDetections = filtered;
+    this.latestDetections = filtered.map((d) => ({ ...d, _timestamp: timestamp }));
     this.primaryRim = rim;
   }
 
@@ -307,12 +308,6 @@ export class HoopCounterApp {
     this.ui.bindModelChange(async (settings) => {
       console.log('🤖 Model change requested:', settings);
       await this.loadActiveModel(settings);
-    });
-
-    // WASM Thread count Toggle
-    this.ui.bindWasmThreadsChange((threads) => {
-      console.log('🧵 Switching WASM threads to:', threads);
-      this.detector.setWasmThreads(threads);
     });
   }
 }
