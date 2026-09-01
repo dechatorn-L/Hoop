@@ -134,14 +134,18 @@ export class ObjectDetector {
    * @private
    */
   async _loadRoboflowModel(modelId, apiKey) {
-    // If previous worker exists, stop it first
+    // If previous worker exists, stop it cleanly first
     if (this.roboflowWorkerId) {
+      const oldWorker = this.roboflowWorkerId;
+      this.roboflowWorkerId = null;
+      this.isInferring = false;
       try {
-        await this.roboflowEngine.stopWorker(this.roboflowWorkerId);
+        await this.roboflowEngine.stopWorker(oldWorker);
       } catch {
         // Ignore cleanup errors
       }
-      this.roboflowWorkerId = null;
+      // Brief pause to allow worker thread disposal
+      await new Promise((r) => setTimeout(r, 60));
     }
 
     try {
@@ -218,6 +222,12 @@ export class ObjectDetector {
     const now = performance.now();
     const intervalMs = 1000 / this.inferenceRate;
 
+    // Watchdog: If inference has been pending for > 2.5s (e.g. during worker swap), force reset flag
+    if (this.isInferring && now - this.lastInferenceTime > 2500) {
+      console.warn('[ObjectDetector] Watchdog: Resetting stuck inference lock');
+      this.isInferring = false;
+    }
+
     if (now - this.lastInferenceTime < intervalMs || this.isInferring) {
       return this.lastDetections;
     }
@@ -227,7 +237,12 @@ export class ObjectDetector {
 
     try {
       const cvImage = new CVImage(videoElement);
-      const rawPredictions = await this.roboflowEngine.infer(this.roboflowWorkerId, cvImage);
+      const inferPromise = this.roboflowEngine.infer(this.roboflowWorkerId, cvImage);
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Inference timeout')), 2500)
+      );
+
+      const rawPredictions = await Promise.race([inferPromise, timeoutPromise]);
       const detections = this._normalizePredictions(rawPredictions);
       this.lastDetections = detections;
       return detections;
