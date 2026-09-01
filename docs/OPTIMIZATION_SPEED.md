@@ -100,10 +100,17 @@ graph TD
   - [x] Implemented `src/worker/onnx.worker.js` with `OffscreenCanvas` and zero-copy `ImageBitmap` transfer.
   - [x] Implemented `src/onnx-worker-detector.js` managing a 2-worker parallel pipeline.
   - [x] Decoupled Main UI Thread rendering (locked at 60 FPS) from AI inference.
-- [x] **Phase B (Model Optimization - Strategy 1):**
-  - [x] Reshaped Swish-Vision architecture to 384×384 input resolution (3,024 anchors vs 8,400 anchors).
-  - [x] Quantized to INT8 (`public/models/basketball_swish_384_int8.onnx` · 3.08 MB vs 11.7 MB).
-  - [x] Benchmark result: **12.97 ms per frame (2.76x faster)** vs 35.73 ms on 640px.
-  - [x] Added switchable UI presets: `Local ONNX: Swish-Vision 384px INT8` vs `640px Standard`.
+- [x] **Phase B (Model Optimization - Strategy 1) — [Evaluated & Cleaned Up]:**
+  - [x] Tested 384×384 Reshaping and Post-Training Dynamic Quantization (INT8) across Swish-Vision, YOLO11s, YOLO-World, and Pro.
+  - ❌ **Evaluation Results:**
+    - Post-training dynamic quantization to INT8 causes severe accuracy degradation on small basketball targets in fast motion.
+    - Forced 384px reshaping without retraining degrades feature extraction quality.
+    - Large models (36–48 MB) saturate mobile LPDDR5 RAM bandwidth, causing Camera ISP frame drops.
+  - 💡 **Verified Stable Models (Kept in Production):**
+    1. ⚡ **`Local ONNX: Swish-Vision (640px · 11.7 MB)`** (via Single-Worker Background Thread) — Passed.
+    2. ☁️ **`Roboflow v4: People + Basketball + Hoops (Cloud)`** — Passed.
+- [ ] **Phase E (Custom Lightweight Model Training - Next Step):**
+  - Train YOLOv8n natively on a dedicated basketball dataset with input resolution `384x384` from epoch 0.
+  - Apply Quantization-Aware Training (QAT) to maintain 99% mAP accuracy at 3–4 MB file size.
 - [ ] **Phase D (Kinematic Trajectory & Kalman Filter - Strategy 4):**
   - Implement 2D projectile physics trajectory interpolator between AI detection intervals.

@@ -116,11 +116,7 @@
             <label for="model-preset-select" class="visually-hidden">เลือกโมเดลตรวจจับ</label>
             <select id="model-preset-select" class="select-input">
               <option value="roboflow-default">Roboflow v4: People + Basketball + Hoops (Cloud)</option>
-              <option value="local-onnx-swish-384">⚡ Local ONNX: Swish-Vision 384px INT8 (3.1MB · เร็วสุดบนมือถือ)</option>
-              <option value="local-onnx-swish">Local ONNX: Swish-Vision 640px (11.7MB · แม่นยำมาตรฐาน)</option>
-              <option value="local-onnx-yolo11-int8">⚡ Local ONNX: YOLO11s INT8 (9.4MB · Motion Blur & แสงย้อน)</option>
-              <option value="local-onnx-world-int8">⚡ Local ONNX: YOLO-World INT8 (12.3MB · AI ฉลาดสุด)</option>
-              <option value="local-onnx-pro-384">⚡ Local ONNX: Pro 384px INT8 (10.8MB · ระยะไกล 3–8m)</option>
+              <option value="local-onnx-swish">Local ONNX: Swish-Vision (11.7MB · ออฟไลน์ 100%)</option>
               <option value="roboflow-custom">Roboflow: Custom Model ID (กำหนดเอง)</option>
             </select>
           </div>
@@ -174,73 +170,31 @@
               </ul>
             </div>
 
-            <!-- Card 2 (384px INT8) -->
+            <!-- Card 2 (Swish-Vision) -->
             <div class="guide-card highlight-border">
               <div class="guide-card-header">
-                <span class="guide-badge badge-green">⚡ ไฮสปีดมือถือ (เร็วสุด 3.1 MB)</span>
-                <h4>2. Local ONNX: Swish-Vision 384px INT8</h4>
+                <span class="guide-badge badge-green">แนะนำออฟไลน์ (Local ONNX)</span>
+                <h4>2. Local ONNX: Swish-Vision (11.7 MB)</h4>
               </div>
-              <div class="guide-classes">🎯 คลาส: <code>basketball</code>, <code>rim</code> (3.1 MB · 384×384)</div>
+              <div class="guide-classes">🎯 คลาส: <code>basketball</code>, <code>rim</code> (ออฟไลน์ 100%)</div>
               <ul class="guide-list">
-                <li><strong class="text-green">ข้อดี:</strong> <strong>เร็วขึ้น 3 เท่า</strong> ลดขนาดภาพและควอนไทซ์ INT8 กิน CPU น้อยมาก ไม่ดึงเฟรมกล้อง เหมาะกับมือถือ 100%</li>
-                <li><strong class="text-amber">ข้อเสีย:</strong> ความละเอียด 384px เหมาะกับระยะใกล้-ปานกลาง (2–5 เมตร)</li>
-                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> เล่นบนสมาร์ตโฟน (Xiaomi / iPhone / Samsung) ออฟไลน์ ลื่นสุด</li>
+                <li><strong class="text-green">ข้อดี:</strong> <strong>ออฟไลน์ 100%</strong> Fine-tuned จากชุด Basketball-1 ล็อกเฉพาะลูกบาสและห่วง ไม่ตีกรอบรวมกับคน รันผ่าน Single-Worker Background Thread ลื่นไหล</li>
+                <li><strong class="text-amber">ข้อเสีย:</strong> ขนาด 11.7 MB โหลดครั้งแรกผ่าน WebAssembly</li>
+                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> เล่นทั่วไป ซ้อมยิงเดี่ยว ประหยัดเน็ต ไม่ต้องใช้ API Key</li>
               </ul>
             </div>
 
-            <!-- Card 3 (640px Standard) -->
+            <!-- Card 3 (Custom Model) -->
             <div class="guide-card">
               <div class="guide-card-header">
-                <span class="guide-badge badge-cyan">มาตรฐานความแม่นยำ (PC)</span>
-                <h4>3. Local ONNX: Swish-Vision 640px (11.7 MB)</h4>
+                <span class="guide-badge badge-purple">โมเดลเทรนเอง (Roboflow Universe)</span>
+                <h4>3. Roboflow: Custom Model ID</h4>
               </div>
-              <div class="guide-classes">🎯 คลาส: <code>basketball</code>, <code>rim</code>, <code>sports ball</code></div>
+              <div class="guide-classes">🎯 คลาส: กำหนดตามโมเดลของคุณเอง</div>
               <ul class="guide-list">
-                <li><strong class="text-green">ข้อดี:</strong> <strong>ความแม่นยำเต็มพิกัด 640px</strong> สำหรับคอมพิวเตอร์หรือโน้ตบุ๊กที่ชิปประมวลผลแรง</li>
-                <li><strong class="text-amber">ข้อเสีย:</strong> บนมือถือรุ่นเก่าอาจกิน CPU มากกว่าตัว 384px</li>
-                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> เล่นผ่านคอมพิวเตอร์ หรือตั้งกล้องระยะไกล</li>
-              </ul>
-            </div>
-
-            <!-- Card 4 (YOLO11 INT8) -->
-            <div class="guide-card highlight-border">
-              <div class="guide-card-header">
-                <span class="guide-badge badge-cyan">⚡ YOLO11s INT8 (9.4 MB)</span>
-                <h4>4. Local ONNX: YOLO11s INT8 (เบาลง 75%)</h4>
-              </div>
-              <div class="guide-classes">🎯 คลาส: <code>rim</code>, <code>ball</code>, <code>player</code> (Attention C2PSA)</div>
-              <ul class="guide-list">
-                <li><strong class="text-green">ข้อดี:</strong> <strong>สถาปัตยกรรม YOLO11 ล่าสุด</strong> ควอนไทซ์ INT8 เหลือ 9.4 MB ลดภาระ RAM 75% จับลูกบาสที่เคลื่อนที่เร็วและแสงแดดย้อนกลางแจ้งได้ดีเยี่ยม</li>
-                <li><strong class="text-amber">ข้อเสีย:</strong> ความแม่นยำลดลงเล็กน้อย (~0.5%) จากการควอนไทซ์</li>
-                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> เล่นกลางแจ้ง ชู้ตลูกเร็ว สภาพแสงเปลี่ยนแปลง</li>
-              </ul>
-            </div>
-
-            <!-- Card 5 (YOLO-World INT8) -->
-            <div class="guide-card">
-              <div class="guide-card-header">
-                <span class="guide-badge badge-purple">⚡ Open-Vocabulary INT8 (12.3 MB)</span>
-                <h4>5. Local ONNX: YOLO-World INT8</h4>
-              </div>
-              <div class="guide-classes">🎯 คลาส: <code>basketball</code>, <code>basketball rim</code>, <code>person</code></div>
-              <ul class="guide-list">
-                <li><strong class="text-green">ข้อดี:</strong> <strong>Zero-Shot AI</strong> ควอนไทซ์ INT8 เหลือ 12.3 MB แยกแยะวัตถุด้วยภาษา ลดปัญหาความสับสนกับพัดลมหรือหลอดไฟในห้อง 100%</li>
-                <li><strong class="text-amber">ข้อเสีย:</strong> ใช้หน่วยความจำ VRAM ปานกลาง (~150MB)</li>
-                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> พื้นที่ที่มีสิ่งกีดขวางหรือวัตถุรบกวนเยอะ</li>
-              </ul>
-            </div>
-
-            <!-- Card 6 (Pro 384px INT8) -->
-            <div class="guide-card">
-              <div class="guide-card-header">
-                <span class="guide-badge badge-orange">⚡ Pro 384px INT8 (10.8 MB)</span>
-                <h4>6. Local ONNX: Pro High-Precision (ระยะไกล)</h4>
-              </div>
-              <div class="guide-classes">🎯 คลาส: <code>Basketball</code>, <code>Rim</code> (YOLOv8s 384px INT8)</div>
-              <ul class="guide-list">
-                <li><strong class="text-green">ข้อดี:</strong> <strong>โมเดล YOLOv8s ปรับ 384px INT8</strong> เหลือ 10.8 MB แม่นยำสูงสำหรับการชู้ตระยะไกล 3–8 เมตร</li>
-                <li><strong class="text-amber">ข้อเสีย:</strong> ขนาดใหญ่กว่า Swish-Vision เล็กน้อย</li>
-                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> ชู้ตระยะไกล สนามมาตรฐาน</li>
+                <li><strong class="text-green">ข้อดี:</strong> สามารถนำโมเดลบาสเกตบอลที่เทรนเองบน Roboflow มาใส่ Model ID และ API Key ใช้งานได้ทันที</li>
+                <li><strong class="text-amber">ข้อเสีย:</strong> ต้องมีบัญชี Roboflow และโมเดลที่เทรนเสร็จแล้ว</li>
+                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> นักพัฒนาหรือผู้ใช้ที่ต้องการทดสอบโมเดลของตัวเอง</li>
               </ul>
             </div>
 
