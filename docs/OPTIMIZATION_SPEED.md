@@ -61,19 +61,16 @@ graph TD
 
 ---
 
-### 2. ⚡ Strategy 2: TensorFlow.js (WebGL Backend Engine)
+### 2. ⚡ Strategy 2: TensorFlow.js (WebGL Backend Engine) — [Evaluated & Deprecated]
 - **Concept:** Replace or complement ONNX Runtime with a dedicated WebGL engine.
-- **Why WebGL Wins on Mobile:**
-  - Supported natively on **100% of Android and iOS devices** without flags or experimental toggles.
-  - Compiles neural network layers directly into GPU fragment shaders.
-- **Implementation Architecture:**
-  - Bundle `tfjs-backend-webgl` with `yolov8n` graph model.
-  - Warm up shaders during app startup to eliminate mid-session frame drops.
-  - Seamless automatic fallback from WebGPU ➔ WebGL ➔ WASM.
+- **Evaluation Findings (Phase A Test):**
+  - ❌ **Missing Rim Class:** Generic COCO-80 TFJS models do not contain a basketball `rim` class, causing false positive chaos on surrounding room objects.
+  - ❌ **GPU Readback Bottleneck:** Calling `await output.data()` to extract 705,600 floats (`[1, 84, 8400]`) from WebGL VRAM to JS CPU memory blocks the main thread for 50–80 ms per frame.
+  - 💡 **Conclusion:** Generic TFJS without custom in-shader NMS is inferior to Roboflow `inferencejs` (which embeds GPU NMS) and ONNX Runtime. Deprecated.
 
 ---
 
-### 3. 🧵 Strategy 3: Dedicated Web Worker & OffscreenCanvas
+### 3. 🧵 Strategy 3: Dedicated Web Worker & OffscreenCanvas (Recommended)
 - **Concept:** Move the entire image preprocessing, tensor construction, and model execution off the Main UI Thread.
 - **Workflow:**
   1. Capture video frame via `createImageBitmap(videoElement, { resizeWidth: 384, resizeHeight: 384 })` (< 1 ms, zero GPU readback).
@@ -95,14 +92,14 @@ graph TD
 
 ## 📋 Implementation Milestones
 
-- [x] **Phase A (Immediate / Experimental):**
-  - [x] Test TensorFlow.js WebGL integration alongside Roboflow & ONNX (`src/tfjs-detector.js`).
-  - [x] Bundle `public/models/tfjs_yolov8n` graph model shards (12.2 MB).
-  - [x] Integrate TFJS into unified `src/detector.js`, `src/config.js`, and UI selection.
-  - [ ] Benchmark inference latency across mobile chipsets (Snapdragon, Dimensity, Apple Silicon).
-- [ ] **Phase B (Model Optimization):**
-  - Export Swish-Vision YOLOv8n at 384x384 INT8.
+- [x] **Phase A (TFJS WebGL Evaluation):**
+  - [x] Tested TensorFlow.js WebGL integration alongside Roboflow & ONNX.
+  - [x] Identified GPU-to-CPU tensor readback bottleneck and COCO class limitations.
+  - [x] Cleaned up and deprecated generic TFJS in favor of lightweight ONNX & Web Workers.
+- [x] **Phase C (Architecture Refactoring - Strategy 3):**
+  - [x] Implemented `src/worker/onnx.worker.js` with `OffscreenCanvas` and zero-copy `ImageBitmap` transfer.
+  - [x] Implemented `src/onnx-worker-detector.js` managing a 2-worker parallel pipeline.
+  - [x] Decoupled Main UI Thread rendering (locked at 60 FPS) from AI inference.
+- [ ] **Phase B (Model Optimization - Strategy 1):**
+  - Export Swish-Vision YOLOv8n at 384x384 INT8 / FP16.
   - Compare detection accuracy and score trigger reliability against 640x640 baseline.
-- [ ] **Phase C (Architecture Refactoring):**
-  - Implement `worker/detection-worker.js` with `OffscreenCanvas`.
-  - Implement 60 FPS bounding box interpolator in `src/ui.js`.

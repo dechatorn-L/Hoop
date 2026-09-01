@@ -92,12 +92,7 @@ export class HoopCounterApp {
 
       let loadOptions = {};
 
-      if (preset.provider === 'tfjs') {
-        loadOptions = {
-          provider: 'tfjs',
-          modelPath: preset.modelPath || '/models/tfjs_yolov8n/model.json',
-        };
-      } else if (preset.provider === 'onnx') {
+      if (preset.provider === 'onnx') {
         loadOptions = {
           provider: 'onnx',
           modelPath: preset.modelPath || this.config.onnxModelPath,
@@ -259,4 +254,12 @@ export class HoopCounterApp {
 window.addEventListener('DOMContentLoaded', () => {
   const app = new HoopCounterApp();
   app.init();
+
+  window.addEventListener('beforeunload', () => {
+    try {
+      if (app.detector && app.detector.onnxDetector) {
+        app.detector.onnxDetector.dispose();
+      }
+    } catch (_) {}
+  });
 });

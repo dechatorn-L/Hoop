@@ -4,40 +4,33 @@
  */
 
 import { InferenceEngine, CVImage } from 'inferencejs';
-import { OnnxObjectDetector } from './onnx-detector.js';
-import { TfjsObjectDetector } from './tfjs-detector.js';
+import { OnnxWorkerDetector } from './onnx-worker-detector.js';
 
 export class ObjectDetector {
   /**
    * @param {Object} [config={}] Configuration options
    * @param {number} [config.confidenceThreshold=0.35] Confidence threshold (0-1)
-   * @param {number} [config.inferenceRate=20] Max inference FPS
+   * @param {number} [config.inferenceRate=25] Max inference FPS
    */
   constructor(config = {}) {
     this.config = config;
     this.confidenceThreshold = config.confidenceThreshold ?? 0.35;
-    this.inferenceRate = config.inferenceRate ?? 20;
+    this.inferenceRate = config.inferenceRate ?? 25;
 
     // Providers
-    this.currentProvider = 'roboflow'; // 'roboflow' | 'onnx' | 'tfjs'
+    this.currentProvider = 'roboflow'; // 'roboflow' | 'onnx'
     this.activeModelId = '';
 
     // Roboflow Engine
     this.roboflowEngine = new InferenceEngine();
     this.roboflowWorkerId = null;
 
-    // ONNX Detector
-    this.onnxDetector = new OnnxObjectDetector({
+    // High-Performance Multi-Worker ONNX Detector (Strategy 3)
+    this.onnxDetector = new OnnxWorkerDetector({
       confidenceThreshold: this.confidenceThreshold,
       inferenceRate: this.inferenceRate,
-      modelPath: config.onnxModelPath || '/models/basketball_yolov8n.onnx',
-    });
-
-    // TFJS WebGL Detector
-    this.tfjsDetector = new TfjsObjectDetector({
-      confidenceThreshold: this.confidenceThreshold,
-      inferenceRate: this.inferenceRate,
-      modelPath: config.tfjsModelPath || '/models/tfjs_basketball/model.json',
+      modelPath: config.onnxModelPath || '/models/basketball_swish_yolov8.onnx',
+      poolSize: 2, // Dual-Worker Ping-Pong Pipeline
     });
 
     this.isLoaded = false;
@@ -59,24 +52,15 @@ export class ObjectDetector {
     let modelId = '';
     let key = apiKey;
     let onnxPath = this.config.onnxModelPath || '/models/basketball_yolov8n.onnx';
-    let tfjsPath = this.config.tfjsModelPath || '/models/tfjs_basketball/model.json';
 
     if (typeof options === 'string') {
       modelId = options;
-      if (options.endsWith('.json') || options.includes('tfjs')) {
-        provider = 'tfjs';
-        tfjsPath = options;
-      } else if (options.endsWith('.onnx') || options.includes('onnx')) {
-        provider = 'onnx';
-      } else {
-        provider = 'roboflow';
-      }
+      provider = options.endsWith('.onnx') || options.includes('onnx') ? 'onnx' : 'roboflow';
     } else if (typeof options === 'object' && options !== null) {
-      provider = options.provider || (options.modelPath?.includes('.json') ? 'tfjs' : (options.modelPath ? 'onnx' : 'roboflow'));
+      provider = options.provider || (options.modelPath ? 'onnx' : 'roboflow');
       modelId = options.modelId || '';
       key = options.apiKey || options.publishableKey || key;
       onnxPath = options.modelPath || onnxPath;
-      tfjsPath = options.modelPath || tfjsPath;
       if (typeof options.autoFallback === 'boolean') {
         autoFallback = options.autoFallback;
       }
@@ -85,24 +69,7 @@ export class ObjectDetector {
     this.isLoading = true;
     this.isLoaded = false;
 
-    // 1. If TFJS Provider requested
-    if (provider === 'tfjs') {
-      try {
-        console.log(`[ObjectDetector] Initializing Local TFJS WebGL model: ${tfjsPath}`);
-        await this.tfjsDetector.loadModel(tfjsPath);
-        this.currentProvider = 'tfjs';
-        this.activeModelId = tfjsPath;
-        this.isLoaded = true;
-        this.isLoading = false;
-        return { provider: 'tfjs', id: tfjsPath };
-      } catch (tfjsErr) {
-        this.isLoading = false;
-        this.isLoaded = false;
-        throw tfjsErr;
-      }
-    }
-
-    // 2. If ONNX Provider requested
+    // 1. If ONNX Provider requested
     if (provider === 'onnx') {
       try {
         console.log(`[ObjectDetector] Initializing Local ONNX model: ${onnxPath}`);
@@ -119,7 +86,7 @@ export class ObjectDetector {
       }
     }
 
-    // 3. Roboflow Provider
+    // 2. Roboflow Provider
     try {
       console.log(`[ObjectDetector] Initializing Roboflow model: ${modelId}`);
       if (!modelId || !key) {
@@ -231,9 +198,6 @@ export class ObjectDetector {
    */
   isReady() {
     if (!this.isLoaded) return false;
-    if (this.currentProvider === 'tfjs') {
-      return this.tfjsDetector.isReady();
-    }
     if (this.currentProvider === 'onnx') {
       return this.onnxDetector.isReady();
     }
@@ -248,13 +212,6 @@ export class ObjectDetector {
   async detect(videoElement) {
     if (!this.isReady() || !videoElement || videoElement.readyState < 2) {
       return this.lastDetections;
-    }
-
-    // Delegate to TFJS if provider is tfjs
-    if (this.currentProvider === 'tfjs') {
-      const detections = await this.tfjsDetector.detect(videoElement);
-      this.lastDetections = detections;
-      return detections;
     }
 
     // Delegate to ONNX if provider is onnx
@@ -361,7 +318,6 @@ export class ObjectDetector {
     if (typeof threshold === 'number' && threshold >= 0 && threshold <= 1) {
       this.confidenceThreshold = threshold;
       this.onnxDetector.setConfidence(threshold);
-      this.tfjsDetector.setConfidence(threshold);
     }
   }
 }

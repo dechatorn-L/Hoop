@@ -196,7 +196,6 @@ export class UIController {
     if (this.modelInfoText) {
       const descriptions = {
         'roboflow-default': 'ตรวจจับห่วง ลูกบาส และผู้เล่น (Roboflow Universe v4 · โมเดลหลัก Cloud ความเสถียรสูงสุด)',
-        'local-tfjs-webgl': '⚡ Local TFJS: WebGL Engine (12.2 MB) รันผ่าน WebGL GPU Shaders โดยตรง ลื่นสุดบนมือถือ 30-60 FPS (ออฟไลน์ 100%)',
         'local-onnx-swish': '⚡ Local ONNX: Swish-Vision (11.7 MB) Fine-tuned Basketball-1 คมชัด ไม่ตีกรอบรวมกับคน (30-60 FPS)',
         'local-onnx-yolo11': '⚡ Local ONNX: YOLO11s Basketball (36.2 MB) สถาปัตยกรรมล่าสุด Attention C2PSA จับลูกความเร็วสูงและแสงแดดย้อนกลางแจ้ง',
         'local-onnx-world': '⚡ Local ONNX: YOLO-World (47.8 MB) Open-Vocabulary AI วิเคราะห์ภาษา ไม่หลอนพัดลม/โคมไฟ',
@@ -204,7 +203,7 @@ export class UIController {
         'roboflow-custom': 'ใช้โมเดล Roboflow Universe ของคุณเอง (กรอก Model ID และ API Key ด้านล่าง)',
       };
       this.modelInfoText.textContent = descriptions[modelType] || 'เลือกโมเดลตรวจจับ AI';
-      this.modelInfoText.classList.toggle('highlight', modelType && (modelType.startsWith('local-onnx') || modelType.startsWith('local-tfjs')));
+      this.modelInfoText.classList.toggle('highlight', modelType && modelType.startsWith('local-onnx'));
     }
   }
 
