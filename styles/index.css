@@ -1139,9 +1139,15 @@ body.is-fullscreen .viewport-container {
   color: #00FF88;
 }
 
-.canvas-drawing-mode {
+.canvas-drawing-mode,
+#detection-overlay.canvas-drawing-mode,
+.drawing-active #detection-overlay {
+  pointer-events: auto !important;
   cursor: crosshair !important;
-  touch-action: none;
+  touch-action: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  z-index: 45 !important;
 }
 
 

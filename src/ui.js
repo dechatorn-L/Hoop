@@ -113,22 +113,42 @@ export class UIController {
 
     const getCanvasPoint = (e) => {
       const rect = this.canvas.getBoundingClientRect();
-      const clientX = e.touches && e.touches.length ? e.touches[0].clientX : (e.clientX || 0);
-      const clientY = e.touches && e.touches.length ? e.touches[0].clientY : (e.clientY || 0);
+      const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX : (e.clientX ?? 0);
+      const clientY = e.touches && e.touches.length > 0 ? e.touches[0].clientY : (e.clientY ?? 0);
 
-      const scaleX = this.canvas.width / rect.width;
-      const scaleY = this.canvas.height / rect.height;
+      // Account for aspect-ratio preservation (object-fit: contain)
+      const canvasAspect = (this.canvas.width || 640) / (this.canvas.height || 480);
+      const rectAspect = rect.width / (rect.height || 1);
 
-      return {
-        x: (clientX - rect.left) * scaleX,
-        y: (clientY - rect.top) * scaleY,
-      };
+      let renderWidth = rect.width;
+      let renderHeight = rect.height;
+      let renderLeft = rect.left;
+      let renderTop = rect.top;
+
+      if (rectAspect > canvasAspect) {
+        // Pillarbox (black bars on left/right)
+        renderWidth = rect.height * canvasAspect;
+        renderLeft = rect.left + (rect.width - renderWidth) / 2;
+      } else {
+        // Letterbox (black bars on top/bottom)
+        renderHeight = rect.width / canvasAspect;
+        renderTop = rect.top + (rect.height - renderHeight) / 2;
+      }
+
+      const scaleX = (this.canvas.width || 640) / (renderWidth || 1);
+      const scaleY = (this.canvas.height || 480) / (renderHeight || 1);
+
+      const x = Math.max(0, Math.min(this.canvas.width || 640, (clientX - renderLeft) * scaleX));
+      const y = Math.max(0, Math.min(this.canvas.height || 480, (clientY - renderTop) * scaleY));
+
+      return { x: Math.round(x), y: Math.round(y) };
     };
 
     // Touch & Pointer start
     const handleStart = (e) => {
       if (!this.isDrawingRim) return;
       e.preventDefault();
+      e.stopPropagation();
       const pt = getCanvasPoint(e);
       this.dragStart = pt;
       this.currentDragBox = { x: pt.x, y: pt.y, width: 0, height: 0 };
@@ -138,6 +158,7 @@ export class UIController {
     const handleMove = (e) => {
       if (!this.isDrawingRim || !this.dragStart) return;
       e.preventDefault();
+      e.stopPropagation();
       const pt = getCanvasPoint(e);
       const minX = Math.min(this.dragStart.x, pt.x);
       const minY = Math.min(this.dragStart.y, pt.y);
@@ -157,17 +178,20 @@ export class UIController {
       if (!this.isDrawingRim || !this.dragStart || !this.currentDragBox) return;
       e.preventDefault();
 
-      // Only accept if drawn box is meaningful size (> 20px)
-      if (this.currentDragBox.width >= 20 && this.currentDragBox.height >= 20) {
+      // Only accept if drawn box is meaningful size (> 15px)
+      if (this.currentDragBox.width >= 15 && this.currentDragBox.height >= 15) {
         this.setManualRimRoi(this.currentDragBox);
       }
       this.stopDrawingRim();
     };
 
-    this.canvas.addEventListener('mousedown', handleStart);
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleEnd);
+    // Pointer Events (Unified Touch + Mouse for modern browsers)
+    this.canvas.addEventListener('pointerdown', handleStart);
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleEnd);
+    window.addEventListener('pointercancel', handleEnd);
 
+    // Fallback Touch Events for older mobile WebViews
     this.canvas.addEventListener('touchstart', handleStart, { passive: false });
     window.addEventListener('touchmove', handleMove, { passive: false });
     window.addEventListener('touchend', handleEnd, { passive: false });
@@ -191,6 +215,8 @@ export class UIController {
     this.isDrawingRim = true;
     this.dragStart = null;
     this.currentDragBox = null;
+    this.clearDetections();
+    document.body.classList.add('drawing-active');
     if (this.rimDrawBanner) this.rimDrawBanner.classList.remove('hidden');
     if (this.btnPinRim) this.btnPinRim.classList.add('btn-pin-active');
     if (this.canvas) this.canvas.classList.add('canvas-drawing-mode');
@@ -203,6 +229,7 @@ export class UIController {
     this.isDrawingRim = false;
     this.dragStart = null;
     this.currentDragBox = null;
+    document.body.classList.remove('drawing-active');
     if (this.rimDrawBanner) this.rimDrawBanner.classList.add('hidden');
     if (this.btnPinRim) this.btnPinRim.classList.remove('btn-pin-active');
     if (this.canvas) this.canvas.classList.remove('canvas-drawing-mode');
@@ -234,6 +261,7 @@ export class UIController {
   clearManualRimRoi() {
     this.manualRimRoi = null;
     this.stopDrawingRim();
+    this.clearDetections();
     try {
       localStorage.removeItem('hoop_manual_rim_roi');
     } catch (err) {

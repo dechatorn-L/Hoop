@@ -224,24 +224,48 @@ export class HoopCounterApp {
 
       try {
         // 1. Run detection (throttled inside detector)
-        const detections = await this.detector.detect(this.videoElement);
+        const rawDetections = await this.detector.detect(this.videoElement);
 
-        // 2. Draw bounding boxes on canvas
-        this.ui.drawDetections(detections);
-
-        // 3. Extract rim (Manual pinned ROI takes priority over auto detection), ball, and made basket
+        // 2. Single Rim Guarantee Filter: Never allow multiple rims to show up or distract tracker
         const manualRim = this.ui.getManualRimRoi();
-        const detectedRim = detections.find(
-          (d) => d.class && (d.class === '1' || d.class.includes('rim') || d.class.includes('hoop') || (d.class.includes('basket') && !d.class.includes('made')))
-        );
-        const rim = manualRim || detectedRim;
-        const ball = detections.find((d) => d.class && (d.class === '2' || d.class.includes('ball')));
-        const madeBasket = detections.find((d) => d.class && d.class.includes('made'));
+        let filteredDetections = [];
+        let primaryRim = null;
 
-        // 4. Update shot tracker state machine
-        const scored = this.tracker.update(rim, ball, madeBasket);
+        if (manualRim) {
+          // If Manual Rim is active, ignore ALL auto-detected rims from the model
+          filteredDetections = rawDetections.filter(
+            (d) => !d.class || !(d.class === '1' || d.class.includes('rim') || d.class.includes('hoop') || (d.class.includes('basket') && !d.class.includes('made')))
+          );
+          primaryRim = manualRim;
+        } else {
+          // In Auto mode: filter so ONLY top 1 highest confidence rim exists
+          const rims = rawDetections.filter(
+            (d) => d.class && (d.class === '1' || d.class.includes('rim') || d.class.includes('hoop') || (d.class.includes('basket') && !d.class.includes('made')))
+          );
+          const nonRims = rawDetections.filter(
+            (d) => !d.class || !(d.class === '1' || d.class.includes('rim') || d.class.includes('hoop') || (d.class.includes('basket') && !d.class.includes('made')))
+          );
 
-        // 5. Handle score event (Event Flow Section 4)
+          if (rims.length > 0) {
+            rims.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+            primaryRim = rims[0];
+            filteredDetections = [...nonRims, primaryRim];
+          } else {
+            filteredDetections = nonRims;
+          }
+        }
+
+        // 3. Draw bounding boxes on canvas
+        this.ui.drawDetections(filteredDetections);
+
+        // 4. Extract ball & made basket
+        const ball = filteredDetections.find((d) => d.class && (d.class === '2' || d.class.includes('ball')));
+        const madeBasket = filteredDetections.find((d) => d.class && d.class.includes('made'));
+
+        // 5. Update shot tracker state machine
+        const scored = this.tracker.update(primaryRim, ball, madeBasket);
+
+        // 6. Handle score event (Event Flow Section 4)
         if (scored) {
           console.log('🎯 SCORE EVENT TRIGGERED!');
           this.sound.playScoreSound();
