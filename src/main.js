@@ -94,8 +94,9 @@ export class HoopCounterApp {
       // 1. Asynchronous Non-Blocking Inference Trigger (Runs in background without pausing UI)
       if (!this.isInferring) {
         this.isInferring = true;
+        const cropRoi = this.ui.isHoopRoiEnabled() ? this.ui.getManualRimRoi() : null;
         this.detector
-          .detect(this.videoElement)
+          .detect(this.videoElement, cropRoi)
           .then((rawDetections) => {
             this._processDetections(rawDetections);
             this.isInferring = false;

@@ -202,11 +202,12 @@ export class ObjectDetector {
   }
 
   /**
-   * Run inference on video element with FPS throttling
+   * Run inference on video element with FPS throttling and optional Hoop ROI Cropping
    * @param {HTMLVideoElement} videoElement
+   * @param {Object|null} [cropRoi=null] Optional rim ROI bounding box to focus inference on
    * @returns {Promise<Array<{class: string, bbox: {x: number, y: number, width: number, height: number}, confidence: number}>>}
    */
-  async detect(videoElement) {
+  async detect(videoElement, cropRoi = null) {
     if (!this.isReady() || !videoElement || videoElement.readyState < 2) {
       return [];
     }
@@ -236,14 +237,56 @@ export class ObjectDetector {
     this.lastInferenceTime = now;
 
     try {
-      const cvImage = new CVImage(videoElement);
+      const srcW = videoElement.videoWidth || 640;
+      const srcH = videoElement.videoHeight || 480;
+
+      let cropX = 0, cropY = 0, cropW = srcW, cropH = srcH;
+      if (cropRoi && cropRoi.width > 10 && cropRoi.height > 10) {
+        // Calculate Action Zone around the pinned rim
+        const padTop = cropRoi.height * 2.0;
+        const padBottom = cropRoi.height * 2.8;
+        const padX = cropRoi.width * 1.5;
+
+        cropX = Math.max(0, Math.round(cropRoi.x - padX));
+        cropY = Math.max(0, Math.round(cropRoi.y - padTop));
+        cropW = Math.min(srcW - cropX, Math.round(cropRoi.width + padX * 2));
+        cropH = Math.min(srcH - cropY, Math.round(cropRoi.height + padTop + padBottom));
+      }
+
+      const maxDim = 640;
+      let dstW = cropW;
+      let dstH = cropH;
+      if (cropW > maxDim || cropH > maxDim) {
+        if (cropW >= cropH) {
+          dstW = maxDim;
+          dstH = Math.round((cropH / cropW) * maxDim);
+        } else {
+          dstH = maxDim;
+          dstW = Math.round((cropW / cropH) * maxDim);
+        }
+      }
+
+      if (!this.inputBufferCanvas) {
+        this.inputBufferCanvas = document.createElement('canvas');
+        this.inputBufferCtx = this.inputBufferCanvas.getContext('2d', { willReadFrequently: true });
+      }
+
+      if (this.inputBufferCanvas.width !== dstW || this.inputBufferCanvas.height !== dstH) {
+        this.inputBufferCanvas.width = dstW;
+        this.inputBufferCanvas.height = dstH;
+      }
+
+      // Fast hardware GPU crop and downscale in 1 draw call
+      this.inputBufferCtx.drawImage(videoElement, cropX, cropY, cropW, cropH, 0, 0, dstW, dstH);
+
+      const cvImage = new CVImage(this.inputBufferCanvas);
       const inferPromise = this.roboflowEngine.infer(this.roboflowWorkerId, cvImage);
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Inference timeout')), 2500)
       );
 
       const rawPredictions = await Promise.race([inferPromise, timeoutPromise]);
-      const detections = this._normalizePredictions(rawPredictions);
+      const detections = this._normalizePredictions(rawPredictions, cropW / dstW, cropH / dstH, cropX, cropY);
       this.lastDetections = detections;
       return detections;
     } catch (error) {
@@ -256,9 +299,14 @@ export class ObjectDetector {
 
   /**
    * Normalize Roboflow predictions to Top-Left bbox pixel format
+   * @param {*} rawPredictions
+   * @param {number} [scaleX=1] Coordinate re-scaling factor for width
+   * @param {number} [scaleY=1] Coordinate re-scaling factor for height
+   * @param {number} [offsetX=0] Crop X offset on original video
+   * @param {number} [offsetY=0] Crop Y offset on original video
    * @private
    */
-  _normalizePredictions(rawPredictions) {
+  _normalizePredictions(rawPredictions, scaleX = 1, scaleY = 1, offsetX = 0, offsetY = 0) {
     if (!rawPredictions) {
       return [];
     }
@@ -324,10 +372,10 @@ export class ObjectDetector {
       normalized.push({
         class: rawClass,
         bbox: {
-          x: Math.round(topLeftX),
-          y: Math.round(topLeftY),
-          width: Math.round(width),
-          height: Math.round(height),
+          x: Math.round(topLeftX * scaleX + offsetX),
+          y: Math.round(topLeftY * scaleY + offsetY),
+          width: Math.round(width * scaleX),
+          height: Math.round(height * scaleY),
         },
         confidence: Math.round(confidence * 100) / 100,
       });

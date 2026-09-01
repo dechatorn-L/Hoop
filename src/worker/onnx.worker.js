@@ -7,7 +7,8 @@ import * as ort from 'onnxruntime-web';
 
 // Configure WebAssembly paths & environment for worker context
 ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.29.0/dist/';
-ort.env.wasm.numThreads = 1; // Single-thread to prevent mobile CPU overload and camera stutter
+const cpuCores = typeof navigator !== 'undefined' && navigator.hardwareConcurrency ? navigator.hardwareConcurrency : 4;
+ort.env.wasm.numThreads = cpuCores >= 4 ? 2 : 1; // 2 threads on 4+ core mobile devices (e.g. Snapdragon 8 Gen 2), safe 1 thread fallback
 ort.env.wasm.simd = true;
 
 const COCO_CLASSES = [

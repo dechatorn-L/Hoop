@@ -55,11 +55,13 @@ export class UIController {
     this.rimStatusText = document.getElementById('rim-status-text');
     this.rimDrawBanner = document.getElementById('rim-draw-banner');
     this.btnCancelDrawRim = document.getElementById('btn-cancel-draw-rim');
+    this.toggleHoopRoi = document.getElementById('toggle-hoop-roi');
 
     this.isDrawingRim = false;
     this.dragStart = null;
     this.currentDragBox = null;
     this.manualRimRoi = null;
+    this.isHoopRoiTurboEnabled = true;
 
     this.currentScore = 0;
 
@@ -70,7 +72,7 @@ export class UIController {
   }
 
   /**
-   * Load saved manual rim ROI from localStorage
+   * Load saved manual rim ROI and Turbo toggle from localStorage
    * @private
    */
   _loadManualRimRoi() {
@@ -80,9 +82,22 @@ export class UIController {
         this.manualRimRoi = JSON.parse(saved);
         this._updateManualRimUI();
       }
+      const savedTurbo = localStorage.getItem('hoop_roi_turbo_enabled');
+      this.isHoopRoiTurboEnabled = savedTurbo !== null ? (savedTurbo === 'true') : true;
+      if (this.toggleHoopRoi) {
+        this.toggleHoopRoi.checked = this.isHoopRoiTurboEnabled;
+      }
     } catch (err) {
       console.warn('[UIController] Could not load saved manual rim ROI:', err);
     }
+  }
+
+  /**
+   * Check if Hoop ROI Turbo cropping should be used for inference
+   * @returns {boolean}
+   */
+  isHoopRoiEnabled() {
+    return Boolean(this.isHoopRoiTurboEnabled && this.manualRimRoi);
   }
 
   /**
@@ -90,6 +105,14 @@ export class UIController {
    * @private
    */
   _setupManualRimEvents() {
+    if (this.toggleHoopRoi) {
+      this.toggleHoopRoi.addEventListener('change', (e) => {
+        this.isHoopRoiTurboEnabled = e.target.checked;
+        localStorage.setItem('hoop_roi_turbo_enabled', String(this.isHoopRoiTurboEnabled));
+        console.log('⚡ Hoop ROI Turbo:', this.isHoopRoiTurboEnabled);
+      });
+    }
+
     if (this.btnPinRim) {
       this.btnPinRim.addEventListener('click', () => this.toggleDrawingRim());
     }
