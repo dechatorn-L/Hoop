@@ -68,6 +68,11 @@ export class ObjectDetector {
 
     this.isLoading = true;
     this.isLoaded = false;
+    this.lastDetections = [];
+    this.isInferring = false;
+    if (this.onnxDetector) {
+      this.onnxDetector.lastDetections = [];
+    }
 
     // 1. If ONNX Provider requested
     if (provider === 'onnx') {
@@ -199,7 +204,7 @@ export class ObjectDetector {
    */
   async detect(videoElement) {
     if (!this.isReady() || !videoElement || videoElement.readyState < 2) {
-      return this.lastDetections;
+      return [];
     }
 
     // Delegate to ONNX if provider is onnx

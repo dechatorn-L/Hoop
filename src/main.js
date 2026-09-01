@@ -87,6 +87,9 @@ export class HoopCounterApp {
     const { modelType, customModelId, customApiKey } = settings;
     const preset = MODEL_PRESETS[modelType] || MODEL_PRESETS['roboflow-default'];
 
+    // Clear old visual bounding boxes immediately
+    this.ui.clearDetections();
+
     try {
       this.ui.showLoading(`กำลังโหลดโมเดล (${preset.name || modelType})...`);
 

@@ -308,6 +308,18 @@ export class UIController {
   }
 
   /**
+   * Clear bounding box canvas overlay
+   */
+  clearDetections() {
+    if (this.canvas) {
+      const ctx = this.canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      }
+    }
+  }
+
+  /**
    * Draw bounding box detections on canvas overlay
    * Rim = Green (#00FF88), Ball = Orange (#FF6B35)
    * @param {HTMLCanvasElement|Array} canvasOrDetections
