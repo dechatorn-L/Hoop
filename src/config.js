@@ -17,6 +17,13 @@ export const MODEL_PRESETS = {
     modelId: 'cricket-qnb5l/basketball-xil7x/1',
     description: 'โมเดลชุดใหญ่ 9,500+ รูป (cricket-qnb5l/basketball-xil7x/1 ตรวจจับ ball, person, rim)',
   },
+  'roboflow-devinross': {
+    id: 'roboflow-devinross',
+    name: 'Roboflow: Made Basket SOTA (Devin Ross · 8.1K)',
+    provider: 'roboflow',
+    modelId: 'devin-ross-g0rqc/basketball-ls818/15',
+    description: 'ตรวจจับลูกบาสและลูกลงห่วง (Devin Ross 8,150 รูป · เหมาะที่สุดเมื่อใช้ร่วมกับโหมดล็อกห่วง)',
+  },
 
 
 

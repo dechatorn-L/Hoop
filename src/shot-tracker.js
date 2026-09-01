@@ -28,12 +28,13 @@ export class ShotTracker {
 
   /**
    * Update tracker with rim and ball detections
-   * Supports either (rimDetection, ballDetection) or single detections array
+   * Supports either (rimDetection, ballDetection, madeBasketDetection) or single detections array
    * @param {Object|Array} rimOrDetections Rim detection object or array of detections
    * @param {Object} [ballDetection] Ball detection object
+   * @param {Object} [madeBasketDetection] Made basket detection object (optional)
    * @returns {boolean} True if a score occurred in this frame
    */
-  update(rimOrDetections, ballDetection) {
+  update(rimOrDetections, ballDetection, madeBasketDetection) {
     const now = Date.now();
 
     // Check if in COOLDOWN
@@ -47,24 +48,29 @@ export class ShotTracker {
       }
     }
 
-    // Extract rim and ball detections
+    // Extract rim, ball, and made basket detections
     let rim = null;
     let ball = null;
+    let madeBasket = madeBasketDetection || null;
 
     if (Array.isArray(rimOrDetections)) {
       const detections = rimOrDetections;
-      rim = detections.find(d => d.class && (d.class.includes('rim') || d.class.includes('hoop'))) || null;
-      ball = detections.find(d => d.class && d.class.includes('ball')) || null;
+      rim = detections.find(d => d.class && (d.class === '1' || d.class.includes('rim') || d.class.includes('hoop') || d.class.includes('basket'))) || null;
+      ball = detections.find(d => d.class && (d.class === '2' || d.class.includes('ball'))) || null;
+      if (!madeBasket) {
+        madeBasket = detections.find(d => d.class && d.class.includes('made')) || null;
+      }
     } else {
       rim = rimOrDetections || null;
       ball = ballDetection || null;
     }
 
+    const isManualRim = !!(rim && rim.isManual);
     let rimBox = rim ? (rim.bbox || rim) : null;
     const ballBox = ball ? (ball.bbox || ball) : null;
 
-    // 1. Anti-Confusion Filter: If rim and ball heavily overlap (same object detected as both), reject false rim
-    if (rimBox && ballBox) {
+    // 1. If NOT a manual pinned rim: run Anti-Confusion Filter
+    if (!isManualRim && rimBox && ballBox) {
       const iou = this._computeIoU(rimBox, ballBox);
       const containment = this._computeContainment(rimBox, ballBox);
       if (iou > 0.30 || containment > 0.40) {
@@ -73,8 +79,11 @@ export class ShotTracker {
       }
     }
 
-    // 2. Stationary Rim Anchor & Cache (Hoop cannot move with player's hand)
-    if (rimBox) {
+    // 2. Stationary Rim Anchor & Cache (Auto mode only, manual is fixed)
+    if (isManualRim && rimBox) {
+      this.lastKnownRimBox = rimBox;
+      this.lastKnownRimTime = now;
+    } else if (rimBox) {
       if (this.lastKnownRimBox) {
         const dx = Math.abs((rimBox.x + rimBox.width / 2) - (this.lastKnownRimBox.x + this.lastKnownRimBox.width / 2));
         const dy = Math.abs((rimBox.y + rimBox.height / 2) - (this.lastKnownRimBox.y + this.lastKnownRimBox.height / 2));
@@ -98,6 +107,25 @@ export class ShotTracker {
     } else if (this.lastKnownRimBox && (now - this.lastKnownRimTime < 15000)) {
       // Use cached stationary rim if seen recently
       rimBox = this.lastKnownRimBox;
+    }
+
+    // 3. Direct Made Basket Trigger (SOTA event trigger for models with 'made basket' class)
+    if (madeBasket && rimBox) {
+      const mbBox = madeBasket.bbox || madeBasket;
+      const mbCenterX = mbBox.x + mbBox.width / 2;
+      const mbCenterY = mbBox.y + mbBox.height / 2;
+      const rimCenterX = rimBox.x + rimBox.width / 2;
+      const rimCenterY = rimBox.y + rimBox.height / 2;
+      const dist = Math.hypot(mbCenterX - rimCenterX, mbCenterY - rimCenterY);
+      const maxAllowedDist = Math.max(rimBox.width, rimBox.height) * 2.0;
+
+      if (dist <= maxAllowedDist) {
+        this.score++;
+        this._transitionTo('SCORED');
+        this.cooldownEndTime = now + this.scoreCooldownMs;
+        this._transitionTo('COOLDOWN');
+        return true;
+      }
     }
 
     // If no stationary rim or no ball detected

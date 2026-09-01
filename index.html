@@ -28,6 +28,8 @@
             <option value="">📷 กำลังค้นหากล้อง...</option>
           </select>
         </div>
+        <button id="btn-pin-rim" class="btn btn-secondary btn-header" title="กำหนดพิกัดห่วงบาสเอง">🎯 ล็อกห่วง</button>
+        <button id="btn-clear-rim" class="btn btn-danger btn-header hidden" title="คืนค่าเป็น Auto ตรวจจับห่วง">🔄 เลิกล็อก</button>
         <button id="btn-reset-score" class="btn btn-secondary btn-header">🔄 Reset</button>
       </div>
 
@@ -46,6 +48,10 @@
       <div class="camera-container camera-container-max" id="camera-container">
         <video id="camera-feed" playsinline autoplay muted></video>
         <canvas id="detection-overlay"></canvas>
+        <div id="rim-draw-banner" class="rim-draw-banner hidden">
+          <span>👆 ใช้นิ้วหรือเมาส์ลากสี่เหลี่ยมคลุมห่วงบาสบนหน้าจอ</span>
+          <button type="button" id="btn-cancel-draw-rim" class="btn-cancel-draw">✕ ยกเลิก</button>
+        </div>
         <div id="status-indicator" class="status-overlay hidden">
           <div class="spinner" id="status-spinner"></div>
           <span id="status-text">กำลังโหลดโมเดล...</span>
@@ -103,6 +109,24 @@
           <input type="range" id="confidence-slider" min="10" max="90" value="35" class="range-slider" />
         </section>
 
+        <!-- Manual Rim ROI Pinning Section -->
+        <section class="settings-section" id="section-rim-roi">
+          <div class="section-title-wrap">
+            <h3>🎯 Hoop Target (พิกัดห่วงบาส)</h3>
+          </div>
+          <div class="rim-status-box" id="rim-status-box">
+            <span id="rim-status-text">โหมด: <strong>🤖 Auto (AI ค้นหาห่วง)</strong></span>
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <button type="button" id="btn-settings-pin-rim" class="btn btn-secondary" style="flex: 1; font-size: 0.82rem; padding: 7px 8px; justify-content: center;">
+              🎯 ลากตำแหน่งห่วงเอง
+            </button>
+            <button type="button" id="btn-settings-clear-rim" class="btn btn-danger hidden" style="flex: 1; font-size: 0.82rem; padding: 7px 8px; justify-content: center;">
+              🔄 คืนค่าเป็น Auto
+            </button>
+          </div>
+        </section>
+
         <!-- AI Detection Model Selection Section -->
         <section class="settings-section" id="section-model">
           <div class="section-title-wrap">
@@ -117,6 +141,7 @@
             <select id="model-preset-select" class="select-input">
               <option value="roboflow-default">Roboflow v4: People + Basketball + Hoops (Cloud)</option>
               <option value="roboflow-cricket">Roboflow: Basketball 9.5K Images (Ball + Person + Rim)</option>
+              <option value="roboflow-devinross">Roboflow: Made Basket SOTA (Devin Ross · 8.1K)</option>
               <option value="local-onnx-swish">Local ONNX: Swish-Vision (11.7MB · ออฟไลน์ 100%)</option>
               <option value="roboflow-custom">Roboflow: Custom Model ID (กำหนดเอง)</option>
             </select>
@@ -187,7 +212,19 @@
               </ul>
             </div>
 
-
+            <!-- Card 3 (Devin Ross - Made Basket) -->
+            <div class="guide-card">
+              <div class="guide-card-header">
+                <span class="guide-badge badge-cyan">SOTA Made Basket (8.1K รูป)</span>
+                <h4>3. Roboflow: Made Basket (Devin Ross)</h4>
+              </div>
+              <div class="guide-classes">🎯 คลาส: <code>basketball</code>, <code>made basket</code> (8,150 รูป)</div>
+              <ul class="guide-list">
+                <li><strong class="text-green">ข้อดี:</strong> ตรวจจับลูกบาสและจับจังหวะ <strong>"ลูกลงห่วง (Made Basket)"</strong> ได้แม่นยำสูง</li>
+                <li><strong class="text-cyan">แนะนำใช้งาน:</strong> แนะนำให้ใช้คู่กับปุ่ม <strong>"🎯 ล็อกห่วง"</strong> เพื่อกำหนดตำแหน่งแป้นบาส</li>
+                <li><strong class="text-amber">ข้อเสีย:</strong> ประมวลผลผ่าน Cloud</li>
+              </ul>
+            </div>
 
             <!-- Card 4 (Swish-Vision) -->
             <div class="guide-card highlight-border">

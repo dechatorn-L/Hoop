@@ -46,10 +46,240 @@ export class UIController {
     this.btnCloseModelGuide = document.getElementById('btn-close-model-guide');
     this.btnCloseModalFooter = document.getElementById('btn-close-modal-footer');
 
+    // Manual Rim ROI Controls
+    this.btnPinRim = document.getElementById('btn-pin-rim');
+    this.btnClearRim = document.getElementById('btn-clear-rim');
+    this.btnSettingsPinRim = document.getElementById('btn-settings-pin-rim');
+    this.btnSettingsClearRim = document.getElementById('btn-settings-clear-rim');
+    this.rimStatusBox = document.getElementById('rim-status-box');
+    this.rimStatusText = document.getElementById('rim-status-text');
+    this.rimDrawBanner = document.getElementById('rim-draw-banner');
+    this.btnCancelDrawRim = document.getElementById('btn-cancel-draw-rim');
+
+    this.isDrawingRim = false;
+    this.dragStart = null;
+    this.currentDragBox = null;
+    this.manualRimRoi = null;
+
     this.currentScore = 0;
 
+    this._loadManualRimRoi();
     this._setupInternalEventListeners();
+    this._setupManualRimEvents();
     this._loadSavedModelSettings();
+  }
+
+  /**
+   * Load saved manual rim ROI from localStorage
+   * @private
+   */
+  _loadManualRimRoi() {
+    try {
+      const saved = localStorage.getItem('hoop_manual_rim_roi');
+      if (saved) {
+        this.manualRimRoi = JSON.parse(saved);
+        this._updateManualRimUI();
+      }
+    } catch (err) {
+      console.warn('[UIController] Could not load saved manual rim ROI:', err);
+    }
+  }
+
+  /**
+   * Setup interactive canvas touch/mouse drawing listeners for Manual Rim Box
+   * @private
+   */
+  _setupManualRimEvents() {
+    if (this.btnPinRim) {
+      this.btnPinRim.addEventListener('click', () => this.toggleDrawingRim());
+    }
+    if (this.btnSettingsPinRim) {
+      this.btnSettingsPinRim.addEventListener('click', () => {
+        this.hideSettings();
+        this.startDrawingRim();
+      });
+    }
+    if (this.btnClearRim) {
+      this.btnClearRim.addEventListener('click', () => this.clearManualRimRoi());
+    }
+    if (this.btnSettingsClearRim) {
+      this.btnSettingsClearRim.addEventListener('click', () => this.clearManualRimRoi());
+    }
+    if (this.btnCancelDrawRim) {
+      this.btnCancelDrawRim.addEventListener('click', () => this.stopDrawingRim());
+    }
+
+    if (!this.canvas) return;
+
+    const getCanvasPoint = (e) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const clientX = e.touches && e.touches.length ? e.touches[0].clientX : (e.clientX || 0);
+      const clientY = e.touches && e.touches.length ? e.touches[0].clientY : (e.clientY || 0);
+
+      const scaleX = this.canvas.width / rect.width;
+      const scaleY = this.canvas.height / rect.height;
+
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY,
+      };
+    };
+
+    // Touch & Pointer start
+    const handleStart = (e) => {
+      if (!this.isDrawingRim) return;
+      e.preventDefault();
+      const pt = getCanvasPoint(e);
+      this.dragStart = pt;
+      this.currentDragBox = { x: pt.x, y: pt.y, width: 0, height: 0 };
+    };
+
+    // Touch & Pointer move
+    const handleMove = (e) => {
+      if (!this.isDrawingRim || !this.dragStart) return;
+      e.preventDefault();
+      const pt = getCanvasPoint(e);
+      const minX = Math.min(this.dragStart.x, pt.x);
+      const minY = Math.min(this.dragStart.y, pt.y);
+      const width = Math.abs(pt.x - this.dragStart.x);
+      const height = Math.abs(pt.y - this.dragStart.y);
+
+      this.currentDragBox = {
+        x: Math.round(minX),
+        y: Math.round(minY),
+        width: Math.round(width),
+        height: Math.round(height),
+      };
+    };
+
+    // Touch & Pointer end
+    const handleEnd = (e) => {
+      if (!this.isDrawingRim || !this.dragStart || !this.currentDragBox) return;
+      e.preventDefault();
+
+      // Only accept if drawn box is meaningful size (> 20px)
+      if (this.currentDragBox.width >= 20 && this.currentDragBox.height >= 20) {
+        this.setManualRimRoi(this.currentDragBox);
+      }
+      this.stopDrawingRim();
+    };
+
+    this.canvas.addEventListener('mousedown', handleStart);
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+
+    this.canvas.addEventListener('touchstart', handleStart, { passive: false });
+    window.addEventListener('touchmove', handleMove, { passive: false });
+    window.addEventListener('touchend', handleEnd, { passive: false });
+  }
+
+  /**
+   * Toggle drawing mode on/off
+   */
+  toggleDrawingRim() {
+    if (this.isDrawingRim) {
+      this.stopDrawingRim();
+    } else {
+      this.startDrawingRim();
+    }
+  }
+
+  /**
+   * Start manual rim drawing mode
+   */
+  startDrawingRim() {
+    this.isDrawingRim = true;
+    this.dragStart = null;
+    this.currentDragBox = null;
+    if (this.rimDrawBanner) this.rimDrawBanner.classList.remove('hidden');
+    if (this.btnPinRim) this.btnPinRim.classList.add('btn-pin-active');
+    if (this.canvas) this.canvas.classList.add('canvas-drawing-mode');
+  }
+
+  /**
+   * Stop manual rim drawing mode
+   */
+  stopDrawingRim() {
+    this.isDrawingRim = false;
+    this.dragStart = null;
+    this.currentDragBox = null;
+    if (this.rimDrawBanner) this.rimDrawBanner.classList.add('hidden');
+    if (this.btnPinRim) this.btnPinRim.classList.remove('btn-pin-active');
+    if (this.canvas) this.canvas.classList.remove('canvas-drawing-mode');
+  }
+
+  /**
+   * Set and persist manual rim ROI
+   * @param {Object} roi { x, y, width, height }
+   */
+  setManualRimRoi(roi) {
+    if (!roi) return;
+    this.manualRimRoi = {
+      x: Math.round(roi.x),
+      y: Math.round(roi.y),
+      width: Math.round(roi.width),
+      height: Math.round(roi.height),
+    };
+    try {
+      localStorage.setItem('hoop_manual_rim_roi', JSON.stringify(this.manualRimRoi));
+    } catch (err) {
+      console.warn('[UIController] Could not save manual rim to localStorage:', err);
+    }
+    this._updateManualRimUI();
+  }
+
+  /**
+   * Clear manual rim ROI and return to Auto AI mode
+   */
+  clearManualRimRoi() {
+    this.manualRimRoi = null;
+    this.stopDrawingRim();
+    try {
+      localStorage.removeItem('hoop_manual_rim_roi');
+    } catch (err) {
+      console.warn('[UIController] Could not clear manual rim from localStorage:', err);
+    }
+    this._updateManualRimUI();
+  }
+
+  /**
+   * Get active manual rim ROI detection object
+   * @returns {Object|null}
+   */
+  getManualRimRoi() {
+    if (!this.manualRimRoi) return null;
+    return {
+      bbox: { ...this.manualRimRoi },
+      class: 'rim',
+      confidence: 1.0,
+      isManual: true,
+    };
+  }
+
+  /**
+   * Update visual labels and buttons for Manual Rim state
+   * @private
+   */
+  _updateManualRimUI() {
+    const isPinned = !!this.manualRimRoi;
+    if (this.btnClearRim) {
+      this.btnClearRim.classList.toggle('hidden', !isPinned);
+    }
+    if (this.btnSettingsClearRim) {
+      this.btnSettingsClearRim.classList.toggle('hidden', !isPinned);
+    }
+    if (this.btnPinRim) {
+      this.btnPinRim.textContent = isPinned ? '🎯 แก้ไขห่วง' : '🎯 ล็อกห่วง';
+      this.btnPinRim.title = isPinned ? 'แต้มพิกัดห่วงบาสถูกล็อกอยู่ (คลิกเพื่อวาดใหม่)' : 'กำหนดพิกัดห่วงบาสเอง';
+    }
+    if (this.rimStatusBox) {
+      this.rimStatusBox.classList.toggle('pinned', isPinned);
+    }
+    if (this.rimStatusText) {
+      this.rimStatusText.innerHTML = isPinned
+        ? 'โหมด: <strong>📌 ล็อกตำแหน่งห่วง (Manual)</strong>'
+        : 'โหมด: <strong>🤖 Auto (AI ค้นหาห่วง)</strong>';
+    }
   }
 
   /**
@@ -197,6 +427,7 @@ export class UIController {
       const descriptions = {
         'roboflow-default': 'ตรวจจับห่วง ลูกบาส และผู้เล่น (Roboflow Universe v4 · โมเดลหลัก Cloud ความเสถียรสูงสุด)',
         'roboflow-cricket': 'โมเดลชุดใหญ่ 9,500+ รูป (cricket-qnb5l/basketball-xil7x/1 · ตรวจจับ ball, person, rim)',
+        'roboflow-devinross': 'ตรวจจับลูกบาสและลูกลงห่วง (Devin Ross 8,150 รูป · เหมาะที่สุดเมื่อใช้ร่วมกับโหมดล็อกห่วง)',
         'local-onnx-swish': '⚡ Local ONNX: Swish-Vision (11.7 MB) Fine-tuned Basketball-1 ล็อกเฉพาะลูกบาสและห่วง ไม่ตีกรอบรวมกับคน (ออฟไลน์ 100%)',
         'roboflow-custom': 'ใช้โมเดล Roboflow Universe ของคุณเอง (กรอก Model ID และ API Key ด้านล่าง)',
       };
@@ -219,6 +450,7 @@ export class UIController {
       const validTypes = [
         'roboflow-default',
         'roboflow-cricket',
+        'roboflow-devinross',
         'local-onnx-swish',
         'roboflow-custom',
       ];
@@ -348,22 +580,56 @@ export class UIController {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // List of boxes to render
+    const renderList = [];
+
+    // If manual rim is active, add it to render list
+    if (this.manualRimRoi) {
+      renderList.push({
+        bbox: { ...this.manualRimRoi },
+        class: 'rim',
+        confidence: 1.0,
+        isManual: true,
+      });
+    }
+
     for (const d of list) {
+      if (!d || !d.bbox) continue;
+      const cls = (d.class || '').toLowerCase();
+      const isRim = cls === '1' || cls.includes('rim') || cls.includes('hoop') || (cls.includes('basket') && !cls.includes('made'));
+
+      // If manual rim is active, skip auto-detected rim to prevent duplicate boxes
+      if (this.manualRimRoi && isRim) {
+        continue;
+      }
+      renderList.push(d);
+    }
+
+    for (const d of renderList) {
       if (!d || !d.bbox) continue;
       const { x, y, width, height } = d.bbox;
       const cls = (d.class || '').toLowerCase();
-      const isRim = cls === '1' || cls.includes('rim') || cls.includes('hoop') || cls.includes('basket');
+      const isRim = cls === '1' || cls.includes('rim') || cls.includes('hoop') || (cls.includes('basket') && !cls.includes('made'));
       const isBall = cls === '2' || cls.includes('ball');
+      const isMade = cls.includes('made');
       const isPerson = cls === '0' || cls.includes('peop') || cls.includes('person') || cls.includes('player') || cls.includes('human');
 
       let color = '#FF6B35';
       let label = cls.toUpperCase();
       let fillColor = 'rgba(255, 107, 53, 0.1)';
 
-      if (isRim) {
+      if (d.isManual) {
+        color = '#00FF88';
+        label = '🎯 RIM (PINNED 📌)';
+        fillColor = 'rgba(0, 255, 136, 0.18)';
+      } else if (isRim) {
         color = '#00FF88';
         label = 'RIM';
         fillColor = 'rgba(0, 255, 136, 0.1)';
+      } else if (isMade) {
+        color = '#00E5FF';
+        label = 'MADE BASKET 🎯';
+        fillColor = 'rgba(0, 229, 255, 0.2)';
       } else if (isBall) {
         color = '#FF6B35';
         label = 'BALL';
@@ -377,7 +643,7 @@ export class UIController {
       const confPercent = Math.round((d.confidence || 0) * 100);
 
       // 1. Draw Bounding Box Outline
-      ctx.lineWidth = 3;
+      ctx.lineWidth = d.isManual ? 3.5 : 3;
       ctx.strokeStyle = color;
       ctx.strokeRect(x, y, width, height);
 
@@ -387,7 +653,7 @@ export class UIController {
 
       // 3. Draw Label Badge Tag
       ctx.font = 'bold 13px Outfit, Inter, sans-serif';
-      const tagText = `${label} ${confPercent}%`;
+      const tagText = d.isManual ? label : `${label} ${confPercent}%`;
       const textMetrics = ctx.measureText(tagText);
       const tagWidth = textMetrics.width + 14;
       const tagHeight = 22;
@@ -399,6 +665,26 @@ export class UIController {
       // Text inside tag
       ctx.fillStyle = '#0F0F1A';
       ctx.fillText(tagText, x + 7, tagY + 16);
+    }
+
+    // If currently dragging to draw manual rim, render dashed preview box
+    if (this.isDrawingRim && this.currentDragBox && this.currentDragBox.width > 2 && this.currentDragBox.height > 2) {
+      const { x, y, width, height } = this.currentDragBox;
+      ctx.save();
+      ctx.setLineDash([8, 6]);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#00FF88';
+      ctx.fillStyle = 'rgba(0, 255, 136, 0.25)';
+      ctx.strokeRect(x, y, width, height);
+      ctx.fillRect(x, y, width, height);
+
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#00FF88';
+      ctx.fillRect(x, y > 24 ? y - 24 : y, 120, 22);
+      ctx.fillStyle = '#0F0F1A';
+      ctx.font = 'bold 12px Outfit, sans-serif';
+      ctx.fillText('🎯 กำหนดห่วง...', x + 8, (y > 24 ? y - 24 : y) + 15);
+      ctx.restore();
     }
   }
 
