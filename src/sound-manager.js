@@ -162,7 +162,17 @@ export class SoundManager {
       this.audioCtx.resume().catch(() => {});
     }
 
-    const sound = this.sounds.get(this.activeSoundId) || this.sounds.get('swoosh') || this.sounds.values().next().value;
+    let sound = null;
+    if (this.activeSoundId === 'random') {
+      const soundList = Array.from(this.sounds.values()).filter((s) => s && s.buffer);
+      if (soundList.length > 0) {
+        const randomIndex = Math.floor(Math.random() * soundList.length);
+        sound = soundList[randomIndex];
+      }
+    } else {
+      sound = this.sounds.get(this.activeSoundId) || this.sounds.get('cha-ching') || this.sounds.values().next().value;
+    }
+
     if (!sound || !sound.buffer) {
       console.warn(`[SoundManager] Sound buffer for '${this.activeSoundId}' not ready.`);
       return;
@@ -172,6 +182,9 @@ export class SoundManager {
       const source = this.audioCtx.createBufferSource();
       source.buffer = sound.buffer;
       source.connect(this.gainNode);
+      source.onended = () => {
+        try { source.disconnect(); } catch (_) {}
+      };
       source.start(0);
     } catch (error) {
       console.warn('[SoundManager] Error playing sound:', error);
@@ -179,11 +192,11 @@ export class SoundManager {
   }
 
   /**
-   * Set active sound ID
+   * Set active sound ID (or 'random' to shuffle on every made basket)
    * @param {string} soundId 
    */
   setActiveSound(soundId) {
-    if (this.sounds.has(soundId)) {
+    if (soundId === 'random' || this.sounds.has(soundId)) {
       this.activeSoundId = soundId;
       console.log(`[SoundManager] Active sound set to: ${soundId}`);
     } else {

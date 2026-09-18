@@ -61,26 +61,28 @@ export class HoopCounterApp {
   _processDetections(rawDetections) {
     const timestamp = performance.now();
     const manualRim = this.ui.getManualRimRoi();
-    let filtered = [];
-    let rim = null;
+    const detections = rawDetections || [];
+    const filtered = [];
+    let rim = manualRim;
+    let bestAutoRim = null;
 
-    if (manualRim) {
-      filtered = (rawDetections || []).filter((d) => !this._isRim(d));
-      rim = manualRim;
-    } else {
-      const rims = (rawDetections || []).filter((d) => this._isRim(d));
-      const nonRims = (rawDetections || []).filter((d) => !this._isRim(d));
-
-      if (rims.length > 0) {
-        rims.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
-        rim = rims[0];
-        filtered = [...nonRims, rim];
+    for (let i = 0; i < detections.length; i++) {
+      const d = detections[i];
+      if (this._isRim(d)) {
+        if (!manualRim && (!bestAutoRim || (d.confidence || 0) > (bestAutoRim.confidence || 0))) {
+          bestAutoRim = d;
+        }
       } else {
-        filtered = nonRims;
+        filtered.push({ ...d, _timestamp: timestamp });
       }
     }
 
-    this.latestDetections = filtered.map((d) => ({ ...d, _timestamp: timestamp }));
+    if (!manualRim && bestAutoRim) {
+      rim = bestAutoRim;
+      filtered.push({ ...bestAutoRim, _timestamp: timestamp });
+    }
+
+    this.latestDetections = filtered;
     this.primaryRim = rim;
   }
 
@@ -111,11 +113,11 @@ export class HoopCounterApp {
       // 2. Unblocked 60 FPS Render & HUD Update Loop (Never pauses, 60 FPS Interpolator runs continuously)
       this.ui.drawDetections(this.latestDetections);
 
-      // 3. Extract ball & made basket for shot tracking
-      const ball = this.latestDetections.find((d) => this._isBall(d));
+      // 3. Continuous shot tracking (Zero-allocation 60 FPS duck-typing)
+      const ball = this.ui.getBallInterpolatedBox() || this.latestDetections.find((d) => this._isBall(d));
       const madeBasket = this.latestDetections.find((d) => this._isMade(d));
 
-      // 4. Update shot tracker state machine
+      // 4. Update shot tracker state machine with continuous trajectory
       const scored = this.tracker.update(this.primaryRim, ball, madeBasket);
 
       // 5. Handle score event

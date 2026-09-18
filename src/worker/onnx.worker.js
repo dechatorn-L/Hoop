@@ -31,6 +31,7 @@ let iouThreshold = 0.25;
 // Offscreen canvas in Worker for fast GPU-to-texture rendering
 let offscreenCanvas = null;
 let ctx = null;
+let cachedFloatArray = null;
 
 function initCanvas(size) {
   inputSize = size;
@@ -38,6 +39,7 @@ function initCanvas(size) {
     offscreenCanvas = new OffscreenCanvas(inputSize, inputSize);
     ctx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
   }
+  cachedFloatArray = new Float32Array(3 * inputSize * inputSize);
 }
 
 initCanvas(640);
@@ -150,7 +152,9 @@ async function runInference(imageBitmap, originalWidth, originalHeight) {
   // 2. Extract Pixels & Normalize to Float32 Tensor
   const { data } = ctx.getImageData(0, 0, inputSize, inputSize);
   const numPixels = inputSize * inputSize;
-  const floatArray = new Float32Array(3 * numPixels);
+  const floatArray = (cachedFloatArray && cachedFloatArray.length === 3 * numPixels)
+    ? cachedFloatArray
+    : new Float32Array(3 * numPixels);
   const inv255 = 1.0 / 255.0;
 
   const offsetG = numPixels;
@@ -162,16 +166,32 @@ async function runInference(imageBitmap, originalWidth, originalHeight) {
     floatArray[offsetB + i] = data[p + 2] * inv255;
   }
 
-  const tensor = new ort.Tensor('float32', floatArray, [1, 3, inputSize, inputSize]);
+  let tensor = null;
+  let results = null;
 
-  // 3. Session Run
-  const feeds = { [session.inputNames[0]]: tensor };
-  const results = await session.run(feeds);
-  const outputTensor = results[session.outputNames[0]];
+  try {
+    tensor = new ort.Tensor('float32', floatArray, [1, 3, inputSize, inputSize]);
 
-  // 4. Postprocess & NMS
-  const candidates = postprocessTensor(outputTensor, originalWidth, originalHeight, scale, padX, padY);
-  return applyNMS(candidates);
+    // 3. Session Run
+    const feeds = { [session.inputNames[0]]: tensor };
+    results = await session.run(feeds);
+    const outputTensor = results[session.outputNames[0]];
+
+    // 4. Postprocess & NMS
+    const candidates = postprocessTensor(outputTensor, originalWidth, originalHeight, scale, padX, padY);
+    return applyNMS(candidates);
+  } finally {
+    if (tensor && typeof tensor.dispose === 'function') {
+      try { tensor.dispose(); } catch (_) {}
+    }
+    if (results) {
+      for (const name of Object.keys(results)) {
+        if (results[name] && typeof results[name].dispose === 'function') {
+          try { results[name].dispose(); } catch (_) {}
+        }
+      }
+    }
+  }
 }
 
 /**

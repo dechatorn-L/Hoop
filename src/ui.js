@@ -269,6 +269,8 @@ export class UIController {
       y: Math.round(roi.y),
       width: Math.round(roi.width),
       height: Math.round(roi.height),
+      canvasW: this.canvas?.width || 640,
+      canvasH: this.canvas?.height || 480,
     };
     try {
       localStorage.setItem('hoop_manual_rim_roi', JSON.stringify(this.manualRimRoi));
@@ -294,13 +296,23 @@ export class UIController {
   }
 
   /**
-   * Get active manual rim ROI detection object
+   * Get active manual rim ROI detection object with resolution scaling
    * @returns {Object|null}
    */
   getManualRimRoi() {
     if (!this.manualRimRoi) return null;
+    const { x, y, width, height, canvasW, canvasH } = this.manualRimRoi;
+    let scaledX = x, scaledY = y, scaledW = width, scaledH = height;
+    if (this.canvas && canvasW && canvasH && (this.canvas.width !== canvasW || this.canvas.height !== canvasH)) {
+      const scaleX = this.canvas.width / canvasW;
+      const scaleY = this.canvas.height / canvasH;
+      scaledX = Math.round(x * scaleX);
+      scaledY = Math.round(y * scaleY);
+      scaledW = Math.round(width * scaleX);
+      scaledH = Math.round(height * scaleY);
+    }
     return {
-      bbox: { ...this.manualRimRoi },
+      bbox: { x: scaledX, y: scaledY, width: scaledW, height: scaledH },
       class: 'rim',
       confidence: 1.0,
       isManual: true,
@@ -320,16 +332,16 @@ export class UIController {
       this.btnSettingsClearRim.classList.toggle('hidden', !isPinned);
     }
     if (this.btnPinRim) {
-      this.btnPinRim.textContent = isPinned ? '🎯 แก้ไขห่วง' : '🎯 ล็อกห่วง';
-      this.btnPinRim.title = isPinned ? 'แต้มพิกัดห่วงบาสถูกล็อกอยู่ (คลิกเพื่อวาดใหม่)' : 'กำหนดพิกัดห่วงบาสเอง';
+      this.btnPinRim.textContent = isPinned ? 'แก้ไขห่วง' : 'ล็อกห่วง';
+      this.btnPinRim.title = isPinned ? 'ตำแหน่งห่วงถูกล็อกอยู่ (คลิกเพื่อวาดใหม่)' : 'กำหนดตำแหน่งห่วงบาส';
     }
     if (this.rimStatusBox) {
       this.rimStatusBox.classList.toggle('pinned', isPinned);
     }
     if (this.rimStatusText) {
       this.rimStatusText.innerHTML = isPinned
-        ? 'โหมด: <strong>📌 ล็อกตำแหน่งห่วง (Manual)</strong>'
-        : 'โหมด: <strong>🤖 Auto (AI ค้นหาห่วง)</strong>';
+        ? 'โหมด: <strong>ล็อกตำแหน่งห่วง</strong>'
+        : 'โหมด: <strong>ตรวจจับอัตโนมัติ</strong>';
     }
   }
 
@@ -480,6 +492,7 @@ export class UIController {
         'roboflow-cricket': 'โมเดลชุดใหญ่ 9,500+ รูป (cricket-qnb5l/basketball-xil7x/1 · ตรวจจับ ball, person, rim)',
         'roboflow-devinross': 'ตรวจจับลูกบาสและลูกลงห่วง (Devin Ross 8,150 รูป · เหมาะที่สุดเมื่อใช้ร่วมกับโหมดล็อกห่วง)',
         'local-onnx-swish': '⚡ Local ONNX: Swish-Vision (11.7 MB) Fine-tuned Basketball-1 ล็อกเฉพาะลูกบาสและห่วง ไม่ตีกรอบรวมกับคน (ออฟไลน์ 100%)',
+        'local-onnx-swish-int8': '⚡ Local ONNX: Swish INT8 (3.3 MB) เวอร์ชันบีบอัดจิ๋วพิเศษ โหลดไว ประหยัดแรม (ออฟไลน์ 100%)',
         'roboflow-custom': 'ใช้โมเดล Roboflow Universe ของคุณเอง (กรอก Model ID และ API Key ด้านล่าง)',
       };
       this.modelInfoText.textContent = descriptions[modelType] || 'เลือกโมเดลตรวจจับ AI';
@@ -503,6 +516,7 @@ export class UIController {
         'roboflow-cricket',
         'roboflow-devinross',
         'local-onnx-swish',
+        'local-onnx-swish-int8',
         'roboflow-custom',
       ];
       if (!savedType || !validTypes.includes(savedType)) {
@@ -599,6 +613,14 @@ export class UIController {
   }
 
   /**
+   * Get active interpolated ball position box (if gliding in 60 FPS)
+   * @returns {Object|null}
+   */
+  getBallInterpolatedBox() {
+    return this.ballInterpolatedBox;
+  }
+
+  /**
    * Draw bounding box detections on canvas overlay
    * Rim = Green (#00FF88), Ball = Orange (#FF6B35)
    * @param {HTMLCanvasElement|Array} canvasOrDetections
@@ -679,12 +701,20 @@ export class UIController {
             vy: 0,
             lastSeen: now,
           };
+          this.lastAiBallX = ballDet.bbox.x;
+          this.lastAiBallY = ballDet.bbox.y;
         } else {
-          // Calculate true velocity from previous position to new AI ground truth
-          const rawVx = (ballDet.bbox.x - this.ballInterpolatedBox.x) / dtAi;
-          const rawVy = (ballDet.bbox.y - this.ballInterpolatedBox.y) / dtAi;
+          // Calculate true velocity from previous AI ground truth to new AI ground truth
+          const prevAiX = this.lastAiBallX ?? this.ballInterpolatedBox.x;
+          const prevAiY = this.lastAiBallY ?? this.ballInterpolatedBox.y;
+          const rawVx = (ballDet.bbox.x - prevAiX) / dtAi;
+          const rawVy = (ballDet.bbox.y - prevAiY) / dtAi;
           this.ballInterpolatedBox.vx = this.ballInterpolatedBox.vx * 0.3 + rawVx * 0.7;
           this.ballInterpolatedBox.vy = this.ballInterpolatedBox.vy * 0.3 + rawVy * 0.7;
+
+          // Store current AI ground truth position for next velocity delta
+          this.lastAiBallX = ballDet.bbox.x;
+          this.lastAiBallY = ballDet.bbox.y;
 
           // Anchor directly to the fresh AI ground truth
           this.ballInterpolatedBox.x = ballDet.bbox.x;
@@ -728,30 +758,30 @@ export class UIController {
         height = Math.round(this.ballInterpolatedBox.height);
       }
 
-      let color = '#FF6B35';
+      let color = '#E06338';
       let label = cls.toUpperCase();
-      let fillColor = 'rgba(255, 107, 53, 0.1)';
+      let fillColor = 'rgba(224, 99, 56, 0.1)';
 
       if (d.isManual) {
-        color = '#00FF88';
-        label = '🎯 RIM (PINNED 📌)';
-        fillColor = 'rgba(0, 255, 136, 0.18)';
+        color = '#38BDF8';
+        label = 'RIM (PINNED)';
+        fillColor = 'rgba(56, 189, 248, 0.12)';
       } else if (isMade) {
-        color = '#00E5FF';
-        label = 'MADE BASKET 🎯';
-        fillColor = 'rgba(0, 229, 255, 0.2)';
+        color = '#22C55E';
+        label = 'MADE';
+        fillColor = 'rgba(34, 197, 94, 0.15)';
       } else if (isBall) {
-        color = '#FF6B35';
+        color = '#E06338';
         label = 'BALL';
-        fillColor = 'rgba(255, 107, 53, 0.12)';
+        fillColor = 'rgba(224, 99, 56, 0.12)';
       } else if (isRim) {
-        color = '#00FF88';
+        color = '#38BDF8';
         label = 'RIM';
-        fillColor = 'rgba(0, 255, 136, 0.1)';
+        fillColor = 'rgba(56, 189, 248, 0.1)';
       } else if (isPerson) {
-        color = '#4CC9F0';
-        label = 'PERSON';
-        fillColor = 'rgba(76, 201, 240, 0.08)';
+        color = '#64748B';
+        label = 'PLAYER';
+        fillColor = 'rgba(100, 116, 139, 0.08)';
       }
 
       const confPercent = Math.round((d.confidence || 0) * 100);

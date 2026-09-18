@@ -17,6 +17,13 @@ export const MODEL_PRESETS = {
     modelPath: '/models/basketball_swish_yolov8.onnx',
     description: 'รันบน Web Worker อิสระ (11.7 MB) ล็อกเฉพาะลูกบาสและห่วง ไม่กินสเปกมือถือ (ออฟไลน์ 100% · 60 FPS)',
   },
+  'local-onnx-swish-int8': {
+    id: 'local-onnx-swish-int8',
+    name: 'Local ONNX: Swish INT8 (⚡ 3.3 MB จิ๋วสุด)',
+    provider: 'onnx',
+    modelPath: '/models/basketball_swish_yolov8_int8.onnx',
+    description: 'เวอร์ชันบีบอัด INT8 ขนาดเพียง 3.3 MB (ลดขนาด 73%) รันลื่น โหลดไว ประหยัดแรม (ออฟไลน์ 100%)',
+  },
   'roboflow-cricket': {
     id: 'roboflow-cricket',
     name: 'Roboflow: Cricket 9.5K Images (🎯 โมเดลละเอียด)',

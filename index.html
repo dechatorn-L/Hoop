@@ -2,288 +2,273 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🏀 Hoop Shot Counter — AI Basketball Shot Tracker</title>
-  <meta name="description" content="Real-time basketball shot counter web application powered by Roboflow object detection and Web Audio API" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Hoop — Basketball Shot Counter</title>
+  <meta name="description" content="Real-time basketball shot tracking and counter web app powered by computer vision." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles/index.css" />
 </head>
 <body>
   <div id="app">
-    <!-- Header with All Controls -->
+    <!-- Top Minimal HUD Header -->
     <header class="app-header" id="app-header">
       <div class="header-left">
         <div class="brand" id="brand-logo">
-          <span class="brand-icon">🏀</span>
-          <h1 class="brand-title">Hoop Counter</h1>
+          <span class="brand-badge"></span>
+          <span class="brand-title">HOOP</span>
         </div>
       </div>
 
-      <div class="header-center" id="header-camera-controls">
-        <div class="control-group" id="camera-control-group">
-          <label for="camera-select" class="visually-hidden">เลือกกล้อง</label>
-          <select id="camera-select" class="select-input select-header">
-            <option value="">📷 กำลังค้นหากล้อง...</option>
-          </select>
+      <!-- Center Minimal Score Badge -->
+      <div class="header-center">
+        <div class="score-pill" id="score-display">
+          <span class="score-label">PTS</span>
+          <span class="score-value" id="score-value">0</span>
         </div>
-        <button id="btn-pin-rim" class="btn btn-secondary btn-header" title="กำหนดพิกัดห่วงบาสเอง">🎯 ล็อกห่วง</button>
-        <button id="btn-clear-rim" class="btn btn-danger btn-header hidden" title="คืนค่าเป็น Auto ตรวจจับห่วง">🔄 เลิกล็อก</button>
-        <button id="btn-reset-score" class="btn btn-secondary btn-header">🔄 Reset</button>
       </div>
 
       <div class="header-right header-controls" id="header-controls">
-        <div class="score-badge" id="score-display">
-          <span class="score-label">SCORE</span>
-          <span class="score-value" id="score-value">0</span>
-        </div>
-        <button id="btn-fullscreen-toggle" class="btn-icon" aria-label="Toggle Fullscreen" title="เต็มจอ (Fullscreen)">⛶</button>
-        <button id="btn-settings-toggle" class="btn-icon" aria-label="Open settings" title="การตั้งค่า">⚙️</button>
+        <button id="btn-fullscreen-toggle" class="btn-icon" aria-label="Toggle Fullscreen" title="เต็มจอ">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+        </button>
+        <button id="btn-settings-toggle" class="btn-icon" aria-label="Open settings" title="การตั้งค่า">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
       </div>
     </header>
 
-    <!-- Main Viewport (Maximized Camera Feed + Canvas Overlay) -->
-    <main class="viewport-container viewport-maximized" id="main-viewport">
-      <div class="camera-container camera-container-max" id="camera-container">
+    <!-- Main Viewport Area -->
+    <main class="viewport-container" id="main-viewport">
+      <div class="camera-container" id="camera-container">
         <video id="camera-feed" playsinline autoplay muted></video>
         <canvas id="detection-overlay"></canvas>
-        <div id="rim-draw-banner" class="rim-draw-banner hidden">
-          <span>👆 ใช้นิ้วหรือเมาส์ลากสี่เหลี่ยมคลุมห่วงบาสบนหน้าจอ</span>
-          <button type="button" id="btn-cancel-draw-rim" class="btn-cancel-draw">✕ ยกเลิก</button>
-        </div>
+
+        <!-- Elegant Floating Status Pill -->
         <div id="status-indicator" class="status-overlay hidden">
           <div class="spinner" id="status-spinner"></div>
-          <span id="status-text">กำลังโหลดโมเดล...</span>
+          <span id="status-text">กำลังเริ่มระบบ...</span>
+        </div>
+
+        <!-- Manual Rim Drawing Notification Pill -->
+        <div id="rim-draw-banner" class="rim-draw-banner hidden">
+          <span>ลากกรอบสี่เหลี่ยมบนห่วงบาส</span>
+          <button type="button" id="btn-cancel-draw-rim" class="btn-cancel-draw">✕ ยกเลิก</button>
         </div>
       </div>
     </main>
 
-    <!-- Slide-in Settings Panel -->
+    <!-- Mobile Bottom Action Bar (Thumb Friendly) -->
+    <nav class="bottom-action-bar" id="bottom-action-bar">
+      <!-- Camera Selection Pill -->
+      <div class="control-group camera-select-wrap" id="camera-control-group">
+        <label for="camera-select" class="visually-hidden">เลือกกล้อง</label>
+        <select id="camera-select" class="select-input select-pill">
+          <option value="">ค้นหากล้อง...</option>
+        </select>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="bar-actions">
+        <button id="btn-pin-rim" class="btn btn-pill" title="กำหนดตำแหน่งห่วงบาส">ล็อกห่วง</button>
+        <button id="btn-clear-rim" class="btn btn-pill btn-subtle hidden" title="คืนค่าเป็นระบบอัตโนมัติ">ปลดล็อก</button>
+        <button id="btn-reset-score" class="btn btn-pill btn-subtle" title="รีเซ็ตคะแนนเป็น 0">รีเซ็ต</button>
+      </div>
+    </nav>
+
+    <!-- Slide-in Settings Drawer -->
     <aside id="settings-panel" class="settings-drawer hidden" aria-label="Settings Panel">
       <div class="settings-header" id="settings-header">
-        <h2>⚙️ Settings</h2>
-        <button id="btn-close-settings" class="btn-icon" aria-label="Close settings">✕</button>
+        <h2>การตั้งค่า</h2>
+        <button id="btn-close-settings" class="btn-icon" aria-label="Close settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
+
       <div class="settings-content" id="settings-content">
         <!-- Sound Effect Section -->
         <section class="settings-section" id="section-sound">
-          <h3>🔊 Sound Effect</h3>
+          <div class="section-title-wrap">
+            <h3>เสียงเมื่อลงห่วง</h3>
+          </div>
           <div class="radio-group" id="sound-options">
             <label class="radio-label">
               <input type="radio" name="sound-choice" id="sound-radio-chaching" value="cha-ching" checked />
-              <span>Cha-Ching 💰</span>
+              <span>Cha-Ching</span>
             </label>
             <label class="radio-label">
               <input type="radio" name="sound-choice" id="sound-radio-fahhhh" value="fahhhh" />
-              <span>Fahhhh 💨</span>
+              <span>Swoosh</span>
             </label>
             <label class="radio-label">
               <input type="radio" name="sound-choice" id="sound-radio-greengiant" value="green-giant" />
-              <span>Green Giant 🎅</span>
+              <span>Celebration</span>
             </label>
             <label class="radio-label">
+              <input type="radio" name="sound-choice" id="sound-radio-random" value="random" />
+              <span>สุ่มเสียง</span>
+            </label>
+            <label class="radio-label radio-full">
               <input type="radio" name="sound-choice" id="sound-radio-custom" value="custom" />
-              <span>Custom Upload 📁</span>
+              <span>ไฟล์เสียงของคุณ</span>
             </label>
           </div>
+
           <div id="custom-sound-upload-container" class="custom-upload-container hidden">
             <input type="file" id="custom-sound-file" accept="audio/*" aria-label="Upload custom sound" />
           </div>
-          <div class="test-sound-wrap" style="margin-top: 10px;">
-            <button type="button" id="btn-test-sound" class="btn-ctrl" style="width: 100%; justify-content: center; font-size: 0.85rem; padding: 6px 12px;">
-              ▶️ ทดสอบเล่นเสียง (Test Sound)
+
+          <div class="test-sound-wrap">
+            <button type="button" id="btn-test-sound" class="btn-ghost">
+              ทดสอบเสียง
             </button>
           </div>
         </section>
 
         <!-- Volume Section -->
         <section class="settings-section" id="section-volume">
-          <label for="volume-slider">🔉 Volume: <span id="volume-label" class="val-badge">80%</span></label>
+          <div class="section-header-inline">
+            <label for="volume-slider">ระดับเสียง</label>
+            <span id="volume-label" class="val-badge">80%</span>
+          </div>
           <input type="range" id="volume-slider" min="0" max="100" value="80" class="range-slider" />
         </section>
 
         <!-- Sensitivity / Threshold Section -->
         <section class="settings-section" id="section-sensitivity">
-          <label for="confidence-slider">🎯 Sensitivity (Threshold): <span id="confidence-label" class="val-badge">35%</span></label>
+          <div class="section-header-inline">
+            <label for="confidence-slider">ความไวตรวจจับ (Confidence)</label>
+            <span id="confidence-label" class="val-badge">35%</span>
+          </div>
           <input type="range" id="confidence-slider" min="10" max="90" value="35" class="range-slider" />
         </section>
 
-        <!-- Manual Rim ROI Pinning Section -->
+        <!-- Target / Rim Section -->
         <section class="settings-section" id="section-rim-roi">
           <div class="section-title-wrap">
-            <h3>🎯 Hoop Target (พิกัดห่วงบาส)</h3>
+            <h3>ตำแหน่งห่วง</h3>
           </div>
           <div class="rim-status-box" id="rim-status-box">
-            <span id="rim-status-text">โหมด: <strong>🤖 Auto (AI ค้นหาห่วง)</strong></span>
+            <span id="rim-status-text">โหมด: <strong>ตรวจจับอัตโนมัติ</strong></span>
           </div>
-          <div style="display: flex; gap: 8px; margin-top: 8px;">
-            <button type="button" id="btn-settings-pin-rim" class="btn btn-secondary" style="flex: 1; font-size: 0.82rem; padding: 7px 8px; justify-content: center;">
-              🎯 ลากตำแหน่งห่วงเอง
+
+          <div class="drawer-action-row">
+            <button type="button" id="btn-settings-pin-rim" class="btn btn-secondary">
+              ลากตำแหน่งเอง
             </button>
-            <button type="button" id="btn-settings-clear-rim" class="btn btn-danger hidden" style="flex: 1; font-size: 0.82rem; padding: 7px 8px; justify-content: center;">
-              🔄 คืนค่าเป็น Auto
+            <button type="button" id="btn-settings-clear-rim" class="btn btn-subtle hidden">
+              คืนค่าอัตโนมัติ
             </button>
           </div>
 
-          <!-- Hoop ROI Turbo Mode Toggle -->
-          <div class="roi-turbo-wrap" style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center; background: rgba(0, 255, 136, 0.06); padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid rgba(0, 255, 136, 0.2);">
-            <div style="display: flex; flex-direction: column;">
-              <span style="font-size: 12.5px; font-weight: 700; color: #00FF88;">⚡ โหมดซูมเฉพาะห่วง (ROI Turbo)</span>
-              <span style="font-size: 11px; color: var(--text-subtle);">ตัดภาพตรวจจับเฉพาะโซนห่วง เร็วขึ้น 3 เท่า</span>
+          <!-- Hoop ROI Turbo Toggle -->
+          <div class="roi-turbo-wrap">
+            <div class="turbo-info">
+              <span class="turbo-title">ROI Turbo</span>
+              <span class="turbo-desc">ตัดภาพเฉพาะโซนห่วง เร็วขึ้น 3 เท่า</span>
             </div>
-            <label class="switch-toggle" style="margin: 0; cursor: pointer;">
+            <label class="switch-toggle">
               <input type="checkbox" id="toggle-hoop-roi" checked />
               <span class="slider-toggle round"></span>
             </label>
           </div>
         </section>
 
-        <!-- AI Detection Model Selection Section -->
+        <!-- Detection Model Section -->
         <section class="settings-section" id="section-model">
           <div class="section-title-wrap">
-            <h3>🤖 Detection Model</h3>
-            <button type="button" id="btn-open-model-guide" class="btn-guide-badge" title="ดูข้อดี-ข้อเสียของแต่ละโมเดล">
-              💡 แนะนำโมเดล
+            <h3>โมเดลตรวจจับ (AI Model)</h3>
+            <button type="button" id="btn-open-model-guide" class="btn-link">
+              คู่มือโมเดล
             </button>
           </div>
 
           <div class="control-group">
             <label for="model-preset-select" class="visually-hidden">เลือกโมเดลตรวจจับ</label>
             <select id="model-preset-select" class="select-input">
-              <option value="roboflow-default">Roboflow v4: Main (⚡ 30-45 FPS แนะนำ)</option>
-              <option value="local-onnx-swish">Local ONNX: Swish-Vision (⚡ 60 FPS แนะนำ)</option>
-              <option value="roboflow-cricket">Roboflow: Cricket 9.5K (🎯 ละเอียด)</option>
-              <option value="roboflow-devinross">Roboflow: Devin Ross (🎯 Made Basket)</option>
+              <option value="roboflow-default">Roboflow v4: Main (Cloud · แนะนำ)</option>
+              <option value="local-onnx-swish">Local ONNX: Swish-Vision (ออฟไลน์ 60 FPS · 11.7 MB)</option>
+              <option value="local-onnx-swish-int8">Local ONNX: Swish INT8 (จิ๋ว 3.3 MB · ประหยัดแรม)</option>
+              <option value="roboflow-cricket">Roboflow: Cricket 9.5K (ละเอียด)</option>
+              <option value="roboflow-devinross">Roboflow: Devin Ross (Made Basket)</option>
               <option value="roboflow-custom">Roboflow: Custom Model ID</option>
             </select>
           </div>
 
           <div id="model-info-text" class="model-info-box">
-            ตรวจจับห่วง ลูกบาส และผู้เล่น (โมเดลหลัก Cloud ความเสถียรสูงสุด)
+            ตรวจจับห่วง ลูกบาส และผู้เล่น (เสถียรภาพสูง)
           </div>
 
           <!-- Custom Model ID & API Key Container -->
           <div id="custom-model-fields" class="custom-model-fields hidden">
-            <div>
-              <label for="custom-model-id" style="font-size: 11px; margin-bottom: 4px;">Model ID (project/version):</label>
+            <div class="field-row">
+              <label for="custom-model-id">Model ID (project/version):</label>
               <input type="text" id="custom-model-id" class="text-input" placeholder="e.g. your-project/1" autocomplete="off" />
             </div>
-            <div>
-              <label for="custom-api-key" style="font-size: 11px; margin-bottom: 4px;">Publishable API Key:</label>
-              <input type="password" id="custom-api-key" class="text-input" placeholder="rf_... (เว้นว่างถ้าใช้ Key เดิมใน .env)" autocomplete="off" />
+            <div class="field-row">
+              <label for="custom-api-key">Publishable API Key:</label>
+              <input type="password" id="custom-api-key" class="text-input" placeholder="rf_... (เว้นว่างหากใช้ใน .env)" autocomplete="off" />
             </div>
           </div>
 
           <button type="button" id="btn-apply-model" class="btn btn-primary model-btn-apply">
-            ⚡ สลับโมเดล (Apply Model)
+            เปลี่ยนโมเดล
           </button>
         </section>
       </div>
     </aside>
 
-    <!-- Model Comparison Guide Modal (Popup) -->
+    <!-- Model Comparison Guide Modal -->
     <div id="model-guide-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-guide-title">
       <div class="modal-card">
         <div class="modal-header">
-          <h2 id="modal-guide-title">🏀 คู่มือเลือกโมเดล AI ตามสถานการณ์</h2>
-          <button type="button" id="btn-close-model-guide" class="btn-icon modal-close-btn" aria-label="Close modal">✕</button>
+          <h2 id="modal-guide-title">คู่มือโมเดล AI</h2>
+          <button type="button" id="btn-close-model-guide" class="btn-icon modal-close-btn" aria-label="Close modal">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
-        
+
         <div class="modal-body">
-          <p class="modal-intro">เปรียบเทียบจุดเด่นและข้อดี-ข้อเสียของแต่ละโมเดล เพื่อเลือกใช้งานให้เหมาะสมกับสภาพสนามและอุปกรณ์ของคุณ:</p>
-          
-          <div class="model-cards-grid">
-            <!-- Card 1 -->
-            <div class="guide-card default-border">
-              <div class="guide-card-header">
-                <span class="guide-badge badge-primary">แนะนำหลัก (Cloud)</span>
-                <h4>1. Roboflow v4 (people_basketball_hoops/4)</h4>
+          <p class="modal-intro">เลือกโมเดลที่เหมาะกับสภาพสนามและการเชื่อมต่อของคุณ:</p>
+
+          <div class="model-table">
+            <div class="model-row active-row">
+              <div class="row-header">
+                <span class="model-name">Roboflow v4 (Main)</span>
+                <span class="badge-tag">Cloud</span>
               </div>
-              <div class="guide-classes">🎯 คลาส: <code>rim</code>, <code>basketball</code>, <code>person</code></div>
-              <ul class="guide-list">
-                <li><strong class="text-green">ข้อดี:</strong> เสถียรสูงสุด มีคลาสคน ช่วยแยกแยะผู้เล่นกับลูกบาสไม่ให้สับสน</li>
-                <li><strong class="text-amber">ข้อเสีย:</strong> ต้องต่อเน็ตและใช้ Roboflow API Key</li>
-                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> เล่นทั่วไป สนามมาตรฐาน มีคนยืนใต้แป้น</li>
-              </ul>
+              <p class="row-desc">ตรวจจับห่วง ลูกบาส และผู้เล่น แยกแยะคนตัดโอกาสสับสน เหมาะกับสนามทั่วไปที่มีคนยืนใต้แป้น</p>
             </div>
 
-
-
-            <!-- Card 3 (Cricket 9.5K) -->
-            <div class="guide-card">
-              <div class="guide-card-header">
-                <span class="guide-badge badge-purple">บิ๊กดาต้า 9,500+ รูป</span>
-                <h4>3. Roboflow: Basketball 9.5K (cricket-qnb5l)</h4>
+            <div class="model-row">
+              <div class="row-header">
+                <span class="model-name">Local ONNX (Swish-Vision)</span>
+                <span class="badge-tag tag-offline">Offline</span>
               </div>
-              <div class="guide-classes">🎯 คลาส: <code>ball</code>, <code>person</code>, <code>rim</code></div>
-              <ul class="guide-list">
-                <li><strong class="text-green">ข้อดี:</strong> ชุดข้อมูลขนาดใหญ่มาก 9,500+ รูป ครอบคลุมหลากหลายมุมมองและสภาพแสง</li>
-                <li><strong class="text-amber">ข้อเสีย:</strong> ประมวลผลผ่าน Cloud</li>
-                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> ทดสอบความแม่นยำในสนามแสงยาก</li>
-              </ul>
+              <p class="row-desc">รันในเครื่อง 100% ไม่ต้องต่อเน็ต ลื่นไหล 60 FPS ด้วย WebGPU เหมาะกับการซ้อมยิงคนเดียว</p>
             </div>
 
-            <!-- Card 3 (Devin Ross - Made Basket) -->
-            <div class="guide-card">
-              <div class="guide-card-header">
-                <span class="guide-badge badge-cyan">SOTA Made Basket (8.1K รูป)</span>
-                <h4>3. Roboflow: Made Basket (Devin Ross)</h4>
+            <div class="model-row">
+              <div class="row-header">
+                <span class="model-name">Roboflow: Cricket 9.5K</span>
+                <span class="badge-tag">Cloud</span>
               </div>
-              <div class="guide-classes">🎯 คลาส: <code>basketball</code>, <code>made basket</code> (8,150 รูป)</div>
-              <ul class="guide-list">
-                <li><strong class="text-green">ข้อดี:</strong> ตรวจจับลูกบาสและจับจังหวะ <strong>"ลูกลงห่วง (Made Basket)"</strong> ได้แม่นยำสูง</li>
-                <li><strong class="text-cyan">แนะนำใช้งาน:</strong> แนะนำให้ใช้คู่กับปุ่ม <strong>"🎯 ล็อกห่วง"</strong> เพื่อกำหนดตำแหน่งแป้นบาส</li>
-                <li><strong class="text-amber">ข้อเสีย:</strong> ประมวลผลผ่าน Cloud</li>
-              </ul>
+              <p class="row-desc">ชุดข้อมูลใหญ่ 9,500+ รูป รองรับสภาพแสงที่ยากหรือสนามเปิดโล่ง</p>
             </div>
 
-            <!-- Card 4 (Swish-Vision) -->
-            <div class="guide-card highlight-border">
-              <div class="guide-card-header">
-                <span class="guide-badge badge-green">แนะนำออฟไลน์ (Local ONNX)</span>
-                <h4>2. Local ONNX: Swish-Vision (11.7 MB)</h4>
+            <div class="model-row">
+              <div class="row-header">
+                <span class="model-name">Roboflow: Devin Ross</span>
+                <span class="badge-tag">Cloud</span>
               </div>
-              <div class="guide-classes">🎯 คลาส: <code>basketball</code>, <code>rim</code> (ออฟไลน์ 100%)</div>
-              <ul class="guide-list">
-                <li><strong class="text-green">ข้อดี:</strong> <strong>ออฟไลน์ 100%</strong> Fine-tuned จากชุด Basketball-1 ล็อกเฉพาะลูกบาสและห่วง ไม่ตีกรอบรวมกับคน รันผ่าน Single-Worker Background Thread ลื่นไหล</li>
-                <li><strong class="text-amber">ข้อเสีย:</strong> ขนาด 11.7 MB โหลดครั้งแรกผ่าน WebAssembly</li>
-                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> เล่นทั่วไป ซ้อมยิงเดี่ยว ประหยัดเน็ต ไม่ต้องใช้ API Key</li>
-              </ul>
-            </div>
-
-            <!-- Card 3 (Custom Model) -->
-            <div class="guide-card">
-              <div class="guide-card-header">
-                <span class="guide-badge badge-purple">โมเดลเทรนเอง (Roboflow Universe)</span>
-                <h4>3. Roboflow: Custom Model ID</h4>
-              </div>
-              <div class="guide-classes">🎯 คลาส: กำหนดตามโมเดลของคุณเอง</div>
-              <ul class="guide-list">
-                <li><strong class="text-green">ข้อดี:</strong> สามารถนำโมเดลบาสเกตบอลที่เทรนเองบน Roboflow มาใส่ Model ID และ API Key ใช้งานได้ทันที</li>
-                <li><strong class="text-amber">ข้อเสีย:</strong> ต้องมีบัญชี Roboflow และโมเดลที่เทรนเสร็จแล้ว</li>
-                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> นักพัฒนาหรือผู้ใช้ที่ต้องการทดสอบโมเดลของตัวเอง</li>
-              </ul>
-            </div>
-
-            <!-- Card 6 -->
-            <div class="guide-card">
-              <div class="guide-card-header">
-                <span class="guide-badge badge-purple">เฉพาะบุคคล</span>
-                <h4>6. Roboflow Custom Model ID</h4>
-              </div>
-              <div class="guide-classes">🎯 คลาส: ตามโมเดลที่คุณเทรนเองบน Roboflow</div>
-              <ul class="guide-list">
-                <li><strong class="text-green">ข้อดี:</strong> แม่นยำสูงสุดสำหรับสนามของคุณเอง (Fine-tune 100-300 รูป)</li>
-                <li><strong class="text-amber">ข้อเสีย:</strong> ต้องมีบัญชี Roboflow และถ่ายรูปเทรนเอง</li>
-                <li><strong class="text-cyan">เหมาะสำหรับ:</strong> สนามที่มีสภาพแสงหรือทรงแป้นบาสแปลกตา</li>
-              </ul>
+              <p class="row-desc">จับจังหวะลูกลงห่วง (Made Basket) แม่นยำเป็นพิเศษ แนะนำให้ใช้คู่กับปุ่มล็อกห่วง</p>
             </div>
           </div>
         </div>
 
         <div class="modal-footer">
-          <button type="button" id="btn-close-modal-footer" class="btn btn-secondary">ปิดหน้าต่าง (Close)</button>
+          <button type="button" id="btn-close-modal-footer" class="btn btn-secondary">ปิด</button>
         </div>
       </div>
     </div>

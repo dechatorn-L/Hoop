@@ -126,11 +126,14 @@ export class ShotTracker {
       const yRel = mbCenterY - rimBox.y;
 
       if (xDist <= rimBox.width * 0.55 && yRel >= 0 && yRel <= rimBox.height * 2.2) {
-        this.score++;
-        this._transitionTo('SCORED');
-        this.cooldownEndTime = now + this.scoreCooldownMs;
-        this._transitionTo('COOLDOWN');
-        return true;
+        const isUpward = this.previousBallCenterY !== null && (mbCenterY - this.previousBallCenterY < -5);
+        if (!isUpward) {
+          this.score++;
+          this._transitionTo('SCORED');
+          this.cooldownEndTime = now + this.scoreCooldownMs;
+          this._transitionTo('COOLDOWN');
+          return true;
+        }
       }
     }
 
@@ -214,25 +217,6 @@ export class ShotTracker {
     this.previousBallCenterY = ballCenterY;
 
     return scored;
-  }
-
-  /**
-   * Check if shot scored based on X alignment and downward trajectory crossing
-   * @private
-   */
-  _checkScore(rimBox, ballCenterX, ballCenterY, rimCenterX, rimCenterY) {
-    // 1. X alignment: ball center within rim width * 0.55
-    const xAligned = Math.abs(ballCenterX - rimCenterX) <= rimBox.width * 0.55;
-
-    // 2. Downward crossing: previous ball Y was above rim center Y, and current ball Y is at or below rim center Y
-    const crossedDown = this.previousBallCenterY !== null &&
-      this.previousBallCenterY < rimCenterY &&
-      ballCenterY >= rimCenterY;
-
-    // 3. Meaningful downward speed (must be moving down > 3px, not static jitter)
-    const movingDown = this.previousBallCenterY !== null && (ballCenterY - this.previousBallCenterY >= 3);
-
-    return xAligned && crossedDown && movingDown;
   }
 
   /**
