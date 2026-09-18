@@ -258,11 +258,12 @@ export class ObjectDetector {
       }
 
       let cvImage;
-      if (isCropped && typeof createImageBitmap !== 'undefined') {
+      if (isCropped && cropX < srcW && cropY < srcH && cropW > 10 && cropH > 10 && typeof createImageBitmap !== 'undefined') {
         // Native GPU ImageBitmap crop in browser C++ layer (Supported by CVImage)
         activeBitmap = await createImageBitmap(videoElement, cropX, cropY, cropW, cropH);
         cvImage = new CVImage(activeBitmap);
       } else {
+        isCropped = false;
         // Native HTMLVideoElement (Supported by CVImage)
         cvImage = new CVImage(videoElement);
       }

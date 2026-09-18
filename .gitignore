@@ -53,3 +53,5 @@ cloudflared.log
 *.pt
 weights/
 scratch/
+__pycache__/
+*.pyc
