@@ -21,6 +21,19 @@ and Web Audio. Follow the existing code structure and style.
   conflicting skill defaults. Keep this file short; leave details in the skills.
 - For Notion tasks and `wayfinder`, read `docs/agents/issue-tracker.md` first.
 
+## Notion access
+
+- Load `NOTION_API_KEY` and `NOTION_API_VERSION` from this repo's `.env`
+  (Node: `node --env-file=.env`). Use the existing key; ask only if it is missing
+  or access fails. `.env.example` contains placeholders, never credentials.
+- Prefer the API for authorized reads and updates; use the browser for UI-only
+  settings. Send requests to `https://api.notion.com/v1` with
+  `Authorization: Bearer <NOTION_API_KEY>` and `Notion-Version: <NOTION_API_VERSION>`.
+- Never print or commit the key, send it to another host, or expose it through
+  `VITE_*`. Database IDs, fields, and workflows live in `docs/agents/issue-tracker.md`.
+- Before updates, read current schemas and query existing pages to avoid
+  duplicates. Preserve unrelated projects and user edits; read back to verify.
+
 ## Commands
 
 - Use npm and the lockfile; Node.js `^20.19.0 || >=22.12.0` is required by Vite.
