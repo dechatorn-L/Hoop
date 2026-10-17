@@ -451,12 +451,6 @@ export class UIController {
       setTimeout(() => this.initCanvas(this.video), 200);
     });
 
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        this.hideModelGuide();
-      }
-    });
-
     if (this.soundRadios) {
       this.soundRadios.forEach((radio) => {
         radio.addEventListener('change', (e) => {

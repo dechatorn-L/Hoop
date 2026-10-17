@@ -253,6 +253,10 @@ try {
       await page.locator('#btn-settings-toggle').click();
       await page.selectOption('#language-select', language);
       assert.equal(await page.locator('#settings-panel #btn-fullscreen-toggle').count(), 1);
+      await page.locator('#btn-open-model-guide').click();
+      await page.keyboard.press('Escape');
+      assert.equal(await page.locator('#settings-panel').evaluate(node => node.open), true, 'Escape closes only the topmost dialog');
+      assert.equal(await page.locator('#btn-open-model-guide').evaluate(node => document.activeElement === node), true);
       await page.keyboard.press('Escape');
       assert.equal(await page.locator('#btn-settings-toggle').evaluate(node => document.activeElement === node), true, 'Closing Settings must restore focus');
       await page.locator('#secondary-controls > summary').click();
@@ -324,9 +328,22 @@ try {
   await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, '200% text sizing must not create horizontal overflow');
   assert.equal(await page.locator('meta[name=viewport]').getAttribute('content').then(value => /maximum-scale|user-scalable=no/.test(value)), false, 'Page zoom must remain available');
+  for (const viewport of [{ width: 320, height: 740 }, { width: 320, height: 568 }, { width: 844, height: 390 }]) {
+    await page.setViewportSize(viewport);
+    await page.evaluate(() => { document.getElementById('secondary-controls').open = false; scrollTo(0, 0); });
+    assert.equal(await page.locator('#btn-practice').evaluate(node => { const rect = node.getBoundingClientRect(); return rect.top >= 0 && rect.bottom <= innerHeight; }), true, 'Pause/Resume must be in the viewport without scrolling at 200% text size');
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => { document.documentElement.style.fontSize = ''; app.ui.resetScore(); });
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   console.log('PASS: six-digit score, 220ms baseline feedback, reduced motion and 200% text resizing');
+  await openControls(page);
+  await page.locator('#btn-settings-toggle').click();
+  await page.locator('#btn-apply-model').focus(); await page.mouse.move(0, 0); await page.keyboard.down('Space');
+  assert.equal(await page.locator('#btn-apply-model').evaluate(node => getComputedStyle(node).backgroundColor), 'rgb(83, 20, 38)', 'Keyboard-active primary buttons must retain their high-contrast background');
+  await page.keyboard.up('Space');
+  await page.waitForFunction(() => !document.getElementById('btn-apply-model').disabled);
+  await page.locator('#btn-close-settings').click();
 
   if (process.env.HOOP_SCREENSHOT) {
     await page.evaluate(async () => {
