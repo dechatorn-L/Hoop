@@ -69,6 +69,9 @@ export class UIController {
     this.rimStatusText = document.getElementById('rim-status-text');
     this.rimDrawBanner = document.getElementById('rim-draw-banner');
     this.btnCancelDrawRim = document.getElementById('btn-cancel-draw-rim');
+    this.btnConfirmDrawRim = document.getElementById('btn-confirm-draw-rim');
+    this.rimInputMethod = document.getElementById('rim-input-method');
+    this.rimDraftStatus = document.getElementById('rim-draft-status');
     this.toggleHoopRoi = document.getElementById('toggle-hoop-roi');
 
     this.isDrawingRim = false;
@@ -103,6 +106,7 @@ export class UIController {
     }
     if (this.statusMessage) this._renderStatus();
     if (this.practiceView) this.updatePracticeControls(this.practiceView);
+    this._updateRimDraftUI();
   }
 
   _updateFullscreenLabels() {
@@ -173,6 +177,12 @@ export class UIController {
     if (this.btnCancelDrawRim) {
       this.btnCancelDrawRim.addEventListener('click', () => this.stopDrawingRim());
     }
+    this.btnConfirmDrawRim?.addEventListener('click', () => this.confirmDrawingRim());
+    this.rimInputMethod?.addEventListener('change', () => {
+      this._releaseRimPointer();
+      this._resetRimDraft();
+      this.canvas?.focus({ preventScroll: true });
+    });
 
     if (!this.canvas) return;
 
@@ -211,59 +221,127 @@ export class UIController {
       return { x: Math.round(x), y: Math.round(y) };
     };
 
-    // Touch & Pointer start
-    const handleStart = (e) => {
-      if (!this.isDrawingRim) return;
+    // Pointer Events keep one owner for each gesture, including touch and pen.
+    this.canvas.addEventListener('pointerdown', e => {
+      if (!this.isDrawingRim || this.rimPointerId != null || e.isPrimary === false || e.button !== 0) return;
+      const point = getCanvasPoint(e);
+      if (!point) return;
       e.preventDefault();
-      e.stopPropagation();
-      const pt = getCanvasPoint(e);
-      if (!pt) return;
-      this.dragStart = pt;
-      this.currentDragBox = { x: pt.x, y: pt.y, width: 0, height: 0 };
-    };
-
-    // Touch & Pointer move
-    const handleMove = (e) => {
-      if (!this.isDrawingRim || !this.dragStart) return;
+      this.rimPointerId = e.pointerId;
+      this.dragStart = point;
+      this.rimPointerStart = { x: e.clientX, y: e.clientY };
+      this.rimPointerMoved = false;
+      this.rimKeyboardActive = false;
+      if (this.rimInputMethod.value === 'drag') this._resetRimDraft();
+      this.canvas.setPointerCapture(e.pointerId);
+      this._updateRimDraftUI();
+    });
+    this.canvas.addEventListener('pointermove', e => {
+      if (!this.isDrawingRim || e.pointerId !== this.rimPointerId) return;
       e.preventDefault();
-      e.stopPropagation();
-      const pt = getCanvasPoint(e);
-      if (!pt) return;
-      const minX = Math.min(this.dragStart.x, pt.x);
-      const minY = Math.min(this.dragStart.y, pt.y);
-      const width = Math.abs(pt.x - this.dragStart.x);
-      const height = Math.abs(pt.y - this.dragStart.y);
-
-      this.currentDragBox = {
-        x: Math.round(minX),
-        y: Math.round(minY),
-        width: Math.round(width),
-        height: Math.round(height),
-      };
-    };
-
-    // Touch & Pointer end
-    const handleEnd = (e) => {
-      if (!this.isDrawingRim || !this.dragStart || !this.currentDragBox) return;
+      if (Math.hypot(e.clientX - this.rimPointerStart.x, e.clientY - this.rimPointerStart.y) > 6) this.rimPointerMoved = true;
+      const point = getCanvasPoint(e);
+      if (point && this.rimInputMethod.value === 'drag') this._draftRimBox(this.dragStart, point);
+    });
+    this.canvas.addEventListener('pointerup', e => {
+      if (!this.isDrawingRim || e.pointerId !== this.rimPointerId) return;
       e.preventDefault();
-
-      // Only accept if drawn box is meaningful size (> 15px)
-      if (this.currentDragBox.width >= 15 && this.currentDragBox.height >= 15) {
-        this.setManualRimRoi(this.currentDragBox);
+      const point = getCanvasPoint(e);
+      const start = this.dragStart;
+      const moved = this.rimPointerMoved;
+      this._releaseRimPointer();
+      if (!point) return this._resetRimDraft('rimGestureInterrupted');
+      if (this.rimInputMethod.value === 'corners') {
+        if (!moved) this._placeRimCorner(point);
+        else this._resetRimDraft('rimGestureInterrupted');
+      } else this._draftRimBox(start, point);
+    });
+    const interrupt = e => {
+      if (this.isDrawingRim && this.rimPointerId != null && e.pointerId === this.rimPointerId) {
+        this._releaseRimPointer();
+        this._resetRimDraft('rimGestureInterrupted');
       }
-      this.stopDrawingRim();
     };
+    this.canvas.addEventListener('pointercancel', interrupt);
+    this.canvas.addEventListener('lostpointercapture', interrupt);
+    window.addEventListener('blur', () => {
+      if (this.isDrawingRim) { this._releaseRimPointer(); this._resetRimDraft('rimGestureInterrupted'); }
+    });
+    this.canvas.addEventListener('keydown', e => {
+      if (!this.isDrawingRim) return;
+      this.rimKeyboardActive = true;
+      if (e.key === 'Escape') { e.preventDefault(); return this.stopDrawingRim(); }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); return this._placeRimCorner(this.rimCursor); }
+      const directions = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+      if (!directions[e.key]) return;
+      e.preventDefault();
+      const [dx, dy] = directions[e.key], step = e.shiftKey ? 20 : 5;
+      this.rimCursor = { x: Math.max(0, Math.min(this.canvas.width, this.rimCursor.x + dx * step)), y: Math.max(0, Math.min(this.canvas.height, this.rimCursor.y + dy * step)) };
+      if (this.rimFirstCorner) this._draftRimBox(this.rimFirstCorner, this.rimCursor);
+    });
+  }
 
-    // Pointer Events (Unified Touch + Mouse for modern browsers)
-    this.canvas.addEventListener('pointerdown', handleStart);
-    window.addEventListener('pointermove', handleMove);
-    window.addEventListener('pointerup', handleEnd);
-    window.addEventListener('pointercancel', handleEnd);
+  _releaseRimPointer() {
+    const id = this.rimPointerId;
+    this.rimPointerId = null;
+    this.dragStart = null;
+    if (id != null && this.canvas?.hasPointerCapture(id)) this.canvas.releasePointerCapture(id);
+  }
 
-    // Fallback Touch Events for older mobile WebViews
-    this.canvas.addEventListener('touchstart', handleStart, { passive: false });
-    window.addEventListener('touchmove', handleMove, { passive: false });
-    window.addEventListener('touchend', handleEnd, { passive: false });
+  _resetRimDraft(status = 'rimSelectFirst') {
+    this.rimFirstCorner = null;
+    this.currentDragBox = null;
+    this.rimDraftSize = { width: this.canvas?.width, height: this.canvas?.height };
+    this.rimCursor = { x: Math.round((this.canvas?.width || 640) / 2), y: Math.round((this.canvas?.height || 480) / 2) };
+    this.rimDraftMessage = status;
+    this._updateRimDraftUI();
+  }
+
+  _draftRimBox(start, end) {
+    this.currentDragBox = { x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), width: Math.abs(start.x - end.x), height: Math.abs(start.y - end.y) };
+    this.rimDraftMessage = this.rimFirstCorner ? 'rimSelectSecond' : this._isUsableRimBox(this.currentDragBox) ? 'rimDraftReady' : 'rimBoxTooSmall';
+    this._updateRimDraftUI();
+  }
+
+  _placeRimCorner(point) {
+    if (this.rimFirstCorner) {
+      const start = this.rimFirstCorner;
+      this.rimFirstCorner = null;
+      this._draftRimBox(start, point);
+    } else {
+      this.currentDragBox = null;
+      this.rimFirstCorner = { ...point };
+      this.rimCursor = { ...point };
+      this.rimDraftMessage = 'rimSelectSecond';
+      this._updateRimDraftUI();
+    }
+  }
+
+  _isUsableRimBox(box) {
+    return !!box && [box.x, box.y, box.width, box.height].every(Number.isFinite)
+      && box.width >= 15 && box.height >= 15 && box.x >= 0 && box.y >= 0
+      && box.x + box.width <= this.canvas.width && box.y + box.height <= this.canvas.height;
+  }
+
+  _updateRimDraftUI() {
+    if (this.btnConfirmDrawRim) this.btnConfirmDrawRim.disabled = !this.isDrawingRim || this.rimPointerId != null || !!this.rimFirstCorner || !this._isUsableRimBox(this.currentDragBox);
+    if (this.rimDraftStatus) this.rimDraftStatus.textContent = t(this.rimDraftMessage || 'rimSelectFirst');
+    if (this.canvas && this.isDrawingRim) this.canvas.setAttribute('aria-label', t('rimCanvas'));
+  }
+
+  confirmDrawingRim() {
+    if (!this.isDrawingRim || this.rimPointerId != null || this.rimFirstCorner) return;
+    if (this.rimDraftSize.width !== this.canvas.width || this.rimDraftSize.height !== this.canvas.height) {
+      this._resetRimDraft('rimSourceChanged');
+      return;
+    }
+    if (!this._isUsableRimBox(this.currentDragBox)) {
+      this.rimDraftMessage = 'rimBoxTooSmall';
+      this._updateRimDraftUI();
+      return;
+    }
+    this.setManualRimRoi(this.currentDragBox);
+    this.stopDrawingRim();
   }
 
   /**
@@ -281,6 +359,7 @@ export class UIController {
    * Start manual rim drawing mode
    */
   startDrawingRim() {
+    this._releaseRimPointer();
     this.isDrawingRim = true;
     this.dragStart = null;
     this.currentDragBox = null;
@@ -289,6 +368,13 @@ export class UIController {
     if (this.rimDrawBanner) this.rimDrawBanner.classList.remove('hidden');
     if (this.btnPinRim) this.btnPinRim.classList.add('btn-pin-active');
     if (this.canvas) this.canvas.classList.add('canvas-drawing-mode');
+    this._resetRimDraft();
+    this.rimKeyboardActive = false;
+    this.canvas?.removeAttribute('aria-hidden');
+    this.canvas?.setAttribute('role', 'group');
+    this.canvas?.setAttribute('tabindex', '0');
+    this.canvas?.setAttribute('aria-describedby', 'rim-framing-instructions rim-draft-status');
+    this.canvas?.focus({ preventScroll: true });
     this.onRimChange?.();
   }
 
@@ -296,6 +382,8 @@ export class UIController {
    * Stop manual rim drawing mode
    */
   stopDrawingRim() {
+    this._releaseRimPointer();
+    const wasDrawing = this.isDrawingRim;
     this.isDrawingRim = false;
     this.dragStart = null;
     this.currentDragBox = null;
@@ -303,6 +391,16 @@ export class UIController {
     if (this.rimDrawBanner) this.rimDrawBanner.classList.add('hidden');
     if (this.btnPinRim) this.btnPinRim.classList.remove('btn-pin-active');
     if (this.canvas) this.canvas.classList.remove('canvas-drawing-mode');
+    this._resetRimDraft();
+    this.canvas?.setAttribute('aria-hidden', 'true');
+    this.canvas?.removeAttribute('tabindex');
+    this.canvas?.removeAttribute('role');
+    this.canvas?.removeAttribute('aria-label');
+    this.canvas?.removeAttribute('aria-describedby');
+    if (wasDrawing) {
+      const target = this.btnPinRim?.offsetParent ? this.btnPinRim : document.querySelector('#secondary-controls > summary');
+      target?.focus({ preventScroll: true });
+    }
     this.onRimChange?.();
   }
 
@@ -311,7 +409,7 @@ export class UIController {
    * @param {Object} roi { x, y, width, height }
    */
   setManualRimRoi(roi) {
-    if (!roi) return;
+    if (!this._isUsableRimBox(roi)) return;
     this.manualRimRoi = {
       x: Math.round(roi.x),
       y: Math.round(roi.y),
@@ -628,6 +726,12 @@ export class UIController {
     if (vid && this.canvas) {
       const width = vid.videoWidth || 1280;
       const height = vid.videoHeight || 720;
+      if (this.isDrawingRim && (this.canvas.width !== width || this.canvas.height !== height)) {
+        this._releaseRimPointer();
+        this.canvas.width = width;
+        this.canvas.height = height;
+        this._resetRimDraft('rimSourceChanged');
+      }
       if (this.canvas.width !== width) this.canvas.width = width;
       if (this.canvas.height !== height) this.canvas.height = height;
       console.log(`[UIController] Canvas synchronized with video: ${width}x${height}`);
@@ -683,8 +787,7 @@ export class UIController {
     // Prevents bounding box distortion/offset on mobile devices in portrait/landscape modes
     if (this.video && this.video.videoWidth > 0 && this.video.videoHeight > 0) {
       if (canvas.width !== this.video.videoWidth || canvas.height !== this.video.videoHeight) {
-        canvas.width = this.video.videoWidth;
-        canvas.height = this.video.videoHeight;
+        this.initCanvas(this.video);
       }
     }
 
@@ -869,6 +972,17 @@ export class UIController {
       ctx.fillStyle = '#0F0F1A';
       ctx.font = '600 14px Sarabun, sans-serif';
       ctx.fillText(t('drawingRim'), x + 8, (y > 24 ? y - 24 : y) + 15);
+      ctx.restore();
+    }
+    if (this.isDrawingRim && (this.rimKeyboardActive || this.rimFirstCorner)) {
+      const point = this.rimKeyboardActive ? this.rimCursor : this.rimFirstCorner;
+      ctx.save();
+      ctx.strokeStyle = '#00FF88';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(point.x - 10, point.y); ctx.lineTo(point.x + 10, point.y);
+      ctx.moveTo(point.x, point.y - 10); ctx.lineTo(point.x, point.y + 10);
+      ctx.stroke();
       ctx.restore();
     }
   }

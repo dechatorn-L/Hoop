@@ -1,5 +1,17 @@
 // Paired entries keep both supported languages together. Values are plain text.
 export const messages = {
+  rimInputMethod: ['วิธีกำหนดกรอบ', 'Framing method'],
+  rimDrag: ['ลากกรอบ', 'Drag a box'],
+  rimCorners: ['แตะสองมุม', 'Tap two corners'],
+  rimFramingHelp: ['ลากกรอบหรือเลือกแตะสองมุม แล้วกดยืนยัน คีย์บอร์ด: ใช้ปุ่มลูกศรเลื่อนจุด และ Enter เลือกแต่ละมุม', 'Drag a box or choose Tap two corners, then Confirm. Keyboard: use arrow keys to move and Enter to select each corner.'],
+  confirmRim: ['ยืนยันกรอบห่วง', 'Confirm Rim'],
+  rimSelectFirst: ['เลือกมุมแรกของห่วง', 'Select the first rim corner.'],
+  rimSelectSecond: ['เลือกมุมตรงข้ามของห่วง', 'Select the opposite rim corner.'],
+  rimDraftReady: ['กรอบร่างพร้อม ตรวจตำแหน่งแล้วกดยืนยัน', 'Draft ready. Check the position, then Confirm.'],
+  rimBoxTooSmall: ['กรอบเล็กเกินไป กำหนดให้กว้างและสูงอย่างน้อย 15 พิกเซลของภาพ', 'Box too small. Choose at least 15 source-image pixels in width and height.'],
+  rimGestureInterrupted: ['การเลือกถูกขัดจังหวะ กรุณากำหนดกรอบใหม่', 'Selection interrupted. Frame the rim again.'],
+  rimSourceChanged: ['ขนาดภาพกล้องเปลี่ยน กรุณากำหนดกรอบใหม่ก่อนยืนยัน', 'Camera image size changed. Frame the rim again before confirming.'],
+  rimCanvas: ['ภาพสำหรับกำหนดกรอบห่วง', 'Rim framing image'],
   madeBaskets: ['ลูกที่ลง', 'Made baskets'],
   cameraView: ['ภาพกล้อง', 'Camera view'],
   fullFrame: ['เต็มเฟรม', 'Full frame'],

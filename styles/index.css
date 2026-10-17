@@ -73,6 +73,9 @@ summary:hover { background: var(--bg-surface-elevated); }
 .bar-actions, .drawer-action-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .bar-actions > button { flex: 1 1 7rem; }
 .rim-draw-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: .875rem; padding: 10px; background: var(--color-primary-subtle); }
+.rim-draw-banner > p, .rim-draw-banner > label { flex-basis: 100%; }
+.rim-draw-banner > button { flex: 1 1 8rem; }
+#rim-draft-status { font-weight: 600; }
 /* General Buttons */
 .btn, .btn-ghost, .btn-cancel-draw { padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border-medium); background: transparent; color: var(--text-main); }
 .btn:hover:not(:disabled), .btn-ghost:hover, .btn-cancel-draw:hover { background: var(--bg-surface-elevated); }

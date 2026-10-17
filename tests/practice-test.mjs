@@ -5,7 +5,8 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.HOOP_PLAYWRIGHT_MODULE || 'playwright');
 const browser = await chromium.launch({ headless: true, ...(process.env.HOOP_BROWSER_CHANNEL ? { channel: process.env.HOOP_BROWSER_CHANNEL } : {}) });
-const page = await browser.newPage({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 844 } });
+const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 844 } });
+const page = await context.newPage();
 page.setDefaultTimeout(8000);
 async function openControls(target) {
   if (!await target.locator('#secondary-controls').evaluate(node => node.open)) await target.locator('#secondary-controls > summary').click();
@@ -303,6 +304,9 @@ try {
     }
     await page.mouse.move(mapping.left + 100 * mapping.scale, mapping.top + 100 * mapping.scale); await page.mouse.down();
     await page.mouse.move(mapping.left + 200 * mapping.scale, mapping.top + 160 * mapping.scale, { steps: 3 }); await page.mouse.up();
+    assert.equal(await page.evaluate(() => localStorage.getItem('hoop_manual_rim_roi')), null, 'Releasing a drag must only draft the rim, without saving');
+    assert.equal(await page.locator('#btn-confirm-draw-rim').isDisabled(), false);
+    await page.locator('#btn-confirm-draw-rim').click();
     const roi = await page.evaluate(() => JSON.parse(localStorage.getItem('hoop_manual_rim_roi')));
     for (const [key, expected] of Object.entries({ x: 100, y: 100, width: 100, height: 60 })) assert.ok(Math.abs(roi[key] - expected) <= 2, `Source-space ${key} must match the dragged image`);
   }
@@ -312,6 +316,145 @@ try {
     app.ui.initCanvas(video); app.ui.setManualRimRoi({ x: 100, y: 100, width: 80, height: 20 });
   });
   console.log('PASS: aligned full-frame mapping and rim input reject empty margins across three source ratios');
+
+  async function rimPoints(target, points) {
+    await target.locator('#camera-container').scrollIntoViewIfNeeded();
+    return target.evaluate(points => {
+      const canvas = document.getElementById('detection-overlay'), rect = canvas.getBoundingClientRect();
+      const scale = Math.min(rect.width / canvas.width, rect.height / canvas.height);
+      return points.map(([x, y]) => ({ x: rect.left + (rect.width - canvas.width * scale) / 2 + x * scale, y: rect.top + (rect.height - canvas.height * scale) / 2 + y * scale }));
+    }, points);
+  }
+  async function draftRim(points = [[120, 80], [220, 140]]) {
+    const [a, b] = await rimPoints(page, points);
+    await page.mouse.move(a.x, a.y); await page.mouse.down();
+    await page.mouse.move(b.x, b.y, { steps: 3 }); await page.mouse.up();
+  }
+  const originalRim = await page.evaluate(() => localStorage.getItem('hoop_manual_rim_roi'));
+  const originalScore = await page.locator('#score-value').textContent();
+  await page.locator('#btn-practice').click();
+  await openControls(page); await page.locator('#btn-pin-rim').click();
+  assert.equal(await page.locator('#btn-practice').textContent(), 'ฝึกซ้อมต่อ');
+  assert.equal(await page.locator('#btn-confirm-draw-rim').isDisabled(), true);
+  assert.equal(await page.locator('#detection-overlay').evaluate(node => document.activeElement === node), true);
+  await draftRim();
+  assert.equal(await page.evaluate(() => localStorage.getItem('hoop_manual_rim_roi')), originalRim, 'Draft must preserve the active/saved rim');
+  await page.locator('#btn-cancel-draw-rim').click();
+  assert.equal(await page.evaluate(() => localStorage.getItem('hoop_manual_rim_roi')), originalRim);
+  assert.equal(await page.locator('#score-value').textContent(), originalScore);
+  assert.equal(await page.locator('#btn-practice').textContent(), 'ฝึกซ้อมต่อ', 'Cancel must not Resume automatically');
+  assert.equal(await page.locator('#btn-pin-rim').evaluate(node => document.activeElement === node), true);
+
+  await page.locator('#btn-pin-rim').click();
+  await page.selectOption('#rim-input-method', 'corners');
+  const touch = await page.context().newCDPSession(page);
+  await touch.send('Emulation.setTouchEmulationEnabled', { enabled: true });
+  const corners = await rimPoints(page, [[120, 80], [220, 140]]);
+  for (const [index, point] of corners.entries()) {
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: point.x, y: point.y, id: 1 }] });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    assert.equal(await page.locator('#btn-confirm-draw-rim').isDisabled(), index === 0);
+  }
+  assert.equal(await page.evaluate(() => localStorage.getItem('hoop_manual_rim_roi')), originalRim);
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.locator('#btn-confirm-draw-rim').click();
+  const confirmed = await page.evaluate(() => JSON.parse(localStorage.getItem('hoop_manual_rim_roi')));
+  assert.deepEqual(confirmed, { x: 120, y: 80, width: 100, height: 60, canvasW: 640, canvasH: 480 });
+  assert.equal(await page.locator('#btn-practice').textContent(), 'ฝึกซ้อมต่อ', 'Confirm must require explicit Resume');
+  assert.equal(await page.locator('#score-value').textContent(), originalScore);
+  await touch.send('Emulation.setTouchEmulationEnabled', { enabled: false }); await touch.detach();
+  await page.setViewportSize({ width: 390, height: 844 });
+  console.log('PASS: draft/Cancel preserve the saved rim and score; two real synthesized taps confirm after rotation without automatic Resume');
+
+  await page.locator('#btn-pin-rim').click();
+  await page.selectOption('#rim-input-method', 'drag');
+  await draftRim([[100, 100], [100, 100]]);
+  assert.equal(await page.locator('#btn-confirm-draw-rim').isDisabled(), true);
+  assert.match(await page.locator('#rim-draft-status').textContent(), /กรอบเล็กเกินไป/);
+  const [cancelStart, cancelEnd] = await rimPoints(page, [[100, 100], [200, 160]]);
+  await page.evaluate(() => document.getElementById('detection-overlay').addEventListener('pointerdown', e => { window.cancelledPointer = e.pointerId; }, { once: true }));
+  await page.mouse.move(cancelStart.x, cancelStart.y); await page.mouse.down(); await page.mouse.move(cancelEnd.x, cancelEnd.y);
+  await page.evaluate(() => document.getElementById('detection-overlay').dispatchEvent(new PointerEvent('pointercancel', { pointerId: cancelledPointer })));
+  await page.mouse.up();
+  assert.equal(await page.locator('#btn-confirm-draw-rim').isDisabled(), true);
+  const beforeKeyboard = await page.evaluate(() => localStorage.getItem('hoop_manual_rim_roi'));
+  await page.locator('#detection-overlay').focus();
+  await page.keyboard.press('Enter'); await page.keyboard.press('Shift+ArrowRight'); await page.keyboard.press('Shift+ArrowDown');
+  assert.equal(await page.locator('#btn-confirm-draw-rim').isDisabled(), true, 'Keyboard selection needs both corners');
+  await page.keyboard.press('Enter');
+  assert.equal(await page.locator('#btn-confirm-draw-rim').isDisabled(), false);
+  await page.locator('#btn-confirm-draw-rim').click();
+  assert.notEqual(await page.evaluate(() => localStorage.getItem('hoop_manual_rim_roi')), beforeKeyboard);
+  console.log('PASS: zero-sized and cancelled gestures cannot commit; keyboard corners require explicit Confirm');
+
+  const interruptedRim = await page.evaluate(() => localStorage.getItem('hoop_manual_rim_roi'));
+  await page.locator('#btn-pin-rim').click(); await draftRim();
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  assert.equal(await page.locator('#btn-confirm-draw-rim').isDisabled(), true);
+  assert.equal(await page.evaluate(() => localStorage.getItem('hoop_manual_rim_roi')), interruptedRim);
+  const [lostStart, lostEnd] = await rimPoints(page, [[100, 100], [200, 160]]);
+  await page.evaluate(() => document.getElementById('detection-overlay').addEventListener('pointerdown', e => { window.lostPointer = e.pointerId; }, { once: true }));
+  await page.mouse.move(lostStart.x, lostStart.y); await page.mouse.down(); await page.mouse.move(lostEnd.x, lostEnd.y);
+  await page.evaluate(() => document.getElementById('detection-overlay').releasePointerCapture(lostPointer));
+  await page.mouse.move(lostEnd.x + 1, lostEnd.y); await page.mouse.up();
+  assert.equal(await page.locator('#btn-confirm-draw-rim').isDisabled(), true);
+  await draftRim();
+  assert.equal(await page.locator('#btn-confirm-draw-rim').isDisabled(), false, 'A new gesture must work after interruption');
+  await page.selectOption('#camera-select', 'one');
+  assert.equal(await page.locator('#rim-draw-banner').isVisible(), false, 'Camera change discards a draft even when source dimensions match');
+  assert.equal(await page.evaluate(() => localStorage.getItem('hoop_manual_rim_roi')), interruptedRim);
+  assert.equal(await page.locator('#toggle-hoop-roi').isChecked(), true);
+  console.log('PASS: blur, lost capture and camera changes discard drafts without overwriting the prior rim or ROI option');
+
+  await page.locator('#btn-pin-rim').click(); await page.selectOption('#rim-input-method', 'corners');
+  const multiTouch = await page.context().newCDPSession(page);
+  await multiTouch.send('Emulation.setTouchEmulationEnabled', { enabled: true });
+  const [firstFinger, secondCorner] = await rimPoints(page, [[100, 100], [200, 160]]);
+  const finger = { ...firstFinger, id: 1 }, extra = { x: firstFinger.x + 15, y: firstFinger.y + 15, id: 2 };
+  await multiTouch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [finger] });
+  await multiTouch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [finger, extra] });
+  await multiTouch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [finger] });
+  await multiTouch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  assert.equal(await page.locator('#btn-confirm-draw-rim').isDisabled(), true, 'A second finger cannot finish the first corner selection');
+  await multiTouch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...secondCorner, id: 1 }] });
+  await multiTouch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  assert.equal(await page.locator('#btn-confirm-draw-rim').isDisabled(), false);
+  assert.equal(await page.evaluate(() => localStorage.getItem('hoop_manual_rim_roi')), interruptedRim);
+  const outsideImage = await page.locator('#btn-confirm-draw-rim').evaluate(node => {
+    const button = node.getBoundingClientRect(), image = document.getElementById('camera-container').getBoundingClientRect();
+    return button.top >= image.bottom || button.left >= image.right;
+  });
+  assert.equal(outsideImage, true, 'Confirmation stays outside the camera image');
+  if (process.env.HOOP_SCREENSHOT) await page.screenshot({ path: process.env.HOOP_SCREENSHOT.replace('.png', '-draft.png'), fullPage: true });
+  await page.locator('#btn-cancel-draw-rim').click();
+  await multiTouch.send('Emulation.setTouchEmulationEnabled', { enabled: false }); await multiTouch.detach();
+  await page.locator('#btn-pin-rim').click(); await page.selectOption('#rim-input-method', 'drag'); await page.locator('#btn-cancel-draw-rim').click();
+  console.log('PASS: multi-touch preserves gesture ownership and Confirm stays outside the image');
+
+  await page.locator('#btn-pin-rim').click(); await draftRim();
+  await openControls(page); await page.locator('#btn-settings-toggle').click(); await page.selectOption('#language-select', 'en'); await page.locator('#btn-close-settings').click();
+  assert.equal(await page.locator('#btn-confirm-draw-rim').textContent(), 'Confirm Rim');
+  assert.match(await page.locator('#rim-draft-status').textContent(), /Draft ready/);
+  await page.evaluate(() => {
+    Object.defineProperty(document.getElementById('camera-feed'), 'videoWidth', { configurable: true, value: 1280 });
+    document.getElementById('camera-feed').dispatchEvent(new Event('loadedmetadata'));
+  });
+  assert.equal(await page.locator('#btn-confirm-draw-rim').isDisabled(), true);
+  assert.match(await page.locator('#rim-draft-status').textContent(), /Camera image size changed/);
+  await page.locator('#btn-cancel-draw-rim').click();
+  await openControls(page); await page.locator('#btn-settings-toggle').click(); await page.selectOption('#language-select', 'th'); await page.locator('#btn-close-settings').click();
+  await page.evaluate(() => {
+    Object.defineProperty(document.getElementById('camera-feed'), 'videoWidth', { configurable: true, value: 640 });
+    document.getElementById('camera-feed').dispatchEvent(new Event('loadedmetadata'));
+  });
+  const savedForReload = await page.evaluate(() => localStorage.getItem('hoop_manual_rim_roi'));
+  const restored = await page.context().newPage();
+  await restored.goto(process.env.HOOP_TEST_URL || 'https://localhost:5173/'); await restored.reload();
+  await restored.waitForFunction(() => document.getElementById('btn-pin-rim').textContent === 'แก้ไขห่วง');
+  assert.equal(await restored.evaluate(() => localStorage.getItem('hoop_manual_rim_roi')), savedForReload);
+  await restored.close();
+  console.log('PASS: framing text switches languages, source changes invalidate drafts, and confirmed saved-rim format survives reload');
+  await page.evaluate(() => app.ui.setManualRimRoi({ x: 100, y: 100, width: 80, height: 20 }));
 
   await page.evaluate(async () => {
     await document.fonts.ready;

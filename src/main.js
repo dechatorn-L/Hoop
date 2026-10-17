@@ -148,6 +148,7 @@ export class HoopCounterApp {
     console.log('🏀 Initializing Hoop Shot Counter App...');
 
     this.camera.onError(({ type, message, originalError }) => {
+      if (this.ui.isDrawingRim) this.ui.stopDrawingRim();
       this.cameraReady = false;
       const keys = { UNSUPPORTED: 'cameraUnsupported', PERMISSION_DENIED: 'cameraPermission', DEVICE_NOT_FOUND: 'cameraNotFound', CAMERA_IN_USE: 'cameraInUse', OVERCONSTRAINED: 'cameraConstraints', SECURITY_ERROR: 'cameraSecurity' };
       this.cameraError = { key: keys[type] || 'cameraFailed', params: { detail: originalError?.message || message } };
@@ -211,6 +212,7 @@ export class HoopCounterApp {
 
   async openCamera(deviceId = null) {
     if (this.cameraLoading) return;
+    if (this.ui.isDrawingRim) this.ui.stopDrawingRim();
     this.pausePractice();
     this.cameraReady = false;
     this.cameraLoading = true;

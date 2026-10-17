@@ -43,7 +43,14 @@
         <p id="practice-readiness" role="status" aria-live="polite"></p>
         <!-- Manual Rim Drawing Notification Pill -->
         <div id="rim-draw-banner" class="rim-draw-banner hidden">
-          <span data-i18n="drawInstruction">ลากกรอบสี่เหลี่ยมบนห่วงบาส</span>
+          <label for="rim-input-method" data-i18n="rimInputMethod">วิธีกำหนดกรอบ</label>
+          <select id="rim-input-method" class="select-input">
+            <option value="drag" data-i18n="rimDrag">ลากกรอบ</option>
+            <option value="corners" data-i18n="rimCorners">แตะสองมุม</option>
+          </select>
+          <p id="rim-framing-instructions" data-i18n="rimFramingHelp">ลากกรอบหรือเลือกแตะสองมุม แล้วกดยืนยัน คีย์บอร์ด: ใช้ปุ่มลูกศรเลื่อนจุด และ Enter เลือกแต่ละมุม</p>
+          <p id="rim-draft-status" role="status" aria-live="polite"></p>
+          <button type="button" id="btn-confirm-draw-rim" class="btn btn-primary" disabled data-i18n="confirmRim">ยืนยันกรอบห่วง</button>
           <button type="button" id="btn-cancel-draw-rim" class="btn-cancel-draw" data-i18n="cancel">ยกเลิก</button>
         </div>
         <details id="secondary-controls" open>
