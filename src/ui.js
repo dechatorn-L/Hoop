@@ -3,8 +3,22 @@
  * Handles UI interactions, settings drawer, animations, and canvas detection rendering.
  */
 
+import { getLanguage, setLanguage, t, translateDocument, translateMessage } from './i18n.js';
+
 export class UIController {
   constructor() {
+    this.practiceButton = document.getElementById('btn-practice');
+    this.openCameraButton = document.getElementById('btn-open-camera');
+    this.practiceReadiness = document.getElementById('practice-readiness');
+    const guide = document.getElementById('positioning-guide');
+    if (guide) {
+      try { guide.open = localStorage.getItem('hoop_positioning_seen') !== 'true'; } catch { guide.open = true; }
+      guide.addEventListener('toggle', () => {
+        if (!guide.open) {
+          try { localStorage.setItem('hoop_positioning_seen', 'true'); } catch { /* Guidance remains available without storage. */ }
+        }
+      });
+    }
     this.video = document.getElementById('camera-feed');
     this.canvas = document.getElementById('detection-overlay');
     this.ctx = this.canvas ? this.canvas.getContext('2d') : null;
@@ -55,6 +69,9 @@ export class UIController {
     this.rimStatusText = document.getElementById('rim-status-text');
     this.rimDrawBanner = document.getElementById('rim-draw-banner');
     this.btnCancelDrawRim = document.getElementById('btn-cancel-draw-rim');
+    this.btnConfirmDrawRim = document.getElementById('btn-confirm-draw-rim');
+    this.rimInputMethod = document.getElementById('rim-input-method');
+    this.rimDraftStatus = document.getElementById('rim-draft-status');
     this.toggleHoopRoi = document.getElementById('toggle-hoop-roi');
 
     this.isDrawingRim = false;
@@ -69,6 +86,36 @@ export class UIController {
     this._setupInternalEventListeners();
     this._setupManualRimEvents();
     this._loadSavedModelSettings();
+    this.languageSelect = document.getElementById('language-select');
+    this.languageSelect?.addEventListener('change', () => {
+      setLanguage(this.languageSelect.value);
+      this._translateInterface();
+    });
+    this._translateInterface();
+  }
+
+  _translateInterface() {
+    translateDocument();
+    if (this.languageSelect) this.languageSelect.value = getLanguage();
+    this._updateManualRimUI();
+    this._updateModelDescriptions(this.modelSelect?.value);
+    this._updateFullscreenLabels();
+    for (const option of this.cameraSelect?.options || []) {
+      if (option.dataset.cameraNumber) option.textContent = t('cameraNumber', { number: option.dataset.cameraNumber });
+      if (option.dataset.noCamera) option.textContent = t('noCamera');
+    }
+    if (this.statusMessage) this._renderStatus();
+    if (this.practiceView) this.updatePracticeControls(this.practiceView);
+    this._updateRimDraftUI();
+  }
+
+  _updateFullscreenLabels() {
+    if (!this.btnFullscreen) return;
+    const key = this.isCameraExpanded ? 'restoreCamera' : 'expandCamera';
+    this.btnFullscreen.querySelector('.camera-expand-label').textContent = t(key);
+    this.btnFullscreen.title = t(key);
+    this.btnFullscreen.setAttribute('aria-label', t(key));
+    this.btnFullscreen.setAttribute('aria-pressed', String(!!this.isCameraExpanded));
   }
 
   /**
@@ -131,6 +178,12 @@ export class UIController {
     if (this.btnCancelDrawRim) {
       this.btnCancelDrawRim.addEventListener('click', () => this.stopDrawingRim());
     }
+    this.btnConfirmDrawRim?.addEventListener('click', () => this.confirmDrawingRim());
+    this.rimInputMethod?.addEventListener('change', () => {
+      this._releaseRimPointer();
+      this._resetRimDraft();
+      this.canvas?.focus({ preventScroll: true });
+    });
 
     if (!this.canvas) return;
 
@@ -161,63 +214,135 @@ export class UIController {
       const scaleX = (this.canvas.width || 640) / (renderWidth || 1);
       const scaleY = (this.canvas.height || 480) / (renderHeight || 1);
 
+      if (clientX < renderLeft || clientX > renderLeft + renderWidth || clientY < renderTop || clientY > renderTop + renderHeight) return null;
+
       const x = Math.max(0, Math.min(this.canvas.width || 640, (clientX - renderLeft) * scaleX));
       const y = Math.max(0, Math.min(this.canvas.height || 480, (clientY - renderTop) * scaleY));
 
       return { x: Math.round(x), y: Math.round(y) };
     };
 
-    // Touch & Pointer start
-    const handleStart = (e) => {
-      if (!this.isDrawingRim) return;
+    // Pointer Events keep one owner for each gesture, including touch and pen.
+    this.canvas.addEventListener('pointerdown', e => {
+      if (!this.isDrawingRim || this.rimPointerId != null || e.isPrimary === false || e.button !== 0) return;
+      const point = getCanvasPoint(e);
+      if (!point) return;
       e.preventDefault();
-      e.stopPropagation();
-      const pt = getCanvasPoint(e);
-      this.dragStart = pt;
-      this.currentDragBox = { x: pt.x, y: pt.y, width: 0, height: 0 };
-    };
-
-    // Touch & Pointer move
-    const handleMove = (e) => {
-      if (!this.isDrawingRim || !this.dragStart) return;
+      this.rimPointerId = e.pointerId;
+      this.dragStart = point;
+      this.rimPointerStart = { x: e.clientX, y: e.clientY };
+      this.rimPointerMoved = false;
+      this.rimKeyboardActive = false;
+      if (this.rimInputMethod.value === 'drag') this._resetRimDraft();
+      this.canvas.setPointerCapture(e.pointerId);
+      this._updateRimDraftUI();
+    });
+    this.canvas.addEventListener('pointermove', e => {
+      if (!this.isDrawingRim || e.pointerId !== this.rimPointerId) return;
       e.preventDefault();
-      e.stopPropagation();
-      const pt = getCanvasPoint(e);
-      const minX = Math.min(this.dragStart.x, pt.x);
-      const minY = Math.min(this.dragStart.y, pt.y);
-      const width = Math.abs(pt.x - this.dragStart.x);
-      const height = Math.abs(pt.y - this.dragStart.y);
-
-      this.currentDragBox = {
-        x: Math.round(minX),
-        y: Math.round(minY),
-        width: Math.round(width),
-        height: Math.round(height),
-      };
-    };
-
-    // Touch & Pointer end
-    const handleEnd = (e) => {
-      if (!this.isDrawingRim || !this.dragStart || !this.currentDragBox) return;
+      if (Math.hypot(e.clientX - this.rimPointerStart.x, e.clientY - this.rimPointerStart.y) > 6) this.rimPointerMoved = true;
+      const point = getCanvasPoint(e);
+      if (point && this.rimInputMethod.value === 'drag') this._draftRimBox(this.dragStart, point);
+    });
+    this.canvas.addEventListener('pointerup', e => {
+      if (!this.isDrawingRim || e.pointerId !== this.rimPointerId) return;
       e.preventDefault();
-
-      // Only accept if drawn box is meaningful size (> 15px)
-      if (this.currentDragBox.width >= 15 && this.currentDragBox.height >= 15) {
-        this.setManualRimRoi(this.currentDragBox);
+      const point = getCanvasPoint(e);
+      const start = this.dragStart;
+      const moved = this.rimPointerMoved;
+      this._releaseRimPointer();
+      if (!point) return this._resetRimDraft('rimGestureInterrupted');
+      if (this.rimInputMethod.value === 'corners') {
+        if (!moved) this._placeRimCorner(point);
+        else this._resetRimDraft('rimGestureInterrupted');
+      } else this._draftRimBox(start, point);
+    });
+    const interrupt = e => {
+      if (this.isDrawingRim && this.rimPointerId != null && e.pointerId === this.rimPointerId) {
+        this._releaseRimPointer();
+        this._resetRimDraft('rimGestureInterrupted');
       }
-      this.stopDrawingRim();
     };
+    this.canvas.addEventListener('pointercancel', interrupt);
+    this.canvas.addEventListener('lostpointercapture', interrupt);
+    window.addEventListener('blur', () => {
+      if (this.isDrawingRim) { this._releaseRimPointer(); this._resetRimDraft('rimGestureInterrupted'); }
+    });
+    this.canvas.addEventListener('keydown', e => {
+      if (!this.isDrawingRim) return;
+      this.rimKeyboardActive = true;
+      if (e.key === 'Escape') { e.preventDefault(); return this.stopDrawingRim(); }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); return this._placeRimCorner(this.rimCursor); }
+      const directions = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+      if (!directions[e.key]) return;
+      e.preventDefault();
+      const [dx, dy] = directions[e.key], step = e.shiftKey ? 20 : 5;
+      this.rimCursor = { x: Math.max(0, Math.min(this.canvas.width, this.rimCursor.x + dx * step)), y: Math.max(0, Math.min(this.canvas.height, this.rimCursor.y + dy * step)) };
+      if (this.rimFirstCorner) this._draftRimBox(this.rimFirstCorner, this.rimCursor);
+    });
+  }
 
-    // Pointer Events (Unified Touch + Mouse for modern browsers)
-    this.canvas.addEventListener('pointerdown', handleStart);
-    window.addEventListener('pointermove', handleMove);
-    window.addEventListener('pointerup', handleEnd);
-    window.addEventListener('pointercancel', handleEnd);
+  _releaseRimPointer() {
+    const id = this.rimPointerId;
+    this.rimPointerId = null;
+    this.dragStart = null;
+    if (id != null && this.canvas?.hasPointerCapture(id)) this.canvas.releasePointerCapture(id);
+  }
 
-    // Fallback Touch Events for older mobile WebViews
-    this.canvas.addEventListener('touchstart', handleStart, { passive: false });
-    window.addEventListener('touchmove', handleMove, { passive: false });
-    window.addEventListener('touchend', handleEnd, { passive: false });
+  _resetRimDraft(status = 'rimSelectFirst') {
+    this.rimFirstCorner = null;
+    this.currentDragBox = null;
+    this.rimDraftSize = { width: this.canvas?.width, height: this.canvas?.height };
+    this.rimCursor = { x: Math.round((this.canvas?.width || 640) / 2), y: Math.round((this.canvas?.height || 480) / 2) };
+    this.rimDraftMessage = status;
+    this._updateRimDraftUI();
+  }
+
+  _draftRimBox(start, end) {
+    this.currentDragBox = { x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), width: Math.abs(start.x - end.x), height: Math.abs(start.y - end.y) };
+    this.rimDraftMessage = this.rimFirstCorner ? 'rimSelectSecond' : this._isUsableRimBox(this.currentDragBox) ? 'rimDraftReady' : 'rimBoxTooSmall';
+    this._updateRimDraftUI();
+  }
+
+  _placeRimCorner(point) {
+    if (this.rimFirstCorner) {
+      const start = this.rimFirstCorner;
+      this.rimFirstCorner = null;
+      this._draftRimBox(start, point);
+    } else {
+      this.currentDragBox = null;
+      this.rimFirstCorner = { ...point };
+      this.rimCursor = { ...point };
+      this.rimDraftMessage = 'rimSelectSecond';
+      this._updateRimDraftUI();
+    }
+  }
+
+  _isUsableRimBox(box) {
+    return !!box && [box.x, box.y, box.width, box.height].every(Number.isFinite)
+      && box.width >= 15 && box.height >= 15 && box.x >= 0 && box.y >= 0
+      && box.x + box.width <= this.canvas.width && box.y + box.height <= this.canvas.height;
+  }
+
+  _updateRimDraftUI() {
+    if (this.btnConfirmDrawRim) this.btnConfirmDrawRim.disabled = !this.isDrawingRim || this.rimPointerId != null || !!this.rimFirstCorner || !this._isUsableRimBox(this.currentDragBox);
+    if (this.rimDraftStatus) this.rimDraftStatus.textContent = t(this.rimDraftMessage || 'rimSelectFirst');
+    if (this.canvas && this.isDrawingRim) this.canvas.setAttribute('aria-label', t('rimCanvas'));
+  }
+
+  confirmDrawingRim() {
+    if (!this.isDrawingRim || this.rimPointerId != null || this.rimFirstCorner) return;
+    if (this.rimDraftSize.width !== this.canvas.width || this.rimDraftSize.height !== this.canvas.height) {
+      this._resetRimDraft('rimSourceChanged');
+      return;
+    }
+    if (!this._isUsableRimBox(this.currentDragBox)) {
+      this.rimDraftMessage = 'rimBoxTooSmall';
+      this._updateRimDraftUI();
+      return;
+    }
+    this.setManualRimRoi(this.currentDragBox);
+    this.stopDrawingRim();
   }
 
   /**
@@ -235,6 +360,7 @@ export class UIController {
    * Start manual rim drawing mode
    */
   startDrawingRim() {
+    this._releaseRimPointer();
     this.isDrawingRim = true;
     this.dragStart = null;
     this.currentDragBox = null;
@@ -243,12 +369,22 @@ export class UIController {
     if (this.rimDrawBanner) this.rimDrawBanner.classList.remove('hidden');
     if (this.btnPinRim) this.btnPinRim.classList.add('btn-pin-active');
     if (this.canvas) this.canvas.classList.add('canvas-drawing-mode');
+    this._resetRimDraft();
+    this.rimKeyboardActive = false;
+    this.canvas?.removeAttribute('aria-hidden');
+    this.canvas?.setAttribute('role', 'group');
+    this.canvas?.setAttribute('tabindex', '0');
+    this.canvas?.setAttribute('aria-describedby', 'rim-framing-instructions rim-draft-status');
+    this.canvas?.focus({ preventScroll: true });
+    this.onRimChange?.();
   }
 
   /**
    * Stop manual rim drawing mode
    */
   stopDrawingRim() {
+    this._releaseRimPointer();
+    const wasDrawing = this.isDrawingRim;
     this.isDrawingRim = false;
     this.dragStart = null;
     this.currentDragBox = null;
@@ -256,6 +392,17 @@ export class UIController {
     if (this.rimDrawBanner) this.rimDrawBanner.classList.add('hidden');
     if (this.btnPinRim) this.btnPinRim.classList.remove('btn-pin-active');
     if (this.canvas) this.canvas.classList.remove('canvas-drawing-mode');
+    this._resetRimDraft();
+    this.canvas?.setAttribute('aria-hidden', 'true');
+    this.canvas?.removeAttribute('tabindex');
+    this.canvas?.removeAttribute('role');
+    this.canvas?.removeAttribute('aria-label');
+    this.canvas?.removeAttribute('aria-describedby');
+    if (wasDrawing) {
+      const target = this.isCameraExpanded ? this.btnFullscreen : this.btnPinRim?.offsetParent ? this.btnPinRim : document.querySelector('#secondary-controls > summary');
+      target?.focus({ preventScroll: true });
+    }
+    this.onRimChange?.();
   }
 
   /**
@@ -263,7 +410,7 @@ export class UIController {
    * @param {Object} roi { x, y, width, height }
    */
   setManualRimRoi(roi) {
-    if (!roi) return;
+    if (!this._isUsableRimBox(roi)) return;
     this.manualRimRoi = {
       x: Math.round(roi.x),
       y: Math.round(roi.y),
@@ -278,6 +425,7 @@ export class UIController {
       console.warn('[UIController] Could not save manual rim to localStorage:', err);
     }
     this._updateManualRimUI();
+    this.onRimChange?.();
   }
 
   /**
@@ -332,16 +480,14 @@ export class UIController {
       this.btnSettingsClearRim.classList.toggle('hidden', !isPinned);
     }
     if (this.btnPinRim) {
-      this.btnPinRim.textContent = isPinned ? 'แก้ไขห่วง' : 'ล็อกห่วง';
-      this.btnPinRim.title = isPinned ? 'ตำแหน่งห่วงถูกล็อกอยู่ (คลิกเพื่อวาดใหม่)' : 'กำหนดตำแหน่งห่วงบาส';
+      this.btnPinRim.textContent = t(isPinned ? 'editRim' : 'lockRim');
+      this.btnPinRim.title = t(isPinned ? 'editRimTitle' : 'lockRimTitle');
     }
     if (this.rimStatusBox) {
       this.rimStatusBox.classList.toggle('pinned', isPinned);
     }
     if (this.rimStatusText) {
-      this.rimStatusText.innerHTML = isPinned
-        ? 'โหมด: <strong>ล็อกตำแหน่งห่วง</strong>'
-        : 'โหมด: <strong>ตรวจจับอัตโนมัติ</strong>';
+      this.rimStatusText.textContent = t(isPinned ? 'rimModeLocked' : 'rimModeAuto');
     }
   }
 
@@ -353,20 +499,16 @@ export class UIController {
     if (this.btnFullscreen) {
       this.btnFullscreen.addEventListener('click', () => this.toggleFullscreen());
 
-      const updateFullscreenIcon = () => {
-        const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
-        this.btnFullscreen.textContent = isFull ? '🗗' : '⛶';
-        this.btnFullscreen.title = isFull ? 'ออกจากโหมดเต็มจอ' : 'เต็มจอ (Fullscreen)';
-
-        const appEl = document.getElementById('app');
-        if (appEl) {
-          appEl.classList.toggle('is-fullscreen', isFull);
-        }
-        document.body.classList.toggle('is-fullscreen', isFull);
-      };
+      const updateFullscreenIcon = () => this._setCameraExpanded(!!(document.fullscreenElement || document.webkitFullscreenElement));
 
       document.addEventListener('fullscreenchange', updateFullscreenIcon);
       document.addEventListener('webkitfullscreenchange', updateFullscreenIcon);
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && this.isCameraExpanded && !document.fullscreenElement && !document.webkitFullscreenElement) {
+          this._setCameraExpanded(false);
+          this.btnFullscreen.focus();
+        }
+      });
     }
 
     if (this.btnSettingsToggle) {
@@ -399,16 +541,11 @@ export class UIController {
     if (this.video) {
       this.video.addEventListener('loadedmetadata', () => this.initCanvas(this.video));
       this.video.addEventListener('play', () => this.initCanvas(this.video));
+      this.video.addEventListener('resize', () => this.initCanvas(this.video));
     }
     window.addEventListener('resize', () => this.initCanvas(this.video));
     window.addEventListener('orientationchange', () => {
       setTimeout(() => this.initCanvas(this.video), 200);
-    });
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        this.hideModelGuide();
-      }
     });
 
     if (this.soundRadios) {
@@ -461,6 +598,7 @@ export class UIController {
   showModelGuide() {
     if (this.modalGuide) {
       this.modalGuide.classList.remove('hidden');
+      this.modalGuide.showModal();
     }
   }
 
@@ -469,6 +607,7 @@ export class UIController {
    */
   hideModelGuide() {
     if (this.modalGuide) {
+      this.modalGuide.close();
       this.modalGuide.classList.add('hidden');
     }
   }
@@ -487,15 +626,7 @@ export class UIController {
     }
 
     if (this.modelInfoText) {
-      const descriptions = {
-        'roboflow-default': 'ตรวจจับห่วง ลูกบาส และผู้เล่น (Roboflow Universe v4 · โมเดลหลัก Cloud ความเสถียรสูงสุด)',
-        'roboflow-cricket': 'โมเดลชุดใหญ่ 9,500+ รูป (cricket-qnb5l/basketball-xil7x/1 · ตรวจจับ ball, person, rim)',
-        'roboflow-devinross': 'ตรวจจับลูกบาสและลูกลงห่วง (Devin Ross 8,150 รูป · เหมาะที่สุดเมื่อใช้ร่วมกับโหมดล็อกห่วง)',
-        'local-onnx-swish': '⚡ Local ONNX: Swish-Vision (11.7 MB) Fine-tuned Basketball-1 ล็อกเฉพาะลูกบาสและห่วง ไม่ตีกรอบรวมกับคน (ออฟไลน์ 100%)',
-        'local-onnx-swish-int8': '⚡ Local ONNX: Swish INT8 (3.3 MB) เวอร์ชันบีบอัดจิ๋วพิเศษ โหลดไว ประหยัดแรม (ออฟไลน์ 100%)',
-        'roboflow-custom': 'ใช้โมเดล Roboflow Universe ของคุณเอง (กรอก Model ID และ API Key ด้านล่าง)',
-      };
-      this.modelInfoText.textContent = descriptions[modelType] || 'เลือกโมเดลตรวจจับ AI';
+      this.modelInfoText.textContent = t(modelType ? `model.${modelType}` : 'chooseModel');
       this.modelInfoText.classList.toggle('highlight', modelType && modelType.startsWith('local-onnx'));
     }
   }
@@ -594,8 +725,15 @@ export class UIController {
     if (vid && this.canvas) {
       const width = vid.videoWidth || 1280;
       const height = vid.videoHeight || 720;
-      this.canvas.width = width;
-      this.canvas.height = height;
+      this.video.parentElement.style.setProperty('--camera-aspect', `${width} / ${height}`);
+      if (this.isDrawingRim && (this.canvas.width !== width || this.canvas.height !== height)) {
+        this._releaseRimPointer();
+        this.canvas.width = width;
+        this.canvas.height = height;
+        this._resetRimDraft('rimSourceChanged');
+      }
+      if (this.canvas.width !== width) this.canvas.width = width;
+      if (this.canvas.height !== height) this.canvas.height = height;
       console.log(`[UIController] Canvas synchronized with video: ${width}x${height}`);
     }
   }
@@ -604,6 +742,12 @@ export class UIController {
    * Clear bounding box canvas overlay
    */
   clearDetections() {
+    this.ballInterpolatedBox = null;
+    this.lastBallAiTimestamp = null;
+    this.lastBallAiTime = null;
+    this.lastAiBallX = null;
+    this.lastAiBallY = null;
+    this.lastInterpolationTime = null;
     if (this.canvas) {
       const ctx = this.canvas.getContext('2d');
       if (ctx) {
@@ -643,8 +787,7 @@ export class UIController {
     // Prevents bounding box distortion/offset on mobile devices in portrait/landscape modes
     if (this.video && this.video.videoWidth > 0 && this.video.videoHeight > 0) {
       if (canvas.width !== this.video.videoWidth || canvas.height !== this.video.videoHeight) {
-        canvas.width = this.video.videoWidth;
-        canvas.height = this.video.videoHeight;
+        this.initCanvas(this.video);
       }
     }
 
@@ -659,7 +802,7 @@ export class UIController {
     // If manual rim is active, add it to render list
     if (this.manualRimRoi) {
       renderList.push({
-        bbox: { ...this.manualRimRoi },
+        bbox: { ...this.getManualRimRoi().bbox },
         class: 'rim',
         confidence: 1.0,
         isManual: true,
@@ -764,23 +907,23 @@ export class UIController {
 
       if (d.isManual) {
         color = '#38BDF8';
-        label = 'RIM (PINNED)';
+        label = t('labelLockedRim');
         fillColor = 'rgba(56, 189, 248, 0.12)';
       } else if (isMade) {
         color = '#22C55E';
-        label = 'MADE';
+        label = t('labelMade');
         fillColor = 'rgba(34, 197, 94, 0.15)';
       } else if (isBall) {
         color = '#E06338';
-        label = 'BALL';
+        label = t('labelBall');
         fillColor = 'rgba(224, 99, 56, 0.12)';
       } else if (isRim) {
         color = '#38BDF8';
-        label = 'RIM';
+        label = t('labelRim');
         fillColor = 'rgba(56, 189, 248, 0.1)';
       } else if (isPerson) {
         color = '#64748B';
-        label = 'PLAYER';
+        label = t('labelPerson');
         fillColor = 'rgba(100, 116, 139, 0.08)';
       }
 
@@ -796,7 +939,7 @@ export class UIController {
       ctx.fillRect(x, y, width, height);
 
       // 3. Draw Label Badge Tag
-      ctx.font = 'bold 13px Outfit, Inter, sans-serif';
+      ctx.font = '600 14px Sarabun, sans-serif';
       const tagText = d.isManual ? label : `${label} ${confPercent}%`;
       const textMetrics = ctx.measureText(tagText);
       const tagWidth = textMetrics.width + 14;
@@ -807,7 +950,7 @@ export class UIController {
       ctx.fillRect(x, tagY, tagWidth, tagHeight);
 
       // Text inside tag
-      ctx.fillStyle = '#0F0F1A';
+      ctx.fillStyle = isPerson ? '#FFFFFF' : '#0F0F1A';
       ctx.fillText(tagText, x + 7, tagY + 16);
     }
 
@@ -824,27 +967,37 @@ export class UIController {
 
       ctx.setLineDash([]);
       ctx.fillStyle = '#00FF88';
-      ctx.fillRect(x, y > 24 ? y - 24 : y, 120, 22);
+      ctx.font = '600 14px Sarabun, sans-serif';
+      ctx.fillRect(x, y > 24 ? y - 24 : y, ctx.measureText(t('drawingRim')).width + 16, 22);
       ctx.fillStyle = '#0F0F1A';
-      ctx.font = 'bold 12px Outfit, sans-serif';
-      ctx.fillText('🎯 กำหนดห่วง...', x + 8, (y > 24 ? y - 24 : y) + 15);
+      ctx.font = '600 14px Sarabun, sans-serif';
+      ctx.fillText(t('drawingRim'), x + 8, (y > 24 ? y - 24 : y) + 15);
+      ctx.restore();
+    }
+    if (this.isDrawingRim && (this.rimKeyboardActive || this.rimFirstCorner)) {
+      const point = this.rimKeyboardActive ? this.rimCursor : this.rimFirstCorner;
+      ctx.save();
+      ctx.strokeStyle = '#00FF88';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(point.x - 10, point.y); ctx.lineTo(point.x + 10, point.y);
+      ctx.moveTo(point.x, point.y - 10); ctx.lineTo(point.x, point.y + 10);
+      ctx.stroke();
       ctx.restore();
     }
   }
 
   /**
-   * Increment score display with pulse + glow animation
+   * Increment score display with a 220ms baseline reveal.
    */
   incrementScore() {
     this.currentScore++;
     if (this.scoreElement) {
       this.scoreElement.textContent = this.currentScore;
+      this.scoreElement.style.setProperty('--score-digits', Math.max(3, String(this.currentScore).length));
+      this.scoreElement.classList.remove('scored-anim');
+      void this.scoreElement.offsetWidth; // Restart the single feedback animation for each score.
       this.scoreElement.classList.add('scored-anim');
-      setTimeout(() => {
-        if (this.scoreElement) {
-          this.scoreElement.classList.remove('scored-anim');
-        }
-      }, 500);
     }
   }
 
@@ -855,6 +1008,8 @@ export class UIController {
     this.currentScore = 0;
     if (this.scoreElement) {
       this.scoreElement.textContent = '0';
+      this.scoreElement.style.removeProperty('--score-digits');
+      this.scoreElement.classList.remove('scored-anim');
     }
   }
 
@@ -862,24 +1017,34 @@ export class UIController {
    * Toggle Browser Fullscreen Mode
    */
   async toggleFullscreen() {
-    try {
-      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-        const root = document.documentElement;
-        if (root.requestFullscreen) {
-          await root.requestFullscreen();
-        } else if (root.webkitRequestFullscreen) {
-          await root.webkitRequestFullscreen();
-        }
-      } else {
-        if (document.exitFullscreen) {
-          await document.exitFullscreen();
-        } else if (document.webkitExitFullscreen) {
-          await document.webkitExitFullscreen();
-        }
+    if (this.isCameraExpanded) {
+      try {
+        if (document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen();
+        else if (document.webkitFullscreenElement && document.webkitExitFullscreen) await document.webkitExitFullscreen();
+      } catch (err) {
+        console.warn('[UIController] Fullscreen toggle error:', err);
+        return;
       }
+      this._setCameraExpanded(false);
+      this.btnFullscreen?.focus();
+      return;
+    }
+    this._setCameraExpanded(true);
+    try {
+      const root = document.documentElement;
+      if (root.requestFullscreen) await root.requestFullscreen();
+      else if (root.webkitRequestFullscreen) await root.webkitRequestFullscreen();
     } catch (err) {
+      // Keep the expanded in-page view when the browser denies native fullscreen.
       console.warn('[UIController] Fullscreen toggle error:', err);
     }
+  }
+
+  _setCameraExpanded(expanded) {
+    this.isCameraExpanded = expanded;
+    document.getElementById('app')?.classList.toggle('camera-expanded', expanded);
+    document.body.classList.toggle('camera-expanded', expanded);
+    this._updateFullscreenLabels();
   }
 
   /**
@@ -888,6 +1053,7 @@ export class UIController {
   showSettings() {
     if (this.settingsPanel) {
       this.settingsPanel.classList.remove('hidden');
+      this.settingsPanel.showModal();
     }
   }
 
@@ -896,6 +1062,7 @@ export class UIController {
    */
   hideSettings() {
     if (this.settingsPanel) {
+      this.settingsPanel.close();
       this.settingsPanel.classList.add('hidden');
     }
   }
@@ -905,13 +1072,19 @@ export class UIController {
    * @param {string} message 
    */
   showError(message) {
+    this.statusMessage = { message, error: true };
+    this._renderStatus();
+  }
+
+  _renderStatus() {
+    const { message, error } = this.statusMessage;
     if (this.statusIndicator && this.statusText) {
       this.statusIndicator.classList.remove('hidden');
       if (this.statusSpinner) {
-        this.statusSpinner.style.display = 'none';
+        this.statusSpinner.style.display = error ? 'none' : 'block';
       }
-      this.statusText.textContent = `❌ ${message}`;
-      this.statusText.style.color = 'var(--color-danger)';
+      this.statusText.textContent = translateMessage(message);
+      this.statusText.style.color = error ? 'var(--color-danger)' : 'var(--text-main)';
     }
   }
 
@@ -919,21 +1092,16 @@ export class UIController {
    * Show loading overlay indicator
    * @param {string} [message='กำลังโหลด...']
    */
-  showLoading(message = 'กำลังโหลด...') {
-    if (this.statusIndicator && this.statusText) {
-      this.statusIndicator.classList.remove('hidden');
-      if (this.statusSpinner) {
-        this.statusSpinner.style.display = 'block';
-      }
-      this.statusText.textContent = message;
-      this.statusText.style.color = 'var(--text-main)';
-    }
+  showLoading(message = { key: 'loading' }) {
+    this.statusMessage = { message, error: false };
+    this._renderStatus();
   }
 
   /**
    * Hide loading/status overlay
    */
   hideLoading() {
+    this.statusMessage = null;
     if (this.statusIndicator) {
       this.statusIndicator.classList.add('hidden');
     }
@@ -963,7 +1131,8 @@ export class UIController {
     if (!devices || devices.length === 0) {
       const opt = document.createElement('option');
       opt.value = '';
-      opt.textContent = '📷 ไม่พบกล้อง';
+      opt.textContent = t('noCamera');
+      opt.dataset.noCamera = 'true';
       this.cameraSelect.appendChild(opt);
       return;
     }
@@ -971,7 +1140,8 @@ export class UIController {
     devices.forEach((dev, idx) => {
       const opt = document.createElement('option');
       opt.value = dev.deviceId;
-      opt.textContent = dev.label || `📷 กล้อง ${idx + 1}`;
+      opt.textContent = dev.label || t('cameraNumber', { number: idx + 1 });
+      if (!dev.label) opt.dataset.cameraNumber = String(idx + 1);
       if (dev.deviceId === activeDeviceId) {
         opt.selected = true;
       }
@@ -991,6 +1161,51 @@ export class UIController {
     if (this.btnReset && typeof handler === 'function') {
       this.btnReset.addEventListener('click', () => handler());
     }
+  }
+
+  bindPractice(handler) {
+    this.practiceButton?.addEventListener('click', handler);
+  }
+
+  bindOpenCamera(handler) {
+    this.openCameraButton?.addEventListener('click', handler);
+  }
+
+  bindRimChange(handler) {
+    this.onRimChange = handler;
+  }
+
+  updatePracticeControls({ state, cameraReady, modelReady, rimReady, canPractice, cameraLoading, modelLoading, cameraError, modelError }) {
+    if (state === 'practice' && this.practiceView?.state !== 'practice') {
+      const controls = document.getElementById('secondary-controls');
+      if (controls) controls.open = false;
+    }
+    this.practiceView = { state, cameraReady, modelReady, rimReady, canPractice, cameraLoading, modelLoading, cameraError, modelError };
+    const stateLabel = document.getElementById('practice-state');
+    if (stateLabel) stateLabel.textContent = t(state === 'practice' ? 'practice' : state === 'paused' ? 'paused' : 'setup');
+    if (this.practiceButton) {
+      const text = t(state === 'practice' ? 'pausePractice' : state === 'paused' ? 'resumePractice' : 'startPractice');
+      if (this.practiceButton.textContent !== text) this.practiceButton.textContent = text;
+      this.practiceButton.disabled = state !== 'practice' && !canPractice;
+    }
+    if (this.openCameraButton) {
+      this.openCameraButton.disabled = cameraLoading;
+      this.openCameraButton.textContent = t(cameraLoading ? 'openingCamera' : cameraReady ? 'reopenCamera' : 'openCamera');
+    }
+    if (this.cameraSelect) this.cameraSelect.disabled = cameraLoading || !cameraReady;
+    if (this.btnApplyModel) this.btnApplyModel.disabled = modelLoading;
+    for (const button of [this.btnPinRim, this.btnSettingsPinRim]) {
+      if (button) button.disabled = !cameraReady || cameraLoading;
+    }
+    const readiness = t('readiness', {
+      camera: t(cameraReady ? 'ready' : cameraLoading ? 'opening' : 'notReady'),
+      model: t(modelReady ? 'ready' : modelLoading ? 'loadingShort' : 'notReady'),
+      rim: t(rimReady ? 'ready' : 'notReady'),
+    });
+    const recovery = cameraError ? ` — ${translateMessage(cameraError)} ${t('cameraRetry')}`
+      : modelError ? ` — ${translateMessage(modelError)} ${t('modelRetry')}` : '';
+    const text = `${t(state === 'practice' ? 'practice' : state === 'paused' ? 'paused' : 'setup')} — ${readiness}${recovery}`;
+    if (this.practiceReadiness && this.practiceReadiness.textContent !== text) this.practiceReadiness.textContent = text;
   }
 
   /**

@@ -11,18 +11,37 @@ and Web Audio. Follow the existing code structure and style.
 - **ponytail: always use when writing or changing code**, including fixes and
   refactoring. Default to `full`: make the smallest complete change, reuse existing
   code, and preserve validation, error handling, security, and accessibility.
-- Use other skills only when they materially help the current task:
-  `debug-mantra` for debugging; `scrutinize`/`code-review` for reviews;
-  `frontend-design`/`ui-ux-pro-max` for UI work; `tdd` for requested test-first work;
-  `brainstorming` when requirements or design need clarification.
+- Before work, identify the task type and choose only relevant skills:
+  - Notion planning: `wayfinder`; read the live map and claim the next unblocked,
+    unassigned ticket. For decision tickets, use `grilling` and `domain-modeling`.
+    Get the user's answers before resolving a decision or implementing it.
+  - Planning to implementation: `to-spec`, then `to-tickets`. Confirm the test
+    seam and ticket breakdown before publication; preserve native blockers.
+  - Implementation: `implement` on one claimed, unblocked child; use `tdd` at
+    the agreed seams and `code-review` before handoff. Skip aggregate parents.
+  - Bugs: `debug-mantra` before proposing a fix.
+  - Reviews: `scrutinize`; use `code-review` for a branch/PR or a fixed-base review.
+  - UI: `impeccable` leads visual direction, implementation, critique, audit, and
+    polish. Use its Operate mode for the practice app and load only the relevant
+    workflow. Use `ui-ux-pro-max` for targeted typography, design-reference, touch,
+    responsive, or accessibility queries; avoid repeating full design/review passes.
+  - Terminology, glossary, or ADR changes: `domain-modeling`.
+  - Requested test-first work or integration tests: `tdd`.
+- Verify the selected skill has actionable instructions and its required local
+  references/scripts, not just a SKILL.md file. Report unavailable capabilities;
+  do not claim they ran.
 - Do not load every skill, force unnecessary workflows, or install missing skills
   automatically. Run bundled scripts only when needed for the requested task.
 - Explicit user instructions and these repository rules take precedence over
   conflicting skill defaults. Keep this file short; leave details in the skills.
 - For Notion tasks and `wayfinder`, read `docs/agents/issue-tracker.md` first.
+- Before reporting completion, check the diff against the task and agreed
+  decisions. State which skills and checks ran, their results, and any gaps.
 
 ## Notion access
 
+- Write Notion planning titles, page bodies, and planning comments in English.
+  Keep existing schema/property names and status options unchanged.
 - Load `NOTION_API_KEY` and `NOTION_API_VERSION` from this repo's `.env`
   (Node: `node --env-file=.env`). Use the existing key; ask only if it is missing
   or access fails. `.env.example` contains placeholders, never credentials.

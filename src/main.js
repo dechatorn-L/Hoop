@@ -10,9 +10,10 @@ import { ObjectDetector } from './detector.js';
 import { ShotTracker } from './shot-tracker.js';
 import { SoundManager } from './sound-manager.js';
 import { UIController } from './ui.js';
+import { t, userError } from './i18n.js';
 
 export class HoopCounterApp {
-  constructor() {
+  constructor(services = {}) {
     // 1. Config initialization
     this.config = { ...DEFAULT_CONFIG };
 
@@ -21,15 +22,21 @@ export class HoopCounterApp {
     this.videoElement = document.getElementById('camera-feed');
 
     // 3. Modules (Mediator Pattern — coordinated via this class)
-    this.camera = new CameraManager(this.videoElement, this.config);
-    this.detector = new ObjectDetector(this.config);
+    this.camera = services.camera || new CameraManager(this.videoElement, this.config);
+    this.detector = services.detector || new ObjectDetector(this.config);
     this.tracker = new ShotTracker(this.config);
-    this.sound = new SoundManager(this.config);
+    this.sound = services.sound || new SoundManager(this.config);
 
     this.isRunning = false;
     this.isInferring = false;
     this.latestDetections = [];
     this.primaryRim = null;
+    this.practiceState = 'setup';
+    this.cameraReady = false;
+    this.modelReady = false;
+    this.cameraLoading = false;
+    this.modelLoading = false;
+    this.detectionEpoch = 0;
   }
 
   /**
@@ -84,6 +91,7 @@ export class HoopCounterApp {
 
     this.latestDetections = filtered;
     this.primaryRim = rim;
+    this._updatePracticeControls();
   }
 
   /**
@@ -95,13 +103,14 @@ export class HoopCounterApp {
 
     if (this.videoElement && this.videoElement.readyState >= 2) {
       // 1. Asynchronous Non-Blocking Inference Trigger (Runs in background without pausing UI)
-      if (!this.isInferring) {
+      if (!this.isInferring && this.cameraReady && this.modelReady && !this.ui.isDrawingRim) {
         this.isInferring = true;
+        const epoch = this.detectionEpoch;
         const cropRoi = this.ui.isHoopRoiEnabled() ? this.ui.getManualRimRoi() : null;
         this.detector
           .detect(this.videoElement, cropRoi)
           .then((rawDetections) => {
-            this._processDetections(rawDetections);
+            if (epoch === this.detectionEpoch) this._processDetections(rawDetections);
             this.isInferring = false;
           })
           .catch((err) => {
@@ -118,7 +127,8 @@ export class HoopCounterApp {
       const madeBasket = this.latestDetections.find((d) => this._isMade(d));
 
       // 4. Update shot tracker state machine with continuous trajectory
-      const scored = this.tracker.update(this.primaryRim, ball, madeBasket);
+      const scored = this.practiceState === 'practice' && this.cameraReady && this.modelReady
+        && this.tracker.update(this.primaryRim, ball, madeBasket);
 
       // 5. Handle score event
       if (scored) {
@@ -136,48 +146,110 @@ export class HoopCounterApp {
    */
   async init() {
     console.log('🏀 Initializing Hoop Shot Counter App...');
-    this.ui.showLoading('กำลังเริ่มต้นระบบ...');
 
-    // Setup Camera Callbacks
-    this.camera.onReady(async ({ video }) => {
-      console.log('📷 Camera ready event received');
-      this.ui.initCanvas(video);
-      const devices = await this.camera.listDevices();
-      this.ui.populateCameraList(devices, this.camera.currentDeviceId);
-    });
-
-    this.camera.onError(({ message }) => {
-      console.error('📷 Camera Error:', message);
-      this.ui.showError(message);
+    this.camera.onError(({ type, message, originalError }) => {
+      if (this.ui.isDrawingRim) this.ui.stopDrawingRim();
+      this.cameraReady = false;
+      const keys = { UNSUPPORTED: 'cameraUnsupported', PERMISSION_DENIED: 'cameraPermission', DEVICE_NOT_FOUND: 'cameraNotFound', CAMERA_IN_USE: 'cameraInUse', OVERCONSTRAINED: 'cameraConstraints', SECURITY_ERROR: 'cameraSecurity' };
+      this.cameraError = { key: keys[type] || 'cameraFailed', params: { detail: originalError?.message || message } };
+      this.pausePractice();
     });
 
     // Wire UI Events (Mediator Pattern)
     this._wireEvents();
 
-    // Initialize Sound System
-    try {
-      await this.sound.init();
-      this.sound.setVolume(this.config.volume);
-      this.sound.setActiveSound(this.config.defaultSound);
-    } catch (soundErr) {
-      console.warn('🔊 Sound initialization warning:', soundErr);
+    this._updatePracticeControls();
+    this.isRunning = true;
+    requestAnimationFrame(() => this.mainLoop());
+  }
+
+  _updatePracticeControls() {
+    const rim = this.ui.getManualRimRoi() || this.primaryRim;
+    const box = rim?.bbox || rim;
+    const rimReady = !this.ui.isDrawingRim && !!box
+      && [box.x, box.y, box.width, box.height].every(Number.isFinite)
+      && box.width > 0 && box.height > 0;
+    this.canPractice = this.cameraReady && this.modelReady && rimReady;
+    this.ui.updatePracticeControls({
+      state: this.practiceState, cameraReady: this.cameraReady, modelReady: this.modelReady,
+      rimReady, canPractice: this.canPractice, cameraLoading: this.cameraLoading,
+      modelLoading: this.modelLoading, cameraError: this.cameraError, modelError: this.modelError,
+    });
+  }
+
+  _clearTracking() {
+    this.detectionEpoch++;
+    this.latestDetections = [];
+    this.ui.clearDetections();
+    this.detector.clearDetections();
+    this.tracker.clearTrajectory();
+  }
+
+  pausePractice() {
+    if (this.practiceState === 'practice') this.practiceState = 'paused';
+    this._clearTracking();
+    this._updatePracticeControls();
+  }
+
+  togglePractice() {
+    if (this.practiceState === 'practice') return this.pausePractice();
+    this._updatePracticeControls();
+    if (!this.canPractice) return;
+    this._clearTracking();
+    this.practiceState = 'practice';
+    this._updatePracticeControls();
+  }
+
+  _initSound() {
+    if (!this.soundInitialization) {
+      this.soundInitialization = this.sound.init().catch(soundErr => {
+        console.warn('🔊 Sound initialization warning:', soundErr);
+        this.soundInitialization = null;
+      });
     }
+    return this.soundInitialization;
+  }
+
+  async openCamera(deviceId = null) {
+    if (this.cameraLoading) return;
+    if (this.ui.isDrawingRim) this.ui.stopDrawingRim();
+    this.pausePractice();
+    this.cameraReady = false;
+    this.cameraLoading = true;
+    this.cameraError = null;
+    this.primaryRim = null;
+    this._updatePracticeControls();
+    // Audio loading must not delay camera access or overwrite the player's choices.
+    this._initSound();
 
     // Start Camera Stream
     try {
-      await this.camera.start();
+      const stream = deviceId ? await this.camera.switchCamera(deviceId) : await this.camera.start();
+      if (!stream) throw Object.assign(new Error('Camera start failed'), { userMessage: this.cameraError || { key: 'cameraFailed', params: { detail: 'No stream' } } });
+      this.ui.initCanvas(this.videoElement);
+      this.cameraReady = true;
+      for (const track of stream.getVideoTracks()) {
+        track.addEventListener('ended', () => {
+          if (stream !== this.camera.currentStream) return;
+          if (this.ui.isDrawingRim) this.ui.stopDrawingRim();
+          this.cameraReady = false;
+          this.primaryRim = null;
+          this.cameraError = { key: 'cameraStopped' };
+          this.pausePractice();
+        });
+      }
+      const devices = await this.camera.listDevices();
+      this.ui.populateCameraList(devices, this.camera.currentDeviceId);
     } catch (camErr) {
-      console.error('📷 Failed to start camera:', camErr);
+      this.cameraReady = false;
+      this.cameraError = camErr.userMessage || { key: 'cameraFailed', params: { detail: camErr.message } };
+    } finally {
+      this.cameraLoading = false;
+      this._updatePracticeControls();
     }
 
     // Load initial detection model (from localStorage or default config)
-    const initialModelSettings = this.ui.getModelSettings();
-    await this.loadActiveModel(initialModelSettings);
-
-    // Start Main Loop
-    this.isRunning = true;
-    requestAnimationFrame(() => this.mainLoop());
-    console.log('🏀 Main application loop started.');
+    if (this.cameraReady && !this.modelReady) await this.loadActiveModel(this.ui.getModelSettings());
   }
 
   /**
@@ -185,6 +257,13 @@ export class HoopCounterApp {
    * @param {{modelType: string, customModelId?: string, customApiKey?: string}} settings
    */
   async loadActiveModel(settings) {
+    if (this.modelLoading) return;
+    this.pausePractice();
+    this.modelReady = false;
+    this.modelLoading = true;
+    this.modelError = null;
+    this.primaryRim = null;
+    this._updatePracticeControls();
     const { modelType, customModelId, customApiKey } = settings;
     const preset = MODEL_PRESETS[modelType] || MODEL_PRESETS['roboflow-default'];
 
@@ -192,7 +271,7 @@ export class HoopCounterApp {
     this.ui.clearDetections();
 
     try {
-      this.ui.showLoading(`กำลังโหลดโมเดล (${preset.name || modelType})...`);
+      this.ui.showLoading({ key: 'loadingModel', params: { model: (preset.name || modelType).split('(')[0].trim() } });
 
       let loadOptions = {};
 
@@ -204,10 +283,10 @@ export class HoopCounterApp {
       } else if (modelType === 'roboflow-custom') {
         const apiKey = customApiKey || this.config.publishableKey;
         if (!customModelId) {
-          throw new Error('กรุณากรอก Model ID (เช่น project-name/1)');
+          throw userError('missingModelId');
         }
         if (!apiKey || apiKey === 'rf_live_placeholder') {
-          throw new Error('กรุณากรอก Publishable API Key สำหรับ Custom Model');
+          throw userError('missingApiKey');
         }
         loadOptions = {
           provider: 'roboflow',
@@ -220,7 +299,7 @@ export class HoopCounterApp {
         const apiKey = customApiKey || this.config.publishableKey;
         if (!apiKey || apiKey === 'rf_live_placeholder') {
           console.warn('⚠️ No Roboflow API Key found. Switching to Local ONNX Fallback...');
-          this.ui.showLoading('ไม่พบ Roboflow API Key — กำลังโหลด Local ONNX Model (Offline)...');
+          this.ui.showLoading({ key: 'loadingFallback' });
           loadOptions = {
             provider: 'onnx',
             modelPath: this.config.onnxModelPath,
@@ -237,18 +316,22 @@ export class HoopCounterApp {
       }
 
       const result = await this.detector.loadModel(loadOptions);
+      this.modelReady = true;
 
       if (result && result.fallback) {
         console.warn('⚠️ Switched to Local ONNX Model due to Roboflow error:', result.originalError);
         this.ui.setActiveModelUI('local-onnx-swish');
-        this.ui.showError(`โหลดโมเดลหลักไม่สำเร็จ (${result.originalError}) → สลับไปใช้ Local ONNX Model อัตโนมัติ`);
-        setTimeout(() => this.ui.hideLoading(), 2500);
+        this.ui.showError({ key: 'modelFallback', params: { detail: result.originalError } });
       } else {
         this.ui.hideLoading();
       }
     } catch (err) {
       console.error('🤖 Model load error:', err);
-      this.ui.showError(`เกิดข้อผิดพลาดในการโหลดโมเดล: ${err.message}`);
+      this.modelError = err.userMessage || { key: 'modelError', params: { detail: err.message } };
+      this.ui.showError(this.modelError);
+    } finally {
+      this.modelLoading = false;
+      this._updatePracticeControls();
     }
   }
 
@@ -257,8 +340,17 @@ export class HoopCounterApp {
    * @private
    */
   _wireEvents() {
+    this.ui.bindPractice(() => this.togglePractice());
+    this.ui.bindOpenCamera(() => this.openCamera());
+    this.ui.bindRimChange(() => {
+      this.pausePractice();
+      this.primaryRim = null;
+      this._updatePracticeControls();
+    });
     // Reset Score
     this.ui.bindReset(() => {
+      if (!window.confirm(t('resetConfirm'))) return;
+      this._clearTracking();
       this.tracker.reset();
       this.ui.resetScore();
     });
@@ -266,23 +358,21 @@ export class HoopCounterApp {
     // Camera Switch
     this.ui.bindCameraChange(async (deviceId) => {
       if (deviceId) {
-        this.ui.showLoading('กำลังสลับกล้อง...');
-        await this.camera.switchCamera(deviceId);
-        this.ui.initCanvas(this.videoElement);
-        this.ui.hideLoading();
+        await this.openCamera(deviceId);
       }
     });
 
     // Sound Selection & Custom Upload
     this.ui.bindSoundChange(async (soundId, customFile) => {
+      await this._initSound();
       if (soundId === 'custom' && customFile) {
         try {
-          this.ui.showLoading('กำลังประมวลผลไฟล์เสียง...');
+          this.ui.showLoading({ key: 'processingSound' });
           await this.sound.loadCustomSound(customFile);
           this.ui.hideLoading();
           this.sound.playScoreSound();
         } catch (err) {
-          this.ui.showError(err.message);
+          this.ui.showError(err.userMessage || { key: 'audioError', params: { detail: err.message } });
         }
       } else if (soundId) {
         this.sound.setActiveSound(soundId);
@@ -301,7 +391,8 @@ export class HoopCounterApp {
     });
 
     // Test Sound Button
-    this.ui.bindTestSound(() => {
+    this.ui.bindTestSound(async () => {
+      await this._initSound();
       console.log('🔊 Test sound button clicked');
       this.sound.playScoreSound();
     });

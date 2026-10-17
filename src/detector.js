@@ -38,6 +38,14 @@ export class ObjectDetector {
     this.lastInferenceTime = 0;
     this.lastDetections = [];
     this.isInferring = false;
+    this.detectionEpoch = 0;
+  }
+
+  /** Ignore pending/cached results from the previous practice setup. */
+  clearDetections() {
+    this.detectionEpoch++;
+    this.lastDetections = [];
+    this.onnxDetector.clearDetections();
   }
 
   /**
@@ -208,6 +216,7 @@ export class ObjectDetector {
    * @returns {Promise<Array<{class: string, bbox: {x: number, y: number, width: number, height: number}, confidence: number}>>}
    */
   async detect(videoElement, cropRoi = null) {
+    const epoch = this.detectionEpoch;
     if (!this.isReady() || !videoElement || videoElement.readyState < 2) {
       return [];
     }
@@ -215,6 +224,7 @@ export class ObjectDetector {
     // Delegate to ONNX if provider is onnx
     if (this.currentProvider === 'onnx') {
       const detections = await this.onnxDetector.detect(videoElement);
+      if (epoch !== this.detectionEpoch) return [];
       this.lastDetections = detections;
       return detections;
     }
@@ -274,6 +284,7 @@ export class ObjectDetector {
       );
 
       const rawPredictions = await Promise.race([inferPromise, timeoutPromise]);
+      if (epoch !== this.detectionEpoch) return [];
       const detections = this._normalizePredictions(
         rawPredictions,
         1,

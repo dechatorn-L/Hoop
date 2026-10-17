@@ -2,95 +2,112 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>Hoop — Basketball Shot Counter</title>
-  <meta name="description" content="Real-time basketball shot tracking and counter web app powered by computer vision." />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title data-i18n="appTitle">Hoop — Basketball Shot Counter</title>
+  <meta data-i18n-content="appDescription" name="description" content="Real-time basketball shot tracking and counter web app powered by computer vision." />
+  <meta name="theme-color" content="#F8F7F3" />
+  <link rel="stylesheet" href="/fonts/fonts.css" />
   <link rel="stylesheet" href="/styles/index.css" />
 </head>
 <body>
   <div id="app">
     <!-- Top Minimal HUD Header -->
     <header class="app-header" id="app-header">
-      <div class="header-left">
-        <div class="brand" id="brand-logo">
-          <span class="brand-badge"></span>
-          <span class="brand-title">HOOP</span>
-        </div>
-      </div>
-
-      <!-- Center Minimal Score Badge -->
-      <div class="header-center">
-        <div class="score-pill" id="score-display">
-          <span class="score-label">PTS</span>
-          <span class="score-value" id="score-value">0</span>
-        </div>
-      </div>
-
-      <div class="header-right header-controls" id="header-controls">
-        <button id="btn-fullscreen-toggle" class="btn-icon" aria-label="Toggle Fullscreen" title="เต็มจอ">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-        </button>
-        <button id="btn-settings-toggle" class="btn-icon" aria-label="Open settings" title="การตั้งค่า">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        </button>
-      </div>
+      <h1 class="brand" id="brand-logo">Hoop</h1>
+      <p id="practice-state" class="practice-state" data-i18n="setup">เตรียมพร้อม</p>
     </header>
+    <main class="practice-layout">
+      <!-- Center Minimal Score Badge -->
+      <section class="score-panel" id="score-display" aria-labelledby="score-label">
+        <p class="score-label" id="score-label" data-i18n="madeBaskets">ลูกที่ลง</p>
+        <span class="score-value" id="score-value" role="status" aria-live="polite" aria-atomic="true">0</span>
+      </section>
 
-    <!-- Main Viewport Area -->
-    <main class="viewport-container" id="main-viewport">
-      <div class="camera-container" id="camera-container">
-        <video id="camera-feed" playsinline autoplay muted></video>
-        <canvas id="detection-overlay"></canvas>
-
-        <!-- Elegant Floating Status Pill -->
-        <div id="status-indicator" class="status-overlay hidden">
-          <div class="spinner" id="status-spinner"></div>
-          <span id="status-text">กำลังเริ่มระบบ...</span>
+      <!-- Main Viewport Area -->
+      <section class="viewport-container" id="main-viewport" aria-label="ภาพกล้อง" data-i18n-aria-label="cameraView">
+        <div class="camera-heading">
+          <strong data-i18n="cameraView">ภาพกล้อง</strong>
+          <button type="button" id="btn-fullscreen-toggle" class="btn camera-expand" aria-controls="main-viewport" aria-pressed="false" aria-label="ขยายกล้อง">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path class="expand-camera-icon" d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5" />
+              <path class="restore-camera-icon" d="M3 8h5V3M16 3v5h5M3 16h5v5M16 21v-5h5" />
+            </svg>
+            <span class="camera-expand-label" data-i18n="expandCamera">ขยายกล้อง</span>
+          </button>
         </div>
+        <div class="camera-container" id="camera-container">
+          <video id="camera-feed" playsinline autoplay muted></video>
+          <canvas id="detection-overlay" aria-hidden="true"></canvas>
+        </div>
+        <!-- Elegant Floating Status Pill -->
+        <div id="status-indicator" class="status-overlay hidden" role="status">
+          <div class="spinner" id="status-spinner" aria-hidden="true"></div>
+          <span id="status-text" data-i18n="initializing">กำลังเริ่มระบบ...</span>
+        </div>
+      </section>
 
+      <!-- Mobile Bottom Action Bar (Thumb Friendly) -->
+      <section class="practice-controls" aria-label="ควบคุมการฝึกซ้อม" data-i18n-aria-label="practiceControls">
+        <button type="button" id="btn-practice" class="btn btn-primary" disabled aria-describedby="practice-readiness" data-i18n="startPractice">เริ่มฝึกซ้อม</button>
+        <p id="practice-readiness" role="status" aria-live="polite"></p>
         <!-- Manual Rim Drawing Notification Pill -->
         <div id="rim-draw-banner" class="rim-draw-banner hidden">
-          <span>ลากกรอบสี่เหลี่ยมบนห่วงบาส</span>
-          <button type="button" id="btn-cancel-draw-rim" class="btn-cancel-draw">✕ ยกเลิก</button>
+          <label for="rim-input-method" data-i18n="rimInputMethod">วิธีกำหนดกรอบ</label>
+          <select id="rim-input-method" class="select-input">
+            <option value="drag" data-i18n="rimDrag">ลากกรอบ</option>
+            <option value="corners" data-i18n="rimCorners">แตะสองมุม</option>
+          </select>
+          <p id="rim-framing-instructions" data-i18n="rimFramingHelp">ลากกรอบหรือเลือกแตะสองมุม แล้วกดยืนยัน คีย์บอร์ด: ใช้ปุ่มลูกศรเลื่อนจุด และ Enter เลือกแต่ละมุม</p>
+          <p id="rim-draft-status" role="status" aria-live="polite"></p>
+          <button type="button" id="btn-confirm-draw-rim" class="btn btn-primary" disabled data-i18n="confirmRim">ยืนยันกรอบห่วง</button>
+          <button type="button" id="btn-cancel-draw-rim" class="btn-cancel-draw" data-i18n="cancel">ยกเลิก</button>
         </div>
-      </div>
+        <details id="secondary-controls" open>
+          <summary data-i18n="controls">การควบคุม</summary>
+          <div class="secondary-content">
+            <p id="camera-explanation" data-i18n="cameraExplanation">กดเปิดกล้องเพื่ออนุญาตให้แอปใช้ภาพตรวจจับห่วงและลูกบาส เริ่มนับเมื่อกดเริ่มฝึกซ้อมเท่านั้น</p>
+            <button type="button" id="btn-open-camera" class="btn btn-secondary" aria-describedby="camera-explanation" data-i18n="openCamera">เปิดกล้อง</button>
+            <nav class="bottom-action-bar" id="bottom-action-bar" aria-label="ปรับการซ้อม" data-i18n-aria-label="secondaryControls">
+              <!-- Camera Selection Pill -->
+              <div class="control-group camera-select-wrap" id="camera-control-group">
+                <label for="camera-select" data-i18n="chooseCamera">เลือกกล้อง</label>
+                <select id="camera-select" class="select-input select-pill"><option value="" data-i18n="findingCameras">ค้นหากล้อง...</option></select>
+              </div>
+              <!-- Action Buttons -->
+              <div class="bar-actions">
+                <button id="btn-pin-rim" class="btn btn-pill" title="กำหนดตำแหน่งห่วงบาส" data-i18n="lockRim" data-i18n-title="lockRimTitle">ล็อกห่วง</button>
+                <button id="btn-clear-rim" class="btn btn-pill btn-subtle hidden" title="คืนค่าเป็นระบบอัตโนมัติ" data-i18n="unlockRim" data-i18n-title="autoRimTitle">ปลดล็อก</button>
+                <button id="btn-reset-score" class="btn btn-pill btn-subtle" title="รีเซ็ตคะแนนเป็น 0" data-i18n="reset" data-i18n-title="resetTitle">รีเซ็ต</button>
+                <button id="btn-settings-toggle" class="btn btn-secondary" aria-label="เปิดการตั้งค่า" data-i18n-aria-label="openSettings" data-i18n="settings">การตั้งค่า</button>
+              </div>
+            </nav>
+            <details id="positioning-guide"><summary data-i18n="guideTitle">วิธีจัดวางกล้อง</summary><p data-i18n="guideBody">วางอุปกรณ์ให้มั่นคงและเห็นห่วงกับทางเดินของลูกบาส ตรวจกรอบห่วงอัตโนมัติ หรือล็อกห่วงเอง แล้วกดเริ่มฝึกซ้อม พักได้โดยคะแนนยังอยู่</p></details>
+          </div>
+        </details>
+      </section>
     </main>
 
-    <!-- Mobile Bottom Action Bar (Thumb Friendly) -->
-    <nav class="bottom-action-bar" id="bottom-action-bar">
-      <!-- Camera Selection Pill -->
-      <div class="control-group camera-select-wrap" id="camera-control-group">
-        <label for="camera-select" class="visually-hidden">เลือกกล้อง</label>
-        <select id="camera-select" class="select-input select-pill">
-          <option value="">ค้นหากล้อง...</option>
-        </select>
-      </div>
-
-      <!-- Action Buttons -->
-      <div class="bar-actions">
-        <button id="btn-pin-rim" class="btn btn-pill" title="กำหนดตำแหน่งห่วงบาส">ล็อกห่วง</button>
-        <button id="btn-clear-rim" class="btn btn-pill btn-subtle hidden" title="คืนค่าเป็นระบบอัตโนมัติ">ปลดล็อก</button>
-        <button id="btn-reset-score" class="btn btn-pill btn-subtle" title="รีเซ็ตคะแนนเป็น 0">รีเซ็ต</button>
-      </div>
-    </nav>
-
     <!-- Slide-in Settings Drawer -->
-    <aside id="settings-panel" class="settings-drawer hidden" aria-label="Settings Panel">
+    <dialog id="settings-panel" class="settings-drawer hidden" aria-label="Settings Panel" data-i18n-aria-label="settings">
       <div class="settings-header" id="settings-header">
-        <h2>การตั้งค่า</h2>
-        <button id="btn-close-settings" class="btn-icon" aria-label="Close settings">
+        <h2 data-i18n="settings">การตั้งค่า</h2>
+        <button id="btn-close-settings" class="btn-icon" aria-label="Close settings" data-i18n-aria-label="closeSettings">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
 
       <div class="settings-content" id="settings-content">
+        <section class="settings-section" id="section-language">
+          <label for="language-select" data-i18n="language">ภาษา</label>
+          <select id="language-select" class="select-input">
+            <option value="th" lang="th">ไทย</option>
+            <option value="en" lang="en">English</option>
+          </select>
+        </section>
         <!-- Sound Effect Section -->
         <section class="settings-section" id="section-sound">
           <div class="section-title-wrap">
-            <h3>เสียงเมื่อลงห่วง</h3>
+            <h3 data-i18n="scoreSound">เสียงเมื่อลงห่วง</h3>
           </div>
           <div class="radio-group" id="sound-options">
             <label class="radio-label">
@@ -107,20 +124,20 @@
             </label>
             <label class="radio-label">
               <input type="radio" name="sound-choice" id="sound-radio-random" value="random" />
-              <span>สุ่มเสียง</span>
+              <span data-i18n="randomSound">สุ่มเสียง</span>
             </label>
             <label class="radio-label radio-full">
               <input type="radio" name="sound-choice" id="sound-radio-custom" value="custom" />
-              <span>ไฟล์เสียงของคุณ</span>
+              <span data-i18n="yourSound">ไฟล์เสียงของคุณ</span>
             </label>
           </div>
 
           <div id="custom-sound-upload-container" class="custom-upload-container hidden">
-            <input type="file" id="custom-sound-file" accept="audio/*" aria-label="Upload custom sound" />
+            <input type="file" id="custom-sound-file" accept="audio/*" aria-label="Upload custom sound" data-i18n-aria-label="uploadSound" />
           </div>
 
           <div class="test-sound-wrap">
-            <button type="button" id="btn-test-sound" class="btn-ghost">
+            <button type="button" id="btn-test-sound" class="btn-ghost" data-i18n="testSound">
               ทดสอบเสียง
             </button>
           </div>
@@ -129,7 +146,7 @@
         <!-- Volume Section -->
         <section class="settings-section" id="section-volume">
           <div class="section-header-inline">
-            <label for="volume-slider">ระดับเสียง</label>
+            <label for="volume-slider" data-i18n="volume">ระดับเสียง</label>
             <span id="volume-label" class="val-badge">80%</span>
           </div>
           <input type="range" id="volume-slider" min="0" max="100" value="80" class="range-slider" />
@@ -138,7 +155,7 @@
         <!-- Sensitivity / Threshold Section -->
         <section class="settings-section" id="section-sensitivity">
           <div class="section-header-inline">
-            <label for="confidence-slider">ความไวตรวจจับ (Confidence)</label>
+            <label for="confidence-slider" data-i18n="confidence">ความไวตรวจจับ (Confidence)</label>
             <span id="confidence-label" class="val-badge">35%</span>
           </div>
           <input type="range" id="confidence-slider" min="10" max="90" value="35" class="range-slider" />
@@ -147,17 +164,17 @@
         <!-- Target / Rim Section -->
         <section class="settings-section" id="section-rim-roi">
           <div class="section-title-wrap">
-            <h3>ตำแหน่งห่วง</h3>
+            <h3 data-i18n="rimPosition">ตำแหน่งห่วง</h3>
           </div>
           <div class="rim-status-box" id="rim-status-box">
             <span id="rim-status-text">โหมด: <strong>ตรวจจับอัตโนมัติ</strong></span>
           </div>
 
           <div class="drawer-action-row">
-            <button type="button" id="btn-settings-pin-rim" class="btn btn-secondary">
+            <button type="button" id="btn-settings-pin-rim" class="btn btn-secondary" data-i18n="drawRim">
               ลากตำแหน่งเอง
             </button>
-            <button type="button" id="btn-settings-clear-rim" class="btn btn-subtle hidden">
+            <button type="button" id="btn-settings-clear-rim" class="btn btn-subtle hidden" data-i18n="returnAuto">
               คืนค่าอัตโนมัติ
             </button>
           </div>
@@ -166,10 +183,10 @@
           <div class="roi-turbo-wrap">
             <div class="turbo-info">
               <span class="turbo-title">ROI Turbo</span>
-              <span class="turbo-desc">ตัดภาพเฉพาะโซนห่วง เร็วขึ้น 3 เท่า</span>
+              <span class="turbo-desc" data-i18n="turboDescription">ตัดภาพเฉพาะโซนห่วง เร็วขึ้น 3 เท่า</span>
             </div>
             <label class="switch-toggle">
-              <input type="checkbox" id="toggle-hoop-roi" checked />
+              <input type="checkbox" id="toggle-hoop-roi" checked aria-label="เปิดใช้ ROI Turbo" data-i18n-aria-label="turboLabel" />
               <span class="slider-toggle round"></span>
             </label>
           </div>
@@ -178,21 +195,21 @@
         <!-- Detection Model Section -->
         <section class="settings-section" id="section-model">
           <div class="section-title-wrap">
-            <h3>โมเดลตรวจจับ (AI Model)</h3>
-            <button type="button" id="btn-open-model-guide" class="btn-link">
+            <h3 data-i18n="detectionModel">โมเดลตรวจจับ (AI Model)</h3>
+            <button type="button" id="btn-open-model-guide" class="btn-link" data-i18n="modelGuide">
               คู่มือโมเดล
             </button>
           </div>
 
           <div class="control-group">
-            <label for="model-preset-select" class="visually-hidden">เลือกโมเดลตรวจจับ</label>
+            <label for="model-preset-select" class="visually-hidden" data-i18n="chooseModel">เลือกโมเดลตรวจจับ</label>
             <select id="model-preset-select" class="select-input">
-              <option value="roboflow-default">Roboflow v4: Main (Cloud · แนะนำ)</option>
-              <option value="local-onnx-swish">Local ONNX: Swish-Vision (ออฟไลน์ 60 FPS · 11.7 MB)</option>
-              <option value="local-onnx-swish-int8">Local ONNX: Swish INT8 (จิ๋ว 3.3 MB · ประหยัดแรม)</option>
-              <option value="roboflow-cricket">Roboflow: Cricket 9.5K (ละเอียด)</option>
-              <option value="roboflow-devinross">Roboflow: Devin Ross (Made Basket)</option>
-              <option value="roboflow-custom">Roboflow: Custom Model ID</option>
+              <option value="roboflow-default" data-i18n="presetDefault">Roboflow v4: Main (Cloud · แนะนำ)</option>
+              <option value="local-onnx-swish" data-i18n="presetSwish">Local ONNX: Swish-Vision (ออฟไลน์ 60 FPS · 11.7 MB)</option>
+              <option value="local-onnx-swish-int8" data-i18n="presetInt8">Local ONNX: Swish INT8 (จิ๋ว 3.3 MB · ประหยัดแรม)</option>
+              <option value="roboflow-cricket" data-i18n="presetCricket">Roboflow: Cricket 9.5K (ละเอียด)</option>
+              <option value="roboflow-devinross" data-i18n="presetDevin">Roboflow: Devin Ross (Made Basket)</option>
+              <option value="roboflow-custom" data-i18n="presetCustom">Roboflow: Custom Model ID</option>
             </select>
           </div>
 
@@ -203,34 +220,34 @@
           <!-- Custom Model ID & API Key Container -->
           <div id="custom-model-fields" class="custom-model-fields hidden">
             <div class="field-row">
-              <label for="custom-model-id">Model ID (project/version):</label>
-              <input type="text" id="custom-model-id" class="text-input" placeholder="e.g. your-project/1" autocomplete="off" />
+              <label for="custom-model-id" data-i18n="modelId">Model ID (project/version):</label>
+              <input type="text" id="custom-model-id" class="text-input" placeholder="e.g. your-project/1" autocomplete="off" data-i18n-placeholder="modelIdPlaceholder" />
             </div>
             <div class="field-row">
-              <label for="custom-api-key">Publishable API Key:</label>
-              <input type="password" id="custom-api-key" class="text-input" placeholder="rf_... (เว้นว่างหากใช้ใน .env)" autocomplete="off" />
+              <label for="custom-api-key" data-i18n="apiKey">Publishable API Key:</label>
+              <input type="password" id="custom-api-key" class="text-input" placeholder="rf_... (เว้นว่างหากใช้ใน .env)" autocomplete="off" data-i18n-placeholder="apiKeyPlaceholder" />
             </div>
           </div>
 
-          <button type="button" id="btn-apply-model" class="btn btn-primary model-btn-apply">
+          <button type="button" id="btn-apply-model" class="btn btn-primary model-btn-apply" data-i18n="applyModel">
             เปลี่ยนโมเดล
           </button>
         </section>
       </div>
-    </aside>
+    </dialog>
 
     <!-- Model Comparison Guide Modal -->
-    <div id="model-guide-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-guide-title">
+    <dialog id="model-guide-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-guide-title">
       <div class="modal-card">
         <div class="modal-header">
-          <h2 id="modal-guide-title">คู่มือโมเดล AI</h2>
-          <button type="button" id="btn-close-model-guide" class="btn-icon modal-close-btn" aria-label="Close modal">
+          <h2 id="modal-guide-title" data-i18n="guideHeading">คู่มือโมเดล AI</h2>
+          <button type="button" id="btn-close-model-guide" class="btn-icon modal-close-btn" aria-label="Close modal" data-i18n-aria-label="closeModal">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
 
         <div class="modal-body">
-          <p class="modal-intro">เลือกโมเดลที่เหมาะกับสภาพสนามและการเชื่อมต่อของคุณ:</p>
+          <p class="modal-intro" data-i18n="guideIntro">เลือกโมเดลที่เหมาะกับสภาพสนามและการเชื่อมต่อของคุณ:</p>
 
           <div class="model-table">
             <div class="model-row active-row">
@@ -238,7 +255,7 @@
                 <span class="model-name">Roboflow v4 (Main)</span>
                 <span class="badge-tag">Cloud</span>
               </div>
-              <p class="row-desc">ตรวจจับห่วง ลูกบาส และผู้เล่น แยกแยะคนตัดโอกาสสับสน เหมาะกับสนามทั่วไปที่มีคนยืนใต้แป้น</p>
+              <p class="row-desc" data-i18n="guideDefault">ตรวจจับห่วง ลูกบาส และผู้เล่น แยกแยะคนตัดโอกาสสับสน เหมาะกับสนามทั่วไปที่มีคนยืนใต้แป้น</p>
             </div>
 
             <div class="model-row">
@@ -246,7 +263,7 @@
                 <span class="model-name">Local ONNX (Swish-Vision)</span>
                 <span class="badge-tag tag-offline">Offline</span>
               </div>
-              <p class="row-desc">รันในเครื่อง 100% ไม่ต้องต่อเน็ต ลื่นไหล 60 FPS ด้วย WebGPU เหมาะกับการซ้อมยิงคนเดียว</p>
+              <p class="row-desc" data-i18n="guideSwish">รันในเครื่อง 100% ไม่ต้องต่อเน็ต ลื่นไหล 60 FPS ด้วย WebGPU เหมาะกับการซ้อมยิงคนเดียว</p>
             </div>
 
             <div class="model-row">
@@ -254,7 +271,7 @@
                 <span class="model-name">Roboflow: Cricket 9.5K</span>
                 <span class="badge-tag">Cloud</span>
               </div>
-              <p class="row-desc">ชุดข้อมูลใหญ่ 9,500+ รูป รองรับสภาพแสงที่ยากหรือสนามเปิดโล่ง</p>
+              <p class="row-desc" data-i18n="guideCricket">ชุดข้อมูลใหญ่ 9,500+ รูป รองรับสภาพแสงที่ยากหรือสนามเปิดโล่ง</p>
             </div>
 
             <div class="model-row">
@@ -262,16 +279,16 @@
                 <span class="model-name">Roboflow: Devin Ross</span>
                 <span class="badge-tag">Cloud</span>
               </div>
-              <p class="row-desc">จับจังหวะลูกลงห่วง (Made Basket) แม่นยำเป็นพิเศษ แนะนำให้ใช้คู่กับปุ่มล็อกห่วง</p>
+              <p class="row-desc" data-i18n="guideDevin">จับจังหวะลูกลงห่วง (Made Basket) แม่นยำเป็นพิเศษ แนะนำให้ใช้คู่กับปุ่มล็อกห่วง</p>
             </div>
           </div>
         </div>
 
         <div class="modal-footer">
-          <button type="button" id="btn-close-modal-footer" class="btn btn-secondary">ปิด</button>
+          <button type="button" id="btn-close-modal-footer" class="btn btn-secondary" data-i18n="close">ปิด</button>
         </div>
       </div>
-    </div>
+    </dialog>
   </div>
 
   <script type="module" src="/src/main.js"></script>

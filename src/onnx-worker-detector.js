@@ -27,6 +27,7 @@ export class OnnxWorkerDetector {
     this.lastDetections = [];
     this.lastInferenceTime = 0;
     this.reqCounter = 0;
+    this.discardThroughId = 0;
     this.watchdogTimeoutMs = 2000; // Auto-recovery timeout if worker hangs
 
     this._initWorkerPool();
@@ -84,7 +85,7 @@ export class OnnxWorkerDetector {
       console.error(`[OnnxWorkerDetector] Worker ${workerState.id} init error:`, error);
     } else if (type === 'INFER_RESULT') {
       workerState.isBusy = false;
-      if (Array.isArray(detections)) {
+      if (msg.id > this.discardThroughId && Array.isArray(detections)) {
         this.lastDetections = detections;
       }
     }
@@ -109,6 +110,11 @@ export class OnnxWorkerDetector {
    */
   isReady() {
     return this.isLoaded && this.workers.some((w) => w.isReady);
+  }
+
+  clearDetections() {
+    this.discardThroughId = this.reqCounter;
+    this.lastDetections = [];
   }
 
   /**
@@ -224,6 +230,7 @@ export class OnnxWorkerDetector {
     }, this.watchdogTimeoutMs);
 
     let imageBitmap = null;
+    const reqId = ++this.reqCounter;
     try {
       const originalWidth = videoElement.videoWidth || 1280;
       const originalHeight = videoElement.videoHeight || 720;
@@ -231,7 +238,13 @@ export class OnnxWorkerDetector {
       // Zero-copy ImageBitmap generation (< 1 ms)
       imageBitmap = await createImageBitmap(videoElement);
 
-      const reqId = ++this.reqCounter;
+      if (reqId <= this.discardThroughId) {
+        imageBitmap.close();
+        idleWorker.isBusy = false;
+        clearTimeout(idleWorker.watchdogTimer);
+        idleWorker.watchdogTimer = null;
+        return [];
+      }
       idleWorker.worker.postMessage(
         {
           type: 'INFER_FRAME',

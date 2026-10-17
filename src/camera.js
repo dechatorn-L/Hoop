@@ -240,9 +240,9 @@ export class CameraManager {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter((d) => d.kind === 'videoinput');
-      return videoDevices.map((device, index) => ({
+      return videoDevices.map((device) => ({
         deviceId: device.deviceId,
-        label: device.label || `กล้อง ${index + 1}`,
+        label: device.label || '',
         groupId: device.groupId,
       }));
     } catch (err) {
