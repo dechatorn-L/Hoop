@@ -231,6 +231,7 @@ export class HoopCounterApp {
       for (const track of stream.getVideoTracks()) {
         track.addEventListener('ended', () => {
           if (stream !== this.camera.currentStream) return;
+          if (this.ui.isDrawingRim) this.ui.stopDrawingRim();
           this.cameraReady = false;
           this.primaryRim = null;
           this.cameraError = { key: 'cameraStopped' };

@@ -37,7 +37,8 @@ try {
           if (this.fail) { this.error({ message: 'Camera denied; retry' }); return null; }
           const video = document.getElementById('camera-feed');
           Object.defineProperties(video, { readyState: { configurable: true, value: 4 }, videoWidth: { configurable: true, value: 640 }, videoHeight: { configurable: true, value: 480 } });
-          this.currentStream = { getVideoTracks: () => [] };
+          const track = this.track = new EventTarget();
+          this.currentStream = { getVideoTracks: () => [track] };
           return this.currentStream;
         },
         switchCamera() { return this.start(); },
@@ -405,6 +406,12 @@ try {
   assert.equal(await page.evaluate(() => localStorage.getItem('hoop_manual_rim_roi')), interruptedRim);
   assert.equal(await page.locator('#toggle-hoop-roi').isChecked(), true);
   console.log('PASS: blur, lost capture and camera changes discard drafts without overwriting the prior rim or ROI option');
+  await page.locator('#btn-pin-rim').click(); await draftRim();
+  await page.evaluate(() => services.camera.track.dispatchEvent(new Event('ended')));
+  assert.equal(await page.locator('#rim-draw-banner').isVisible(), false, 'Camera loss must discard the pending draft');
+  assert.equal(await page.evaluate(() => localStorage.getItem('hoop_manual_rim_roi')), interruptedRim);
+  await openControls(page); await page.locator('#btn-open-camera').click();
+  await page.waitForFunction(() => !document.getElementById('btn-pin-rim').disabled);
 
   await page.locator('#btn-pin-rim').click(); await page.selectOption('#rim-input-method', 'corners');
   const multiTouch = await page.context().newCDPSession(page);
@@ -454,6 +461,24 @@ try {
   assert.equal(await restored.evaluate(() => localStorage.getItem('hoop_manual_rim_roi')), savedForReload);
   await restored.close();
   console.log('PASS: framing text switches languages, source changes invalidate drafts, and confirmed saved-rim format survives reload');
+  await page.locator('#btn-pin-rim').click();
+  await page.evaluate(() => { document.body.style.zoom = '1.25'; });
+  await draftRim();
+  await page.locator('#btn-confirm-draw-rim').click();
+  const zoomedRim = await page.evaluate(() => JSON.parse(localStorage.getItem('hoop_manual_rim_roi')));
+  assert.deepEqual([zoomedRim.x, zoomedRim.y, zoomedRim.width, zoomedRim.height], [120, 80, 100, 60], 'Display scaling must preserve source-image coordinates');
+  await page.evaluate(() => { document.body.style.zoom = ''; });
+  const modelBeforeAuto = await page.locator('#model-preset-select').inputValue();
+  await page.locator('#btn-clear-rim').click();
+  await page.waitForFunction(() => !document.getElementById('btn-practice').disabled);
+  assert.equal(await page.evaluate(() => localStorage.getItem('hoop_manual_rim_roi')), null);
+  await page.locator('#btn-pin-rim').click(); await draftRim(); await page.locator('#btn-cancel-draw-rim').click();
+  await page.waitForFunction(() => !document.getElementById('btn-practice').disabled);
+  assert.equal(await page.evaluate(() => localStorage.getItem('hoop_manual_rim_roi')), null, 'Cancel from automatic mode must keep automatic mode');
+  assert.equal(await page.locator('#model-preset-select').inputValue(), modelBeforeAuto);
+  assert.equal(await page.locator('#toggle-hoop-roi').isChecked(), true);
+  assert.equal(await page.locator('#btn-practice').textContent(), 'ฝึกซ้อมต่อ');
+  console.log('PASS: display scaling keeps source coordinates and Cancel retains automatic-rim fallback/model/ROI choices');
   await page.evaluate(() => app.ui.setManualRimRoi({ x: 100, y: 100, width: 80, height: 20 }));
 
   await page.evaluate(async () => {
