@@ -1,14 +1,49 @@
+<div align="center">
+
 # Hoop Shot Counter
 
-เว็บนับลูกบาสลงห่วงจากกล้อง สำหรับซ้อมคนเดียว เปิดบนคอมหรือมือถือได้
-ใช้ JavaScript, Vite, Roboflow, ONNX และ Web Audio
+**เว็บนับลูกบาสลงห่วงจากกล้อง สำหรับซ้อมคนเดียว**
 
-กล้องเป็นพื้นที่หลัก คะแนนอ่านใกล้หน้าจอได้ กดขยายเพื่อให้กล้องเต็มพื้นที่จอ
-พร้อมคะแนน ปุ่มเริ่ม/พัก และไอคอนย่อที่ลอยบนภาพ
+[![JavaScript: ES Modules](https://img.shields.io/badge/JavaScript-ES%20Modules-F7DF1E?style=flat-square&logo=javascript&logoColor=black)](src/main.js)
+[![Vite: 8.x](https://img.shields.io/badge/Vite-8.x-646CFF?style=flat-square&logo=vite&logoColor=white)](package.json)
+[![Roboflow: Inference](https://img.shields.io/badge/Roboflow-Inference-8A2BE2?style=flat-square)](#settings)
+[![ONNX: WebGPU / WASM](https://img.shields.io/badge/ONNX-WebGPU%20%2F%20WASM-005CED?style=flat-square&logo=onnx&logoColor=white)](#settings)
+[![Web Audio: Browser](https://img.shields.io/badge/Web%20Audio-Browser-7F2039?style=flat-square)](src/sound-manager.js)
+[![Node.js: Requirements](https://img.shields.io/badge/Node.js-Requirements-339933?style=flat-square&logo=nodedotjs&logoColor=white)](#quick-start)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 
-[เริ่มรัน](#quick-start) · [วิธีซ้อม](#practice) · [เปิดบนมือถือ](#mobile) ·
-[โมเดลและการตั้งค่า](#settings) · [ทดสอบ](#tests) · [แก้ปัญหา](#troubleshooting) ·
-[โครงสร้างโปรเจกต์](#structure)
+เปิดกล้อง เตรียมห่วง แล้วเริ่มซ้อม พร้อมคะแนนและเสียงเมื่อตรวจพบลูกลงห่วง
+
+[เริ่มรัน](#quick-start) · [ฟีเจอร์](#features) · [ภาพตัวอย่าง](#preview) ·
+[วิธีซ้อม](#practice) · [เปิดบนมือถือ](#mobile) · [โมเดลและการตั้งค่า](#settings)
+
+[การทำงาน](#how-it-works) · [ทดสอบ](#tests) · [คำถามที่พบบ่อย](#faq) ·
+[แก้ปัญหา](#troubleshooting) · [โครงสร้าง](#structure) · [ร่วมพัฒนา](#contributing)
+
+</div>
+
+<a id="features"></a>
+
+## ฟีเจอร์เด่น
+
+- **กล้องเป็นหลัก** — ภาพครบเฟรมทั้งแนวตั้งและแนวนอน กดขยายเต็มพื้นที่จอพร้อม UI ลอย
+- **เริ่มนับเมื่อพร้อม** — ตรวจสถานะกล้อง โมเดล และห่วงก่อนเปิดปุ่มเริ่มซ้อม
+- **พักและซ้อมต่อ** — คะแนนและภาพกล้องยังอยู่ เปลี่ยนกล้องหรือกรอบห่วงแล้วพักการนับอัตโนมัติ
+- **ล็อกห่วงเองได้** — ลากหรือแตะสองมุม ตรวจกรอบร่าง แล้วค่อยยืนยันหรือยกเลิก
+- **เลือกโมเดลได้** — Roboflow หรือ Local ONNX ผ่าน Web Worker พร้อม WebGPU/WASM fallback
+- **เสียงและสองภาษา** — เลือกเสียงสำเร็จรูป สุ่มเสียง หรือใช้ไฟล์ตัวเอง พร้อม UI ไทย/อังกฤษ
+
+<a id="preview"></a>
+
+## ภาพตัวอย่าง
+
+![โหมดกล้องเต็มจอแนวนอน พร้อมคะแนนด้านซ้าย ไอคอนย่อด้านขวา และปุ่มเริ่มซ้อมลอยด้านล่าง](assets/readme/expanded-camera-landscape.png)
+
+ภาพจากแอปจริงใน desktop browser โดยใช้ **TEST FRAME จำลอง** เพื่อแสดงตำแหน่ง UI
+ภาพนี้ไม่ใช่หลักฐานการตรวจลูกบาสหรือผลทดสอบกล้องบนมือถือจริง
+
+> หนึ่งครั้งที่ตรวจพบว่าลงห่วง จะเพิ่มจำนวนลูกที่ลง 1 ครั้ง
+> ความแม่นยำและความเร็วขึ้นกับโมเดล มุมกล้อง แสง และอุปกรณ์
 
 <a id="quick-start"></a>
 
@@ -138,6 +173,24 @@ if (!(Test-Path .env)) { Copy-Item .env.example .env }
 แอปจำภาษา โมเดล กรอบห่วง และตัวเลือก ROI ผ่าน `localStorage` เมื่อเบราว์เซอร์อนุญาต
 การล้างข้อมูลเว็บไซต์จะล้างค่าที่บันทึกไว้ด้วย
 
+<a id="how-it-works"></a>
+
+## แอปทำงานอย่างไร
+
+```mermaid
+flowchart LR
+  camera["กล้อง"] --> detection["Roboflow หรือ ONNX Worker"]
+  camera --> preview["ภาพกล้องและ Canvas"]
+  detection --> preview
+  detection --> gate{"กำลังฝึกซ้อม?"}
+  gate -- "ใช่" --> tracker["ShotTracker ตรวจลูกลงห่วง"]
+  tracker --> feedback["เพิ่มจำนวนลูกที่ลงและเล่นเสียง"]
+```
+
+การตรวจจับแยกจากการวาดภาพ คะแนนอัปเดตผ่านสถานะฝึกซ้อม
+ช่วงเตรียมพร้อมหรือพักยังแสดงภาพได้ แต่ไม่เพิ่มคะแนน
+พิกัดห่วงและกล่องตรวจจับอ้างอิงขนาดภาพต้นทาง แม้ขนาดพื้นที่แสดงผลเปลี่ยนไป
+
 <a id="tests"></a>
 
 ## คำสั่งพัฒนาและทดสอบ
@@ -176,6 +229,34 @@ node tests/camera-view-test.mjs
 การยอมรับ UI แยกจากการตรวจซ้อมจริง 10 นาที รวมถึงความแม่นยำ เสียง แสง และการหมุนจอบนอุปกรณ์จริง
 ไม่ถือว่า Safari, iPad หรือ Android tablet ผ่านการทดสอบจากผลบน desktop หรือ Xiaomi เพียงเครื่องเดียว
 ติดตามงานและหลักฐานล่าสุดใน [Notion: Hoop Shot Counter](https://app.notion.com/p/3f48a6cad3568165aa11d2cebc7d11ad) ซึ่งต้องมีสิทธิ์เข้าถึง
+
+<a id="faq"></a>
+
+## คำถามที่พบบ่อย
+
+<details>
+<summary>ต้องมี Roboflow key ก่อนหรือไม่?</summary>
+
+ไม่ต้องมีหากใช้ Local ONNX เมื่อไม่มี key แอปจะเลือก Local Swish แทน
+หากต้องการ Roboflow ให้ใช้ publishable key ตามหัวข้อ [โมเดลและการตั้งค่า](#settings)
+
+</details>
+
+<details>
+<summary>ใช้โดยไม่ต่ออินเทอร์เน็ตได้ทั้งหมดหรือไม่?</summary>
+
+ยังไม่รับรองการทำงานแบบออฟไลน์ทั้งหมด แม้ Local ONNX จะประมวลผลในเครื่อง
+ตัว worker ยังอ้างอิงไฟล์ runtime จาก CDN ส่วน Roboflow ต้องโหลดทรัพยากรจากผู้ให้บริการ
+
+</details>
+
+<details>
+<summary>ขยายกล้องแล้วตัดภาพหรือทำให้คะแนนหายหรือไม่?</summary>
+
+แอปคงภาพครบเฟรม จึงอาจเหลือขอบดำหากสัดส่วนกล้องต่างจากจอ
+การขยายและย่อคงคะแนน กล้อง และสถานะซ้อมไว้ ต่างจากการรีโหลดหน้าซึ่งเริ่มคะแนนใหม่
+
+</details>
 
 <a id="troubleshooting"></a>
 
@@ -217,6 +298,37 @@ node tests/camera-view-test.mjs
 
 เอกสารใน `docs/` เป็นบันทึกภายในและถูก ignore ใน Git จึงอาจไม่ติดมากับการ clone
 งานและการตัดสินใจใช้ Notion เป็นหลัก เอกสารเก่าบางฉบับอาจอธิบาย UI หรือข้อกำหนดก่อนการปรับล่าสุด
+
+<a id="contributing"></a>
+
+## แจ้งปัญหาและร่วมพัฒนา
+
+แจ้งบั๊กหรือเสนอฟีเจอร์ได้ที่ [GitHub Issues](https://github.com/dechatorn-L/Hoop/issues)
+หากเป็นปัญหากล้องหรือการนับ ให้ระบุ:
+
+- อุปกรณ์ ระบบปฏิบัติการ เบราว์เซอร์และเวอร์ชัน
+- โมเดลที่เลือก กล้องหน้า/หลัง และแนวตั้ง/แนวนอน
+- ขั้นตอนทำซ้ำ สิ่งที่คาดหวัง และสิ่งที่เกิดขึ้นจริง
+- ภาพหรือข้อความ error ที่เกี่ยวข้อง โดยลบ API key และข้อมูลส่วนตัวก่อนแนบ
+
+ส่งการแก้ไขได้ผ่าน [Pull requests](https://github.com/dechatorn-L/Hoop/pulls)
+เปลี่ยนเฉพาะส่วนที่เกี่ยวข้อง และแนบผลตรวจที่รันจริง:
+
+1. รัน `npm run build` เมื่อแก้แอป
+2. รัน `node tests/repro-test.mjs` เมื่อแก้ scoring หรือ sound-selection logic
+3. ตรวจ browser tests และพฤติกรรมกล้อง/เสียงตามส่วนที่เปลี่ยน
+4. แยกผลจำลองออกจากผลบนอุปกรณ์จริง อ่าน [กติกาโปรเจกต์](AGENTS.md) ก่อนเริ่ม
+
+## เทคโนโลยีที่ใช้
+
+| ส่วน | เทคโนโลยี |
+| --- | --- |
+| หน้าเว็บ | Vanilla JavaScript ES modules, HTML และ CSS |
+| Dev server / build | Vite และ `@vitejs/plugin-basic-ssl` |
+| โมเดล Roboflow | `inferencejs` |
+| โมเดลในเครื่อง | `onnxruntime-web`, Web Worker, WebGPU และ WASM |
+| เสียง | Web Audio API |
+| ฟอนต์ | Sarabun สำหรับ UI และ Archivo สำหรับตัวเลข |
 
 ## License
 
