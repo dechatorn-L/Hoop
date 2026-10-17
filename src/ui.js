@@ -111,10 +111,11 @@ export class UIController {
 
   _updateFullscreenLabels() {
     if (!this.btnFullscreen) return;
-    const key = document.fullscreenElement || document.webkitFullscreenElement ? 'exitFullscreen' : 'fullscreen';
-    this.btnFullscreen.textContent = t(key);
+    const key = this.isCameraExpanded ? 'restoreCamera' : 'expandCamera';
+    this.btnFullscreen.querySelector('.camera-expand-label').textContent = t(key);
     this.btnFullscreen.title = t(key);
     this.btnFullscreen.setAttribute('aria-label', t(key));
+    this.btnFullscreen.setAttribute('aria-pressed', String(!!this.isCameraExpanded));
   }
 
   /**
@@ -398,7 +399,7 @@ export class UIController {
     this.canvas?.removeAttribute('aria-label');
     this.canvas?.removeAttribute('aria-describedby');
     if (wasDrawing) {
-      const target = this.btnPinRim?.offsetParent ? this.btnPinRim : document.querySelector('#secondary-controls > summary');
+      const target = this.isCameraExpanded ? this.btnFullscreen : this.btnPinRim?.offsetParent ? this.btnPinRim : document.querySelector('#secondary-controls > summary');
       target?.focus({ preventScroll: true });
     }
     this.onRimChange?.();
@@ -498,19 +499,16 @@ export class UIController {
     if (this.btnFullscreen) {
       this.btnFullscreen.addEventListener('click', () => this.toggleFullscreen());
 
-      const updateFullscreenIcon = () => {
-        const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
-        this._updateFullscreenLabels();
-
-        const appEl = document.getElementById('app');
-        if (appEl) {
-          appEl.classList.toggle('is-fullscreen', isFull);
-        }
-        document.body.classList.toggle('is-fullscreen', isFull);
-      };
+      const updateFullscreenIcon = () => this._setCameraExpanded(!!(document.fullscreenElement || document.webkitFullscreenElement));
 
       document.addEventListener('fullscreenchange', updateFullscreenIcon);
       document.addEventListener('webkitfullscreenchange', updateFullscreenIcon);
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && this.isCameraExpanded && !document.fullscreenElement && !document.webkitFullscreenElement) {
+          this._setCameraExpanded(false);
+          this.btnFullscreen.focus();
+        }
+      });
     }
 
     if (this.btnSettingsToggle) {
@@ -543,6 +541,7 @@ export class UIController {
     if (this.video) {
       this.video.addEventListener('loadedmetadata', () => this.initCanvas(this.video));
       this.video.addEventListener('play', () => this.initCanvas(this.video));
+      this.video.addEventListener('resize', () => this.initCanvas(this.video));
     }
     window.addEventListener('resize', () => this.initCanvas(this.video));
     window.addEventListener('orientationchange', () => {
@@ -726,6 +725,7 @@ export class UIController {
     if (vid && this.canvas) {
       const width = vid.videoWidth || 1280;
       const height = vid.videoHeight || 720;
+      this.video.parentElement.style.setProperty('--camera-aspect', `${width} / ${height}`);
       if (this.isDrawingRim && (this.canvas.width !== width || this.canvas.height !== height)) {
         this._releaseRimPointer();
         this.canvas.width = width;
@@ -1017,24 +1017,34 @@ export class UIController {
    * Toggle Browser Fullscreen Mode
    */
   async toggleFullscreen() {
-    try {
-      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-        const root = document.documentElement;
-        if (root.requestFullscreen) {
-          await root.requestFullscreen();
-        } else if (root.webkitRequestFullscreen) {
-          await root.webkitRequestFullscreen();
-        }
-      } else {
-        if (document.exitFullscreen) {
-          await document.exitFullscreen();
-        } else if (document.webkitExitFullscreen) {
-          await document.webkitExitFullscreen();
-        }
+    if (this.isCameraExpanded) {
+      try {
+        if (document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen();
+        else if (document.webkitFullscreenElement && document.webkitExitFullscreen) await document.webkitExitFullscreen();
+      } catch (err) {
+        console.warn('[UIController] Fullscreen toggle error:', err);
+        return;
       }
+      this._setCameraExpanded(false);
+      this.btnFullscreen?.focus();
+      return;
+    }
+    this._setCameraExpanded(true);
+    try {
+      const root = document.documentElement;
+      if (root.requestFullscreen) await root.requestFullscreen();
+      else if (root.webkitRequestFullscreen) await root.webkitRequestFullscreen();
     } catch (err) {
+      // Keep the expanded in-page view when the browser denies native fullscreen.
       console.warn('[UIController] Fullscreen toggle error:', err);
     }
+  }
+
+  _setCameraExpanded(expanded) {
+    this.isCameraExpanded = expanded;
+    document.getElementById('app')?.classList.toggle('camera-expanded', expanded);
+    document.body.classList.toggle('camera-expanded', expanded);
+    this._updateFullscreenLabels();
   }
 
   /**

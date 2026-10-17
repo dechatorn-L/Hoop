@@ -15,6 +15,8 @@ export const messages = {
   madeBaskets: ['ลูกที่ลง', 'Made baskets'],
   cameraView: ['ภาพกล้อง', 'Camera view'],
   fullFrame: ['เต็มเฟรม', 'Full frame'],
+  expandCamera: ['ขยายกล้อง', 'Expand camera'],
+  restoreCamera: ['ย่อกล้อง', 'Restore camera'],
   controls: ['การควบคุม', 'Controls'],
   secondaryControls: ['ปรับการซ้อม', 'Practice settings'],
   display: ['การแสดงผล', 'Display'],

@@ -25,7 +25,16 @@
 
       <!-- Main Viewport Area -->
       <section class="viewport-container" id="main-viewport" aria-label="ภาพกล้อง" data-i18n-aria-label="cameraView">
-        <div class="camera-heading"><strong data-i18n="cameraView">ภาพกล้อง</strong><span data-i18n="fullFrame">เต็มเฟรม</span></div>
+        <div class="camera-heading">
+          <strong data-i18n="cameraView">ภาพกล้อง</strong>
+          <button type="button" id="btn-fullscreen-toggle" class="btn camera-expand" aria-controls="main-viewport" aria-pressed="false" aria-label="ขยายกล้อง">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path class="expand-camera-icon" d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5" />
+              <path class="restore-camera-icon" d="M3 8h5V3M16 3v5h5M3 16h5v5M16 21v-5h5" />
+            </svg>
+            <span class="camera-expand-label" data-i18n="expandCamera">ขยายกล้อง</span>
+          </button>
+        </div>
         <div class="camera-container" id="camera-container">
           <video id="camera-feed" playsinline autoplay muted></video>
           <canvas id="detection-overlay" aria-hidden="true"></canvas>
@@ -88,9 +97,6 @@
       </div>
 
       <div class="settings-content" id="settings-content">
-        <section class="settings-section"><span data-i18n="display">การแสดงผล</span>
-        <button id="btn-fullscreen-toggle" class="btn btn-secondary" aria-label="Toggle Fullscreen" title="เต็มจอ" data-i18n-title="fullscreen" data-i18n-aria-label="fullscreen"><span data-i18n="fullscreen">เต็มจอ</span></button>
-        </section>
         <section class="settings-section" id="section-language">
           <label for="language-select" data-i18n="language">ภาษา</label>
           <select id="language-select" class="select-input">
