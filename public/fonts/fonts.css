@@ -1,0 +1,44 @@
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: normal;
+  font-display: swap;
+  src: url(/fonts/k3k6o8UDI-1M0wlSV9XAw6lQkqWY8Q82sJaRE-NWIDdgffTT0zRp8A.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 800;
+  font-stretch: normal;
+  font-display: swap;
+  src: url(/fonts/k3k6o8UDI-1M0wlSV9XAw6lQkqWY8Q82sJaRE-NWIDdgffTTtDRp8A.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Sarabun';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/DtVjJx26TKEr37c9WBI.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Sarabun';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/fonts/DtVmJx26TKEr37c9YOZqulw.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Sarabun';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(/fonts/DtVmJx26TKEr37c9YMptulw.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Sarabun';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(/fonts/DtVmJx26TKEr37c9YK5sulw.ttf) format('truetype');
+}

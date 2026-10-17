@@ -2,96 +2,77 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title data-i18n="appTitle">Hoop — Basketball Shot Counter</title>
   <meta data-i18n-content="appDescription" name="description" content="Real-time basketball shot tracking and counter web app powered by computer vision." />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#F8F7F3" />
+  <link rel="stylesheet" href="/fonts/fonts.css" />
   <link rel="stylesheet" href="/styles/index.css" />
 </head>
 <body>
   <div id="app">
     <!-- Top Minimal HUD Header -->
     <header class="app-header" id="app-header">
-      <div class="header-left">
-        <div class="brand" id="brand-logo">
-          <span class="brand-badge"></span>
-          <span class="brand-title">HOOP</span>
-        </div>
-      </div>
-
-      <!-- Center Minimal Score Badge -->
-      <div class="header-center">
-        <div class="score-pill" id="score-display">
-          <span class="score-label" data-i18n="points">PTS</span>
-          <span class="score-value" id="score-value">0</span>
-        </div>
-      </div>
-
-      <div class="header-right header-controls" id="header-controls">
-        <button id="btn-fullscreen-toggle" class="btn-icon" aria-label="Toggle Fullscreen" title="เต็มจอ" data-i18n-title="fullscreen" data-i18n-aria-label="fullscreen">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-        </button>
-        <button id="btn-settings-toggle" class="btn-icon" aria-label="Open settings" title="การตั้งค่า" data-i18n-title="settings" data-i18n-aria-label="openSettings">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        </button>
-      </div>
+      <h1 class="brand" id="brand-logo">Hoop</h1>
+      <p id="practice-state" class="practice-state" data-i18n="setup">เตรียมพร้อม</p>
     </header>
+    <main class="practice-layout">
+      <!-- Center Minimal Score Badge -->
+      <section class="score-panel" id="score-display" aria-labelledby="score-label">
+        <p class="score-label" id="score-label" data-i18n="madeBaskets">ลูกที่ลง</p>
+        <span class="score-value" id="score-value" role="status" aria-live="polite" aria-atomic="true">0</span>
+      </section>
 
-    <section class="practice-controls" aria-label="ควบคุมการฝึกซ้อม" data-i18n-aria-label="practiceControls">
-      <p id="camera-explanation" data-i18n="cameraExplanation">กดเปิดกล้องเพื่ออนุญาตให้แอปใช้ภาพตรวจจับห่วงและลูกบาส เริ่มนับเมื่อกดเริ่มฝึกซ้อมเท่านั้น</p>
-      <div class="practice-actions">
-        <button type="button" id="btn-open-camera" class="btn btn-secondary" aria-describedby="camera-explanation" data-i18n="openCamera">เปิดกล้อง</button>
-        <button type="button" id="btn-practice" class="btn btn-primary" disabled aria-describedby="practice-readiness" data-i18n="startPractice">เริ่มฝึกซ้อม</button>
-      </div>
-      <p id="practice-readiness" role="status" aria-live="polite"></p>
-      <details id="positioning-guide">
-        <summary data-i18n="guideTitle">วิธีจัดวางกล้อง</summary>
-        <p data-i18n="guideBody">วางอุปกรณ์ให้มั่นคงและเห็นห่วงกับทางเดินของลูกบาส ตรวจกรอบห่วงอัตโนมัติ หรือล็อกห่วงเอง แล้วกดเริ่มฝึกซ้อม พักได้โดยคะแนนยังอยู่</p>
-      </details>
-    </section>
-
-    <!-- Main Viewport Area -->
-    <main class="viewport-container" id="main-viewport">
-      <div class="camera-container" id="camera-container">
-        <video id="camera-feed" playsinline autoplay muted></video>
-        <canvas id="detection-overlay"></canvas>
-
+      <!-- Main Viewport Area -->
+      <section class="viewport-container" id="main-viewport" aria-label="ภาพกล้อง" data-i18n-aria-label="cameraView">
+        <div class="camera-heading"><strong data-i18n="cameraView">ภาพกล้อง</strong><span data-i18n="fullFrame">เต็มเฟรม</span></div>
+        <div class="camera-container" id="camera-container">
+          <video id="camera-feed" playsinline autoplay muted></video>
+          <canvas id="detection-overlay" aria-hidden="true"></canvas>
+        </div>
         <!-- Elegant Floating Status Pill -->
-        <div id="status-indicator" class="status-overlay hidden">
-          <div class="spinner" id="status-spinner"></div>
+        <div id="status-indicator" class="status-overlay hidden" role="status">
+          <div class="spinner" id="status-spinner" aria-hidden="true"></div>
           <span id="status-text" data-i18n="initializing">กำลังเริ่มระบบ...</span>
         </div>
+      </section>
 
+      <!-- Mobile Bottom Action Bar (Thumb Friendly) -->
+      <section class="practice-controls" aria-label="ควบคุมการฝึกซ้อม" data-i18n-aria-label="practiceControls">
+        <button type="button" id="btn-practice" class="btn btn-primary" disabled aria-describedby="practice-readiness" data-i18n="startPractice">เริ่มฝึกซ้อม</button>
+        <p id="practice-readiness" role="status" aria-live="polite"></p>
         <!-- Manual Rim Drawing Notification Pill -->
         <div id="rim-draw-banner" class="rim-draw-banner hidden">
           <span data-i18n="drawInstruction">ลากกรอบสี่เหลี่ยมบนห่วงบาส</span>
-          <button type="button" id="btn-cancel-draw-rim" class="btn-cancel-draw" data-i18n="cancel">✕ ยกเลิก</button>
+          <button type="button" id="btn-cancel-draw-rim" class="btn-cancel-draw" data-i18n="cancel">ยกเลิก</button>
         </div>
-      </div>
+        <details id="secondary-controls" open>
+          <summary data-i18n="controls">การควบคุม</summary>
+          <div class="secondary-content">
+            <p id="camera-explanation" data-i18n="cameraExplanation">กดเปิดกล้องเพื่ออนุญาตให้แอปใช้ภาพตรวจจับห่วงและลูกบาส เริ่มนับเมื่อกดเริ่มฝึกซ้อมเท่านั้น</p>
+            <button type="button" id="btn-open-camera" class="btn btn-secondary" aria-describedby="camera-explanation" data-i18n="openCamera">เปิดกล้อง</button>
+            <nav class="bottom-action-bar" id="bottom-action-bar" aria-label="ปรับการซ้อม" data-i18n-aria-label="secondaryControls">
+              <!-- Camera Selection Pill -->
+              <div class="control-group camera-select-wrap" id="camera-control-group">
+                <label for="camera-select" data-i18n="chooseCamera">เลือกกล้อง</label>
+                <select id="camera-select" class="select-input select-pill"><option value="" data-i18n="findingCameras">ค้นหากล้อง...</option></select>
+              </div>
+              <!-- Action Buttons -->
+              <div class="bar-actions">
+                <button id="btn-pin-rim" class="btn btn-pill" title="กำหนดตำแหน่งห่วงบาส" data-i18n="lockRim" data-i18n-title="lockRimTitle">ล็อกห่วง</button>
+                <button id="btn-clear-rim" class="btn btn-pill btn-subtle hidden" title="คืนค่าเป็นระบบอัตโนมัติ" data-i18n="unlockRim" data-i18n-title="autoRimTitle">ปลดล็อก</button>
+                <button id="btn-reset-score" class="btn btn-pill btn-subtle" title="รีเซ็ตคะแนนเป็น 0" data-i18n="reset" data-i18n-title="resetTitle">รีเซ็ต</button>
+                <button id="btn-settings-toggle" class="btn btn-secondary" aria-label="เปิดการตั้งค่า" data-i18n-aria-label="openSettings" data-i18n="settings">การตั้งค่า</button>
+              </div>
+            </nav>
+            <details id="positioning-guide"><summary data-i18n="guideTitle">วิธีจัดวางกล้อง</summary><p data-i18n="guideBody">วางอุปกรณ์ให้มั่นคงและเห็นห่วงกับทางเดินของลูกบาส ตรวจกรอบห่วงอัตโนมัติ หรือล็อกห่วงเอง แล้วกดเริ่มฝึกซ้อม พักได้โดยคะแนนยังอยู่</p></details>
+          </div>
+        </details>
+      </section>
     </main>
 
-    <!-- Mobile Bottom Action Bar (Thumb Friendly) -->
-    <nav class="bottom-action-bar" id="bottom-action-bar">
-      <!-- Camera Selection Pill -->
-      <div class="control-group camera-select-wrap" id="camera-control-group">
-        <label for="camera-select" class="visually-hidden" data-i18n="chooseCamera">เลือกกล้อง</label>
-        <select id="camera-select" class="select-input select-pill">
-          <option value="" data-i18n="findingCameras">ค้นหากล้อง...</option>
-        </select>
-      </div>
-
-      <!-- Action Buttons -->
-      <div class="bar-actions">
-        <button id="btn-pin-rim" class="btn btn-pill" title="กำหนดตำแหน่งห่วงบาส" data-i18n="lockRim" data-i18n-title="lockRimTitle">ล็อกห่วง</button>
-        <button id="btn-clear-rim" class="btn btn-pill btn-subtle hidden" title="คืนค่าเป็นระบบอัตโนมัติ" data-i18n="unlockRim" data-i18n-title="autoRimTitle">ปลดล็อก</button>
-        <button id="btn-reset-score" class="btn btn-pill btn-subtle" title="รีเซ็ตคะแนนเป็น 0" data-i18n="reset" data-i18n-title="resetTitle">รีเซ็ต</button>
-      </div>
-    </nav>
-
     <!-- Slide-in Settings Drawer -->
-    <aside id="settings-panel" class="settings-drawer hidden" aria-label="Settings Panel" data-i18n-aria-label="settings">
+    <dialog id="settings-panel" class="settings-drawer hidden" aria-label="Settings Panel" data-i18n-aria-label="settings">
       <div class="settings-header" id="settings-header">
         <h2 data-i18n="settings">การตั้งค่า</h2>
         <button id="btn-close-settings" class="btn-icon" aria-label="Close settings" data-i18n-aria-label="closeSettings">
@@ -100,6 +81,9 @@
       </div>
 
       <div class="settings-content" id="settings-content">
+        <section class="settings-section"><span data-i18n="display">การแสดงผล</span>
+        <button id="btn-fullscreen-toggle" class="btn btn-secondary" aria-label="Toggle Fullscreen" title="เต็มจอ" data-i18n-title="fullscreen" data-i18n-aria-label="fullscreen"><span data-i18n="fullscreen">เต็มจอ</span></button>
+        </section>
         <section class="settings-section" id="section-language">
           <label for="language-select" data-i18n="language">ภาษา</label>
           <select id="language-select" class="select-input">
@@ -237,10 +221,10 @@
           </button>
         </section>
       </div>
-    </aside>
+    </dialog>
 
     <!-- Model Comparison Guide Modal -->
-    <div id="model-guide-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-guide-title">
+    <dialog id="model-guide-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-guide-title">
       <div class="modal-card">
         <div class="modal-header">
           <h2 id="modal-guide-title" data-i18n="guideHeading">คู่มือโมเดล AI</h2>
@@ -291,7 +275,7 @@
           <button type="button" id="btn-close-modal-footer" class="btn btn-secondary" data-i18n="close">ปิด</button>
         </div>
       </div>
-    </div>
+    </dialog>
   </div>
 
   <script type="module" src="/src/main.js"></script>

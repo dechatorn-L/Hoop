@@ -1,5 +1,11 @@
 // Paired entries keep both supported languages together. Values are plain text.
 export const messages = {
+  madeBaskets: ['ลูกที่ลง', 'Made baskets'],
+  cameraView: ['ภาพกล้อง', 'Camera view'],
+  fullFrame: ['เต็มเฟรม', 'Full frame'],
+  controls: ['การควบคุม', 'Controls'],
+  secondaryControls: ['ปรับการซ้อม', 'Practice settings'],
+  display: ['การแสดงผล', 'Display'],
   appTitle: ['Hoop — ระบบนับคะแนนบาสเกตบอล', 'Hoop — Basketball Shot Counter'],
   appDescription: ['นับคะแนนบาสเกตบอลจากภาพกล้องขณะฝึกซ้อม', 'Count basketball shots from the camera during practice.'],
   points: ['แต้ม', 'PTS'],

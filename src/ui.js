@@ -108,6 +108,7 @@ export class UIController {
   _updateFullscreenLabels() {
     if (!this.btnFullscreen) return;
     const key = document.fullscreenElement || document.webkitFullscreenElement ? 'exitFullscreen' : 'fullscreen';
+    this.btnFullscreen.textContent = t(key);
     this.btnFullscreen.title = t(key);
     this.btnFullscreen.setAttribute('aria-label', t(key));
   }
@@ -202,6 +203,8 @@ export class UIController {
       const scaleX = (this.canvas.width || 640) / (renderWidth || 1);
       const scaleY = (this.canvas.height || 480) / (renderHeight || 1);
 
+      if (clientX < renderLeft || clientX > renderLeft + renderWidth || clientY < renderTop || clientY > renderTop + renderHeight) return null;
+
       const x = Math.max(0, Math.min(this.canvas.width || 640, (clientX - renderLeft) * scaleX));
       const y = Math.max(0, Math.min(this.canvas.height || 480, (clientY - renderTop) * scaleY));
 
@@ -214,6 +217,7 @@ export class UIController {
       e.preventDefault();
       e.stopPropagation();
       const pt = getCanvasPoint(e);
+      if (!pt) return;
       this.dragStart = pt;
       this.currentDragBox = { x: pt.x, y: pt.y, width: 0, height: 0 };
     };
@@ -224,6 +228,7 @@ export class UIController {
       e.preventDefault();
       e.stopPropagation();
       const pt = getCanvasPoint(e);
+      if (!pt) return;
       const minX = Math.min(this.dragStart.x, pt.x);
       const minY = Math.min(this.dragStart.y, pt.y);
       const width = Math.abs(pt.x - this.dragStart.x);
@@ -397,7 +402,6 @@ export class UIController {
 
       const updateFullscreenIcon = () => {
         const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
-        this.btnFullscreen.textContent = isFull ? '🗗' : '⛶';
         this._updateFullscreenLabels();
 
         const appEl = document.getElementById('app');
@@ -503,6 +507,7 @@ export class UIController {
   showModelGuide() {
     if (this.modalGuide) {
       this.modalGuide.classList.remove('hidden');
+      this.modalGuide.showModal();
     }
   }
 
@@ -511,6 +516,7 @@ export class UIController {
    */
   hideModelGuide() {
     if (this.modalGuide) {
+      this.modalGuide.close();
       this.modalGuide.classList.add('hidden');
     }
   }
@@ -628,8 +634,8 @@ export class UIController {
     if (vid && this.canvas) {
       const width = vid.videoWidth || 1280;
       const height = vid.videoHeight || 720;
-      this.canvas.width = width;
-      this.canvas.height = height;
+      if (this.canvas.width !== width) this.canvas.width = width;
+      if (this.canvas.height !== height) this.canvas.height = height;
       console.log(`[UIController] Canvas synchronized with video: ${width}x${height}`);
     }
   }
@@ -699,7 +705,7 @@ export class UIController {
     // If manual rim is active, add it to render list
     if (this.manualRimRoi) {
       renderList.push({
-        bbox: { ...this.manualRimRoi },
+        bbox: { ...this.getManualRimRoi().bbox },
         class: 'rim',
         confidence: 1.0,
         isManual: true,
@@ -836,7 +842,7 @@ export class UIController {
       ctx.fillRect(x, y, width, height);
 
       // 3. Draw Label Badge Tag
-      ctx.font = 'bold 13px Outfit, Inter, sans-serif';
+      ctx.font = '600 14px Sarabun, sans-serif';
       const tagText = d.isManual ? label : `${label} ${confPercent}%`;
       const textMetrics = ctx.measureText(tagText);
       const tagWidth = textMetrics.width + 14;
@@ -847,7 +853,7 @@ export class UIController {
       ctx.fillRect(x, tagY, tagWidth, tagHeight);
 
       // Text inside tag
-      ctx.fillStyle = '#0F0F1A';
+      ctx.fillStyle = isPerson ? '#FFFFFF' : '#0F0F1A';
       ctx.fillText(tagText, x + 7, tagY + 16);
     }
 
@@ -864,28 +870,26 @@ export class UIController {
 
       ctx.setLineDash([]);
       ctx.fillStyle = '#00FF88';
-      ctx.font = 'bold 12px Outfit, sans-serif';
+      ctx.font = '600 14px Sarabun, sans-serif';
       ctx.fillRect(x, y > 24 ? y - 24 : y, ctx.measureText(t('drawingRim')).width + 16, 22);
       ctx.fillStyle = '#0F0F1A';
-      ctx.font = 'bold 12px Outfit, sans-serif';
+      ctx.font = '600 14px Sarabun, sans-serif';
       ctx.fillText(t('drawingRim'), x + 8, (y > 24 ? y - 24 : y) + 15);
       ctx.restore();
     }
   }
 
   /**
-   * Increment score display with pulse + glow animation
+   * Increment score display with a 220ms baseline reveal.
    */
   incrementScore() {
     this.currentScore++;
     if (this.scoreElement) {
       this.scoreElement.textContent = this.currentScore;
+      this.scoreElement.style.setProperty('--score-digits', Math.max(3, String(this.currentScore).length));
+      this.scoreElement.classList.remove('scored-anim');
+      void this.scoreElement.offsetWidth; // Restart the single feedback animation for each score.
       this.scoreElement.classList.add('scored-anim');
-      setTimeout(() => {
-        if (this.scoreElement) {
-          this.scoreElement.classList.remove('scored-anim');
-        }
-      }, 500);
     }
   }
 
@@ -896,6 +900,8 @@ export class UIController {
     this.currentScore = 0;
     if (this.scoreElement) {
       this.scoreElement.textContent = '0';
+      this.scoreElement.style.removeProperty('--score-digits');
+      this.scoreElement.classList.remove('scored-anim');
     }
   }
 
@@ -929,6 +935,7 @@ export class UIController {
   showSettings() {
     if (this.settingsPanel) {
       this.settingsPanel.classList.remove('hidden');
+      this.settingsPanel.showModal();
     }
   }
 
@@ -937,6 +944,7 @@ export class UIController {
    */
   hideSettings() {
     if (this.settingsPanel) {
+      this.settingsPanel.close();
       this.settingsPanel.classList.add('hidden');
     }
   }
@@ -1050,7 +1058,13 @@ export class UIController {
   }
 
   updatePracticeControls({ state, cameraReady, modelReady, rimReady, canPractice, cameraLoading, modelLoading, cameraError, modelError }) {
+    if (state === 'practice' && this.practiceView?.state !== 'practice') {
+      const controls = document.getElementById('secondary-controls');
+      if (controls) controls.open = false;
+    }
     this.practiceView = { state, cameraReady, modelReady, rimReady, canPractice, cameraLoading, modelLoading, cameraError, modelError };
+    const stateLabel = document.getElementById('practice-state');
+    if (stateLabel) stateLabel.textContent = t(state === 'practice' ? 'practice' : state === 'paused' ? 'paused' : 'setup');
     if (this.practiceButton) {
       const text = t(state === 'practice' ? 'pausePractice' : state === 'paused' ? 'resumePractice' : 'startPractice');
       if (this.practiceButton.textContent !== text) this.practiceButton.textContent = text;
