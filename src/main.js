@@ -197,6 +197,16 @@ export class HoopCounterApp {
     this._updatePracticeControls();
   }
 
+  _initSound() {
+    if (!this.soundInitialization) {
+      this.soundInitialization = this.sound.init().catch(soundErr => {
+        console.warn('🔊 Sound initialization warning:', soundErr);
+        this.soundInitialization = null;
+      });
+    }
+    return this.soundInitialization;
+  }
+
   async openCamera(deviceId = null) {
     if (this.cameraLoading) return;
     this.pausePractice();
@@ -205,17 +215,8 @@ export class HoopCounterApp {
     this.cameraError = null;
     this.primaryRim = null;
     this._updatePracticeControls();
-    // Initialize Sound System from the player's camera-opening gesture.
-    try {
-      if (!this.soundInitialized) {
-        await this.sound.init();
-        this.sound.setVolume(this.config.volume);
-        this.sound.setActiveSound(this.config.defaultSound);
-        this.soundInitialized = true;
-      }
-    } catch (soundErr) {
-      console.warn('🔊 Sound initialization warning:', soundErr);
-    }
+    // Audio loading must not delay camera access or overwrite the player's choices.
+    this._initSound();
 
     // Start Camera Stream
     try {
@@ -358,6 +359,7 @@ export class HoopCounterApp {
 
     // Sound Selection & Custom Upload
     this.ui.bindSoundChange(async (soundId, customFile) => {
+      await this._initSound();
       if (soundId === 'custom' && customFile) {
         try {
           this.ui.showLoading('กำลังประมวลผลไฟล์เสียง...');
@@ -384,7 +386,8 @@ export class HoopCounterApp {
     });
 
     // Test Sound Button
-    this.ui.bindTestSound(() => {
+    this.ui.bindTestSound(async () => {
+      await this._initSound();
       console.log('🔊 Test sound button clicked');
       this.sound.playScoreSound();
     });

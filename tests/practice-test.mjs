@@ -38,16 +38,23 @@ try {
         async detect() { if (this.pending) return new Promise(resolve => { this.resolve = resolve; }); return this.detections || []; },
         clearDetections() {}, setConfidence() {},
       },
-      sound: { plays: 0, async init() {}, setVolume() {}, setActiveSound() {}, playScoreSound() { this.plays++; } },
+      sound: { plays: 0, async init() {}, setVolume(value) { this.volume = value; }, setActiveSound(value) { this.active = value; }, playScoreSound() { this.plays++; } },
     };
     window.app = new HoopCounterApp(services);
     await Promise.race([app.init(), new Promise((_, reject) => setTimeout(() => reject(Error('Initialization must not wait for camera/model access')), 3000))]);
   });
   assert.equal(await page.evaluate(() => services.camera.starts), 0, 'Opening the app must not request camera access');
   assert.equal(await page.locator('#btn-practice').isDisabled(), true, 'Start must wait for readiness');
+  await page.locator('#btn-settings-toggle').click();
+  await page.locator('#sound-radio-random').check();
+  await page.locator('#volume-slider').fill('25');
+  await page.locator('#btn-close-settings').click();
+  const previewPlays = await page.evaluate(() => services.sound.plays);
   await page.evaluate(() => { services.camera.fail = true; });
   await page.locator('#btn-open-camera').click();
   await page.waitForFunction(() => services.camera.starts === 1);
+  assert.equal(await page.evaluate(() => services.sound.active), 'random', 'Opening camera must preserve selected audio');
+  assert.equal(await page.evaluate(() => services.sound.volume), 0.25, 'Opening camera must preserve volume');
   await page.waitForFunction(() => document.getElementById('practice-readiness').textContent.includes('Camera denied'));
   assert.equal(await page.locator('#btn-practice').isDisabled(), true);
   await page.evaluate(() => { services.camera.fail = false; services.detector.fail = true; });
@@ -69,7 +76,7 @@ try {
   });
   await page.waitForFunction(() => !document.getElementById('btn-practice').disabled);
   assert.equal(await page.locator('#score-value').textContent(), '0', 'Setup must not count');
-  assert.equal(await page.evaluate(() => services.sound.plays), 0, 'Setup must not play score sound');
+  assert.equal(await page.evaluate(() => services.sound.plays), previewPlays, 'Setup must not play score sound');
   await page.locator('#btn-practice').click();
   await page.waitForFunction(() => document.getElementById('score-value').textContent === '1');
   await page.locator('#btn-practice').click();
@@ -143,6 +150,72 @@ try {
   }
   await page.setViewportSize({ width: 390, height: 844 });
   if (process.env.HOOP_SCREENSHOT) await page.screenshot({ path: process.env.HOOP_SCREENSHOT, fullPage: true });
+
+  // Exercise the real detector adapters, substituting only the external model worker.
+  await page.evaluate(async () => {
+    const { ObjectDetector } = await import('/src/detector.js');
+    const NativeWorker = window.Worker;
+    window.workerFrames = [];
+    window.Worker = class extends EventTarget {
+      postMessage(message) {
+        const reply = data => {
+          const event = new MessageEvent('message', { data });
+          this.onmessage?.(event);
+          this.dispatchEvent(event);
+        };
+        if (message.type === 'INIT_MODEL') queueMicrotask(() => reply({ id: message.id, type: 'INIT_SUCCESS' }));
+        if (message.type === 'INFER_FRAME') {
+          message.data.imageBitmap.close();
+          workerFrames.push(detections => reply({ id: message.id, type: 'INFER_RESULT', detections }));
+        }
+      }
+      terminate() {}
+    };
+    app.detector = new ObjectDetector(app.config);
+    window.Worker = NativeWorker;
+    const bitmap = window.createImageBitmap.bind(window);
+    const source = document.createElement('canvas');
+    source.width = 640; source.height = 480;
+    window.createImageBitmap = () => bitmap(source);
+  });
+  await page.locator('#btn-settings-toggle').click();
+  await page.selectOption('#model-preset-select', 'local-onnx-swish');
+  await page.locator('#btn-apply-model').click();
+  await page.waitForFunction(() => !document.getElementById('btn-apply-model').disabled);
+  await page.locator('#btn-close-settings').click();
+  await page.waitForFunction(() => workerFrames.length > 0);
+  await page.locator('#btn-practice').click();
+  await page.locator('#btn-practice').click();
+  await page.locator('#btn-practice').click();
+  await page.evaluate(() => workerFrames.shift()([rim, made]));
+  await page.waitForFunction(() => workerFrames.length > 0);
+  assert.equal(await page.locator('#score-value').textContent(), '0', 'Real ONNX adapter must reject a pre-pause worker result');
+  await page.evaluate(() => workerFrames.shift()([rim, made]));
+  await page.waitForFunction(() => document.getElementById('score-value').textContent === '1');
+  await page.locator('#btn-practice').click();
+  await page.locator('#btn-practice').click();
+  await page.evaluate(() => { for (const reply of workerFrames.splice(0)) reply([rim, made]); });
+  await page.waitForTimeout(100);
+  assert.equal(await page.locator('#score-value').textContent(), '1', 'Pause/Resume must retain scoring cooldown');
+  console.log('PASS: real ONNX worker adapter rejects stale results and retains cooldown');
+
+  const live = await browser.newPage({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 844 } });
+  await live.addInitScript(() => {
+    window.cameraRequests = 0;
+    navigator.mediaDevices.getUserMedia = async () => {
+      window.cameraRequests++;
+      throw new DOMException('Controlled permission denial', 'NotAllowedError');
+    };
+  });
+  await live.goto(process.env.HOOP_TEST_URL || 'https://localhost:5173/');
+  await live.waitForFunction(() => document.getElementById('practice-readiness').textContent.includes('เตรียมพร้อม'));
+  assert.equal(await live.evaluate(() => cameraRequests), 0, 'Production bootstrap must not request camera access');
+  await live.locator('#btn-open-camera').click();
+  await live.waitForFunction(() => cameraRequests === 1 && !document.getElementById('btn-open-camera').disabled);
+  assert.equal(await live.locator('#btn-practice').isDisabled(), true);
+  assert.match(await live.locator('#practice-readiness').textContent(), /กดเปิดกล้องเพื่อลองอีกครั้ง/);
+  await live.close();
+  console.log('PASS: production bootstrap and real CameraManager permission-denial recovery');
 } catch (error) {
   console.error(await page.locator('.practice-controls').innerText());
   throw error;
