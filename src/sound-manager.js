@@ -3,6 +3,8 @@
  * Handles low-latency audio playback, built-in sound loading, custom uploads, and volume control.
  */
 
+import { userError } from './i18n.js';
+
 export class SoundManager {
   /**
    * @param {Object} [config={}] Configuration options
@@ -115,12 +117,12 @@ export class SoundManager {
    */
   async loadCustomSound(file) {
     if (!file) {
-      throw new Error('No file provided.');
+      throw userError('noAudioFile');
     }
 
     const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB limit
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      throw new Error(`File is too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Maximum allowed size is 10 MB.`);
+      throw userError('audioTooLarge', { size: (file.size / (1024 * 1024)).toFixed(1) });
     }
 
     if (!this.audioCtx) {
@@ -145,7 +147,7 @@ export class SoundManager {
       return customId;
     } catch (error) {
       console.error('[SoundManager] Failed to decode custom audio file:', error);
-      throw new Error(`Failed to load custom audio: ${error.message || error}`);
+      throw userError('audioDecodeError', { detail: error.message || String(error) });
     }
   }
 

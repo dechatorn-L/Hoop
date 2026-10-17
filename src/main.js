@@ -10,6 +10,7 @@ import { ObjectDetector } from './detector.js';
 import { ShotTracker } from './shot-tracker.js';
 import { SoundManager } from './sound-manager.js';
 import { UIController } from './ui.js';
+import { t, userError } from './i18n.js';
 
 export class HoopCounterApp {
   constructor(services = {}) {
@@ -146,9 +147,10 @@ export class HoopCounterApp {
   async init() {
     console.log('🏀 Initializing Hoop Shot Counter App...');
 
-    this.camera.onError(({ message }) => {
+    this.camera.onError(({ type, message, originalError }) => {
       this.cameraReady = false;
-      this.cameraError = message;
+      const keys = { UNSUPPORTED: 'cameraUnsupported', PERMISSION_DENIED: 'cameraPermission', DEVICE_NOT_FOUND: 'cameraNotFound', CAMERA_IN_USE: 'cameraInUse', OVERCONSTRAINED: 'cameraConstraints', SECURITY_ERROR: 'cameraSecurity' };
+      this.cameraError = { key: keys[type] || 'cameraFailed', params: { detail: originalError?.message || message } };
       this.pausePractice();
     });
 
@@ -221,7 +223,7 @@ export class HoopCounterApp {
     // Start Camera Stream
     try {
       const stream = deviceId ? await this.camera.switchCamera(deviceId) : await this.camera.start();
-      if (!stream) throw new Error(this.cameraError || 'เปิดกล้องไม่สำเร็จ โปรดลองอีกครั้ง');
+      if (!stream) throw Object.assign(new Error('Camera start failed'), { userMessage: this.cameraError || { key: 'cameraFailed', params: { detail: 'No stream' } } });
       this.ui.initCanvas(this.videoElement);
       this.cameraReady = true;
       for (const track of stream.getVideoTracks()) {
@@ -229,7 +231,7 @@ export class HoopCounterApp {
           if (stream !== this.camera.currentStream) return;
           this.cameraReady = false;
           this.primaryRim = null;
-          this.cameraError = 'กล้องหยุดทำงาน กดเปิดกล้องอีกครั้ง';
+          this.cameraError = { key: 'cameraStopped' };
           this.pausePractice();
         });
       }
@@ -237,7 +239,7 @@ export class HoopCounterApp {
       this.ui.populateCameraList(devices, this.camera.currentDeviceId);
     } catch (camErr) {
       this.cameraReady = false;
-      this.cameraError = camErr.message;
+      this.cameraError = camErr.userMessage || { key: 'cameraFailed', params: { detail: camErr.message } };
     } finally {
       this.cameraLoading = false;
       this._updatePracticeControls();
@@ -266,7 +268,7 @@ export class HoopCounterApp {
     this.ui.clearDetections();
 
     try {
-      this.ui.showLoading(`กำลังโหลดโมเดล (${preset.name || modelType})...`);
+      this.ui.showLoading({ key: 'loadingModel', params: { model: (preset.name || modelType).split('(')[0].trim() } });
 
       let loadOptions = {};
 
@@ -278,10 +280,10 @@ export class HoopCounterApp {
       } else if (modelType === 'roboflow-custom') {
         const apiKey = customApiKey || this.config.publishableKey;
         if (!customModelId) {
-          throw new Error('กรุณากรอก Model ID (เช่น project-name/1)');
+          throw userError('missingModelId');
         }
         if (!apiKey || apiKey === 'rf_live_placeholder') {
-          throw new Error('กรุณากรอก Publishable API Key สำหรับ Custom Model');
+          throw userError('missingApiKey');
         }
         loadOptions = {
           provider: 'roboflow',
@@ -294,7 +296,7 @@ export class HoopCounterApp {
         const apiKey = customApiKey || this.config.publishableKey;
         if (!apiKey || apiKey === 'rf_live_placeholder') {
           console.warn('⚠️ No Roboflow API Key found. Switching to Local ONNX Fallback...');
-          this.ui.showLoading('ไม่พบ Roboflow API Key — กำลังโหลด Local ONNX Model (Offline)...');
+          this.ui.showLoading({ key: 'loadingFallback' });
           loadOptions = {
             provider: 'onnx',
             modelPath: this.config.onnxModelPath,
@@ -316,14 +318,14 @@ export class HoopCounterApp {
       if (result && result.fallback) {
         console.warn('⚠️ Switched to Local ONNX Model due to Roboflow error:', result.originalError);
         this.ui.setActiveModelUI('local-onnx-swish');
-        this.ui.showError(`โหลดโมเดลหลักไม่สำเร็จ (${result.originalError}) → สลับไปใช้ Local ONNX Model อัตโนมัติ`);
+        this.ui.showError({ key: 'modelFallback', params: { detail: result.originalError } });
       } else {
         this.ui.hideLoading();
       }
     } catch (err) {
       console.error('🤖 Model load error:', err);
-      this.ui.showError(`เกิดข้อผิดพลาดในการโหลดโมเดล: ${err.message}`);
-      this.modelError = err.message;
+      this.modelError = err.userMessage || { key: 'modelError', params: { detail: err.message } };
+      this.ui.showError(this.modelError);
     } finally {
       this.modelLoading = false;
       this._updatePracticeControls();
@@ -344,7 +346,7 @@ export class HoopCounterApp {
     });
     // Reset Score
     this.ui.bindReset(() => {
-      if (!window.confirm('รีเซ็ตคะแนนเป็น 0? กล้อง ตำแหน่งห่วง และการตั้งค่าจะยังอยู่')) return;
+      if (!window.confirm(t('resetConfirm'))) return;
       this._clearTracking();
       this.tracker.reset();
       this.ui.resetScore();
@@ -362,12 +364,12 @@ export class HoopCounterApp {
       await this._initSound();
       if (soundId === 'custom' && customFile) {
         try {
-          this.ui.showLoading('กำลังประมวลผลไฟล์เสียง...');
+          this.ui.showLoading({ key: 'processingSound' });
           await this.sound.loadCustomSound(customFile);
           this.ui.hideLoading();
           this.sound.playScoreSound();
         } catch (err) {
-          this.ui.showError(err.message);
+          this.ui.showError(err.userMessage || { key: 'audioError', params: { detail: err.message } });
         }
       } else if (soundId) {
         this.sound.setActiveSound(soundId);

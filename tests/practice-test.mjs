@@ -18,6 +18,12 @@ try {
   await page.goto(process.env.HOOP_TEST_URL || 'https://localhost:5173/');
   await page.evaluate(async () => {
     const { HoopCounterApp } = await import('/src/main.js');
+    window.canvasLabels = [];
+    const fillText = CanvasRenderingContext2D.prototype.fillText;
+    CanvasRenderingContext2D.prototype.fillText = function (text, ...args) {
+      canvasLabels.push(text);
+      return fillText.call(this, text, ...args);
+    };
     window.services = {
       camera: {
         starts: 0,
@@ -34,7 +40,8 @@ try {
         async listDevices() { return [{ deviceId: 'one', label: 'Camera one' }, { deviceId: 'two', label: 'Camera two' }]; },
       },
       detector: {
-        async loadModel() { if (this.fail) throw Error('Model unavailable'); },
+        loads: 0,
+        async loadModel() { this.loads++; if (this.fail) throw Error('Model unavailable'); },
         async detect() { if (this.pending) return new Promise(resolve => { this.resolve = resolve; }); return this.detections || []; },
         clearDetections() {}, setConfidence() {},
       },
@@ -44,6 +51,16 @@ try {
     await Promise.race([app.init(), new Promise((_, reject) => setTimeout(() => reject(Error('Initialization must not wait for camera/model access')), 3000))]);
   });
   assert.equal(await page.evaluate(() => services.camera.starts), 0, 'Opening the app must not request camera access');
+  assert.equal(await page.locator('html').getAttribute('lang'), 'th');
+  assert.equal(await page.locator('#settings-panel #language-select').count(), 1, 'Language selector belongs in Settings only');
+  await page.locator('#btn-settings-toggle').click();
+  await page.selectOption('#language-select', 'en');
+  assert.equal(await page.locator('html').getAttribute('lang'), 'en');
+  assert.equal(await page.locator('#btn-open-camera').textContent(), 'Open Camera');
+  assert.equal(await page.locator('#btn-settings-toggle').getAttribute('aria-label'), 'Open settings');
+  await page.selectOption('#language-select', 'th');
+  await page.locator('#btn-close-settings').click();
+  console.log('PASS: Thai default and immediate Settings-only language switching');
   assert.equal(await page.locator('#btn-practice').isDisabled(), true, 'Start must wait for readiness');
   await page.locator('#btn-settings-toggle').click();
   await page.locator('#sound-radio-random').check();
@@ -63,6 +80,10 @@ try {
   assert.equal(await page.locator('#btn-practice').isDisabled(), true);
   await page.evaluate(() => { services.detector.fail = false; });
   await page.locator('#btn-settings-toggle').click();
+  await page.selectOption('#language-select', 'en');
+  assert.match(await page.locator('#status-text').textContent(), /Could not load model: Model unavailable/);
+  assert.match(await page.locator('#practice-readiness').textContent(), /Open Settings and select Change model/);
+  await page.selectOption('#language-select', 'th');
   await page.locator('#btn-apply-model').click();
   await page.waitForFunction(() => !document.getElementById('btn-apply-model').disabled);
   await page.locator('#btn-close-settings').click();
@@ -81,6 +102,12 @@ try {
   await page.waitForFunction(() => document.getElementById('score-value').textContent === '1');
   await page.locator('#btn-practice').click();
   const plays = await page.evaluate(() => services.sound.plays);
+  await page.locator('#btn-settings-toggle').click();
+  await page.selectOption('#language-select', 'en');
+  assert.equal(await page.locator('#btn-practice').textContent(), 'Resume Practice');
+  assert.equal(await page.locator('#score-value').textContent(), '1');
+  await page.selectOption('#language-select', 'th');
+  await page.locator('#btn-close-settings').click();
   await page.waitForTimeout(2200);
   assert.equal(await page.locator('#score-value').textContent(), '1', 'Pause must retain score');
   assert.equal(await page.evaluate(() => services.sound.plays), plays);
@@ -108,6 +135,11 @@ try {
   await page.locator('#btn-practice').click();
   await page.evaluate(() => { services.detector.pending = true; });
   await page.waitForFunction(() => !!services.detector.resolve);
+  await page.locator('#btn-settings-toggle').click();
+  await page.selectOption('#language-select', 'en');
+  assert.equal(await page.locator('#btn-practice').textContent(), 'Pause Practice', 'Switching language must preserve active Practice');
+  await page.selectOption('#language-select', 'th');
+  await page.locator('#btn-close-settings').click();
   await page.locator('#btn-practice').click();
   await page.locator('#btn-practice').click();
   await page.evaluate(() => {
@@ -142,6 +174,47 @@ try {
   await page.locator('#positioning-guide summary').click();
   assert.equal(await page.locator('#positioning-guide').getAttribute('open'), '', 'Guidance can be reopened');
   console.log('PASS: optional manual rim and reopenable positioning guidance');
+
+  await page.evaluate(() => {
+    window.beforeLanguage = {
+      stream: services.camera.currentStream, detector: app.detector, sound: app.sound,
+      cameraStarts: services.camera.starts, modelLoads: services.detector.loads,
+      settings: Object.fromEntries(Object.entries(localStorage).filter(([key]) => key !== 'hoop_language')),
+    };
+    canvasLabels.length = 0;
+  });
+  await page.locator('#btn-settings-toggle').click();
+  await page.selectOption('#language-select', 'en');
+  await page.waitForFunction(() => canvasLabels.includes('RIM (PINNED)'));
+  assert.equal(await page.evaluate(() => app.sound === beforeLanguage.sound && app.detector === beforeLanguage.detector && services.camera.currentStream === beforeLanguage.stream), true);
+  assert.equal(await page.evaluate(() => services.camera.starts === beforeLanguage.cameraStarts && services.detector.loads === beforeLanguage.modelLoads), true);
+  assert.deepEqual(await page.evaluate(() => Object.fromEntries(Object.entries(localStorage).filter(([key]) => key !== 'hoop_language'))), await page.evaluate(() => beforeLanguage.settings));
+  assert.equal(await page.locator('#btn-practice').textContent(), 'Resume Practice');
+  assert.equal(await page.locator('#volume-slider').inputValue(), '25');
+  assert.equal(await page.locator('#sound-radio-random').isChecked(), true);
+  assert.equal(await page.locator('#btn-pin-rim').textContent(), 'Edit Rim');
+  const untranslated = await page.evaluate(() => {
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const found = [];
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      if (/[ก-๙]/.test(node.textContent) && !node.parentElement.closest('script, style, option[lang="th"]')) found.push(node.textContent.trim());
+    }
+    for (const node of document.querySelectorAll('[title], [aria-label], [placeholder]')) {
+      for (const attribute of ['title', 'aria-label', 'placeholder']) if (/[ก-๙]/.test(node.getAttribute(attribute) || '')) found.push(node.getAttribute(attribute));
+    }
+    return found;
+  });
+  assert.deepEqual(untranslated, [], 'English UI must translate visible and hidden text, tooltips and accessible names');
+  for (const viewport of [{ width: 320, height: 740 }, { width: 844, height: 390 }, { width: 1024, height: 768 }]) {
+    await page.setViewportSize(viewport);
+    assert.equal(await page.evaluate(() => document.getElementById('settings-panel').scrollWidth <= document.getElementById('settings-panel').clientWidth), true, 'English Settings must fit narrow controls');
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.selectOption('#language-select', 'th');
+  await page.waitForFunction(() => canvasLabels.includes('ห่วง (ล็อก)'));
+  await page.locator('#btn-close-settings').click();
+  console.log('PASS: live language switching preserves services/settings/state and translates canvas/accessibility');
 
   for (const viewport of [{ width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1024, height: 768 }]) {
     await page.setViewportSize(viewport);
@@ -214,8 +287,40 @@ try {
   await live.waitForFunction(() => cameraRequests === 1 && !document.getElementById('btn-open-camera').disabled);
   assert.equal(await live.locator('#btn-practice').isDisabled(), true);
   assert.match(await live.locator('#practice-readiness').textContent(), /กดเปิดกล้องเพื่อลองอีกครั้ง/);
+  await live.locator('#btn-settings-toggle').click();
+  await live.selectOption('#language-select', 'en');
+  assert.match(await live.locator('#practice-readiness').textContent(), /Allow camera access in your browser/);
+  await live.reload();
+  await live.waitForFunction(() => document.getElementById('practice-readiness').textContent.includes('Setup'));
+  assert.equal(await live.locator('html').getAttribute('lang'), 'en', 'Reload must keep English preference');
+  assert.equal(await live.evaluate(() => cameraRequests), 0);
+  await live.locator('#btn-settings-toggle').click();
+  await live.selectOption('#language-select', 'th');
+  await live.reload();
+  await live.waitForFunction(() => document.getElementById('practice-readiness').textContent.includes('เตรียมพร้อม'));
+  assert.equal(await live.locator('html').getAttribute('lang'), 'th', 'Reload must keep Thai preference');
+  await live.evaluate(() => localStorage.setItem('hoop_language', 'unsupported'));
+  await live.reload();
+  await live.waitForFunction(() => document.getElementById('practice-readiness').textContent.includes('เตรียมพร้อม'));
+  assert.equal(await live.locator('html').getAttribute('lang'), 'th', 'Unsupported preferences must fall back to Thai');
   await live.close();
-  console.log('PASS: production bootstrap and real CameraManager permission-denial recovery');
+  console.log('PASS: production bootstrap, translated camera errors and bidirectional reload persistence');
+
+  const blocked = await browser.newPage({ ignoreHTTPSErrors: true, viewport: { width: 320, height: 740 } });
+  await blocked.addInitScript(() => {
+    Storage.prototype.getItem = () => { throw new DOMException('Storage blocked', 'SecurityError'); };
+    Storage.prototype.setItem = () => { throw new DOMException('Storage blocked', 'QuotaExceededError'); };
+  });
+  await blocked.goto(process.env.HOOP_TEST_URL || 'https://localhost:5173/');
+  await blocked.waitForFunction(() => document.getElementById('practice-readiness').textContent.includes('เตรียมพร้อม'));
+  await blocked.locator('#btn-settings-toggle').click();
+  await blocked.selectOption('#language-select', 'en');
+  assert.equal(await blocked.locator('html').getAttribute('lang'), 'en');
+  assert.equal(await blocked.locator('#btn-open-camera').textContent(), 'Open Camera');
+  await blocked.selectOption('#language-select', 'th');
+  assert.equal(await blocked.locator('#btn-open-camera').textContent(), 'เปิดกล้อง');
+  await blocked.close();
+  console.log('PASS: storage read/write failure still permits switching for the current visit');
 } catch (error) {
   console.error(await page.locator('.practice-controls').innerText());
   throw error;

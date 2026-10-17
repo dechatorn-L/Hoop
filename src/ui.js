@@ -3,6 +3,8 @@
  * Handles UI interactions, settings drawer, animations, and canvas detection rendering.
  */
 
+import { getLanguage, setLanguage, t, translateDocument, translateMessage } from './i18n.js';
+
 export class UIController {
   constructor() {
     this.practiceButton = document.getElementById('btn-practice');
@@ -81,6 +83,33 @@ export class UIController {
     this._setupInternalEventListeners();
     this._setupManualRimEvents();
     this._loadSavedModelSettings();
+    this.languageSelect = document.getElementById('language-select');
+    this.languageSelect?.addEventListener('change', () => {
+      setLanguage(this.languageSelect.value);
+      this._translateInterface();
+    });
+    this._translateInterface();
+  }
+
+  _translateInterface() {
+    translateDocument();
+    if (this.languageSelect) this.languageSelect.value = getLanguage();
+    this._updateManualRimUI();
+    this._updateModelDescriptions(this.modelSelect?.value);
+    this._updateFullscreenLabels();
+    for (const option of this.cameraSelect?.options || []) {
+      if (option.dataset.cameraNumber) option.textContent = t('cameraNumber', { number: option.dataset.cameraNumber });
+      if (option.dataset.noCamera) option.textContent = t('noCamera');
+    }
+    if (this.statusMessage) this._renderStatus();
+    if (this.practiceView) this.updatePracticeControls(this.practiceView);
+  }
+
+  _updateFullscreenLabels() {
+    if (!this.btnFullscreen) return;
+    const key = document.fullscreenElement || document.webkitFullscreenElement ? 'exitFullscreen' : 'fullscreen';
+    this.btnFullscreen.title = t(key);
+    this.btnFullscreen.setAttribute('aria-label', t(key));
   }
 
   /**
@@ -347,16 +376,14 @@ export class UIController {
       this.btnSettingsClearRim.classList.toggle('hidden', !isPinned);
     }
     if (this.btnPinRim) {
-      this.btnPinRim.textContent = isPinned ? 'แก้ไขห่วง' : 'ล็อกห่วง';
-      this.btnPinRim.title = isPinned ? 'ตำแหน่งห่วงถูกล็อกอยู่ (คลิกเพื่อวาดใหม่)' : 'กำหนดตำแหน่งห่วงบาส';
+      this.btnPinRim.textContent = t(isPinned ? 'editRim' : 'lockRim');
+      this.btnPinRim.title = t(isPinned ? 'editRimTitle' : 'lockRimTitle');
     }
     if (this.rimStatusBox) {
       this.rimStatusBox.classList.toggle('pinned', isPinned);
     }
     if (this.rimStatusText) {
-      this.rimStatusText.innerHTML = isPinned
-        ? 'โหมด: <strong>ล็อกตำแหน่งห่วง</strong>'
-        : 'โหมด: <strong>ตรวจจับอัตโนมัติ</strong>';
+      this.rimStatusText.textContent = t(isPinned ? 'rimModeLocked' : 'rimModeAuto');
     }
   }
 
@@ -371,7 +398,7 @@ export class UIController {
       const updateFullscreenIcon = () => {
         const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
         this.btnFullscreen.textContent = isFull ? '🗗' : '⛶';
-        this.btnFullscreen.title = isFull ? 'ออกจากโหมดเต็มจอ' : 'เต็มจอ (Fullscreen)';
+        this._updateFullscreenLabels();
 
         const appEl = document.getElementById('app');
         if (appEl) {
@@ -502,15 +529,7 @@ export class UIController {
     }
 
     if (this.modelInfoText) {
-      const descriptions = {
-        'roboflow-default': 'ตรวจจับห่วง ลูกบาส และผู้เล่น (Roboflow Universe v4 · โมเดลหลัก Cloud ความเสถียรสูงสุด)',
-        'roboflow-cricket': 'โมเดลชุดใหญ่ 9,500+ รูป (cricket-qnb5l/basketball-xil7x/1 · ตรวจจับ ball, person, rim)',
-        'roboflow-devinross': 'ตรวจจับลูกบาสและลูกลงห่วง (Devin Ross 8,150 รูป · เหมาะที่สุดเมื่อใช้ร่วมกับโหมดล็อกห่วง)',
-        'local-onnx-swish': '⚡ Local ONNX: Swish-Vision (11.7 MB) Fine-tuned Basketball-1 ล็อกเฉพาะลูกบาสและห่วง ไม่ตีกรอบรวมกับคน (ออฟไลน์ 100%)',
-        'local-onnx-swish-int8': '⚡ Local ONNX: Swish INT8 (3.3 MB) เวอร์ชันบีบอัดจิ๋วพิเศษ โหลดไว ประหยัดแรม (ออฟไลน์ 100%)',
-        'roboflow-custom': 'ใช้โมเดล Roboflow Universe ของคุณเอง (กรอก Model ID และ API Key ด้านล่าง)',
-      };
-      this.modelInfoText.textContent = descriptions[modelType] || 'เลือกโมเดลตรวจจับ AI';
+      this.modelInfoText.textContent = t(modelType ? `model.${modelType}` : 'chooseModel');
       this.modelInfoText.classList.toggle('highlight', modelType && modelType.startsWith('local-onnx'));
     }
   }
@@ -785,23 +804,23 @@ export class UIController {
 
       if (d.isManual) {
         color = '#38BDF8';
-        label = 'RIM (PINNED)';
+        label = t('labelLockedRim');
         fillColor = 'rgba(56, 189, 248, 0.12)';
       } else if (isMade) {
         color = '#22C55E';
-        label = 'MADE';
+        label = t('labelMade');
         fillColor = 'rgba(34, 197, 94, 0.15)';
       } else if (isBall) {
         color = '#E06338';
-        label = 'BALL';
+        label = t('labelBall');
         fillColor = 'rgba(224, 99, 56, 0.12)';
       } else if (isRim) {
         color = '#38BDF8';
-        label = 'RIM';
+        label = t('labelRim');
         fillColor = 'rgba(56, 189, 248, 0.1)';
       } else if (isPerson) {
         color = '#64748B';
-        label = 'PLAYER';
+        label = t('labelPerson');
         fillColor = 'rgba(100, 116, 139, 0.08)';
       }
 
@@ -845,10 +864,11 @@ export class UIController {
 
       ctx.setLineDash([]);
       ctx.fillStyle = '#00FF88';
-      ctx.fillRect(x, y > 24 ? y - 24 : y, 120, 22);
+      ctx.font = 'bold 12px Outfit, sans-serif';
+      ctx.fillRect(x, y > 24 ? y - 24 : y, ctx.measureText(t('drawingRim')).width + 16, 22);
       ctx.fillStyle = '#0F0F1A';
       ctx.font = 'bold 12px Outfit, sans-serif';
-      ctx.fillText('🎯 กำหนดห่วง...', x + 8, (y > 24 ? y - 24 : y) + 15);
+      ctx.fillText(t('drawingRim'), x + 8, (y > 24 ? y - 24 : y) + 15);
       ctx.restore();
     }
   }
@@ -926,13 +946,19 @@ export class UIController {
    * @param {string} message 
    */
   showError(message) {
+    this.statusMessage = { message, error: true };
+    this._renderStatus();
+  }
+
+  _renderStatus() {
+    const { message, error } = this.statusMessage;
     if (this.statusIndicator && this.statusText) {
       this.statusIndicator.classList.remove('hidden');
       if (this.statusSpinner) {
-        this.statusSpinner.style.display = 'none';
+        this.statusSpinner.style.display = error ? 'none' : 'block';
       }
-      this.statusText.textContent = `❌ ${message}`;
-      this.statusText.style.color = 'var(--color-danger)';
+      this.statusText.textContent = translateMessage(message);
+      this.statusText.style.color = error ? 'var(--color-danger)' : 'var(--text-main)';
     }
   }
 
@@ -940,21 +966,16 @@ export class UIController {
    * Show loading overlay indicator
    * @param {string} [message='กำลังโหลด...']
    */
-  showLoading(message = 'กำลังโหลด...') {
-    if (this.statusIndicator && this.statusText) {
-      this.statusIndicator.classList.remove('hidden');
-      if (this.statusSpinner) {
-        this.statusSpinner.style.display = 'block';
-      }
-      this.statusText.textContent = message;
-      this.statusText.style.color = 'var(--text-main)';
-    }
+  showLoading(message = { key: 'loading' }) {
+    this.statusMessage = { message, error: false };
+    this._renderStatus();
   }
 
   /**
    * Hide loading/status overlay
    */
   hideLoading() {
+    this.statusMessage = null;
     if (this.statusIndicator) {
       this.statusIndicator.classList.add('hidden');
     }
@@ -984,7 +1005,8 @@ export class UIController {
     if (!devices || devices.length === 0) {
       const opt = document.createElement('option');
       opt.value = '';
-      opt.textContent = '📷 ไม่พบกล้อง';
+      opt.textContent = t('noCamera');
+      opt.dataset.noCamera = 'true';
       this.cameraSelect.appendChild(opt);
       return;
     }
@@ -992,7 +1014,8 @@ export class UIController {
     devices.forEach((dev, idx) => {
       const opt = document.createElement('option');
       opt.value = dev.deviceId;
-      opt.textContent = dev.label || `📷 กล้อง ${idx + 1}`;
+      opt.textContent = dev.label || t('cameraNumber', { number: idx + 1 });
+      if (!dev.label) opt.dataset.cameraNumber = String(idx + 1);
       if (dev.deviceId === activeDeviceId) {
         opt.selected = true;
       }
@@ -1027,24 +1050,29 @@ export class UIController {
   }
 
   updatePracticeControls({ state, cameraReady, modelReady, rimReady, canPractice, cameraLoading, modelLoading, cameraError, modelError }) {
+    this.practiceView = { state, cameraReady, modelReady, rimReady, canPractice, cameraLoading, modelLoading, cameraError, modelError };
     if (this.practiceButton) {
-      const text = state === 'practice' ? 'พักการฝึกซ้อม' : state === 'paused' ? 'ฝึกซ้อมต่อ' : 'เริ่มฝึกซ้อม';
+      const text = t(state === 'practice' ? 'pausePractice' : state === 'paused' ? 'resumePractice' : 'startPractice');
       if (this.practiceButton.textContent !== text) this.practiceButton.textContent = text;
       this.practiceButton.disabled = state !== 'practice' && !canPractice;
     }
     if (this.openCameraButton) {
       this.openCameraButton.disabled = cameraLoading;
-      this.openCameraButton.textContent = cameraLoading ? 'กำลังเปิดกล้อง…' : cameraReady ? 'เปิดกล้องอีกครั้ง' : 'เปิดกล้อง';
+      this.openCameraButton.textContent = t(cameraLoading ? 'openingCamera' : cameraReady ? 'reopenCamera' : 'openCamera');
     }
     if (this.cameraSelect) this.cameraSelect.disabled = cameraLoading || !cameraReady;
     if (this.btnApplyModel) this.btnApplyModel.disabled = modelLoading;
     for (const button of [this.btnPinRim, this.btnSettingsPinRim]) {
       if (button) button.disabled = !cameraReady || cameraLoading;
     }
-    const readiness = `กล้อง: ${cameraReady ? 'พร้อม' : cameraLoading ? 'กำลังเปิด' : 'ยังไม่พร้อม'} · โมเดล: ${modelReady ? 'พร้อม' : modelLoading ? 'กำลังโหลด' : 'ยังไม่พร้อม'} · ห่วง: ${rimReady ? 'พร้อม' : 'ยังไม่พร้อม'}`;
-    const recovery = cameraError ? ` — ${cameraError} กดเปิดกล้องเพื่อลองอีกครั้ง`
-      : modelError ? ` — ${modelError} เปิดการตั้งค่าแล้วกดเปลี่ยนโมเดลเพื่อลองอีกครั้ง` : '';
-    const text = `${state === 'practice' ? 'กำลังฝึกซ้อม' : state === 'paused' ? 'พักการฝึกซ้อม' : 'เตรียมพร้อม'} — ${readiness}${recovery}`;
+    const readiness = t('readiness', {
+      camera: t(cameraReady ? 'ready' : cameraLoading ? 'opening' : 'notReady'),
+      model: t(modelReady ? 'ready' : modelLoading ? 'loadingShort' : 'notReady'),
+      rim: t(rimReady ? 'ready' : 'notReady'),
+    });
+    const recovery = cameraError ? ` — ${translateMessage(cameraError)} ${t('cameraRetry')}`
+      : modelError ? ` — ${translateMessage(modelError)} ${t('modelRetry')}` : '';
+    const text = `${t(state === 'practice' ? 'practice' : state === 'paused' ? 'paused' : 'setup')} — ${readiness}${recovery}`;
     if (this.practiceReadiness && this.practiceReadiness.textContent !== text) this.practiceReadiness.textContent = text;
   }
 
