@@ -39,6 +39,19 @@
       </div>
     </header>
 
+    <section class="practice-controls" aria-label="ควบคุมการฝึกซ้อม">
+      <p id="camera-explanation">กดเปิดกล้องเพื่ออนุญาตให้แอปใช้ภาพตรวจจับห่วงและลูกบาส เริ่มนับเมื่อกดเริ่มฝึกซ้อมเท่านั้น</p>
+      <div class="practice-actions">
+        <button type="button" id="btn-open-camera" class="btn btn-secondary" aria-describedby="camera-explanation">เปิดกล้อง</button>
+        <button type="button" id="btn-practice" class="btn btn-primary" disabled aria-describedby="practice-readiness">เริ่มฝึกซ้อม</button>
+      </div>
+      <p id="practice-readiness" role="status" aria-live="polite"></p>
+      <details id="positioning-guide">
+        <summary>วิธีจัดวางกล้อง</summary>
+        <p>วางอุปกรณ์ให้มั่นคงและเห็นห่วงกับทางเดินของลูกบาส ตรวจกรอบห่วงอัตโนมัติ หรือล็อกห่วงเอง แล้วกดเริ่มฝึกซ้อม พักได้โดยคะแนนยังอยู่</p>
+      </details>
+    </section>
+
     <!-- Main Viewport Area -->
     <main class="viewport-container" id="main-viewport">
       <div class="camera-container" id="camera-container">

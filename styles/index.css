@@ -79,6 +79,36 @@ html, body {
   background-color: var(--bg-deep);
 }
 
+/* Practice controls remain outside the camera and its inference lifecycle. */
+.practice-controls {
+  flex: 0 0 auto;
+  z-index: 26;
+  margin-top: calc(58px + env(safe-area-inset-top, 0px));
+  padding: 12px 16px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-medium);
+  font-size: 0.875rem;
+}
+
+.practice-controls p { max-width: 70ch; }
+.practice-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.practice-actions .btn { min-height: 44px; }
+#btn-practice { background: #7F2039; color: #FFFFFF; }
+#btn-practice:hover:not(:disabled) { background: #65192D; }
+#practice-readiness { color: var(--text-muted); }
+#positioning-guide { margin-top: 8px; }
+#positioning-guide summary { cursor: pointer; padding: 6px 0; }
+#positioning-guide p { margin-top: 6px; }
+.practice-controls button:focus-visible,
+.practice-controls summary:focus-visible { outline: 2px solid var(--color-accent-blue); outline-offset: 3px; }
+button:disabled { opacity: 0.55; cursor: not-allowed; }
+.viewport-container { min-height: 0; }
+@media (max-height: 500px) {
+  html, body { overflow-y: auto; }
+  #app { min-height: 650px; height: auto; }
+  #main-viewport { min-height: 240px; }
+}
+
 /* --------------------------------------------------------------------------
    Top Minimal Header
    -------------------------------------------------------------------------- */

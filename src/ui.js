@@ -5,6 +5,18 @@
 
 export class UIController {
   constructor() {
+    this.practiceButton = document.getElementById('btn-practice');
+    this.openCameraButton = document.getElementById('btn-open-camera');
+    this.practiceReadiness = document.getElementById('practice-readiness');
+    const guide = document.getElementById('positioning-guide');
+    if (guide) {
+      try { guide.open = localStorage.getItem('hoop_positioning_seen') !== 'true'; } catch { guide.open = true; }
+      guide.addEventListener('toggle', () => {
+        if (!guide.open) {
+          try { localStorage.setItem('hoop_positioning_seen', 'true'); } catch { /* Guidance remains available without storage. */ }
+        }
+      });
+    }
     this.video = document.getElementById('camera-feed');
     this.canvas = document.getElementById('detection-overlay');
     this.ctx = this.canvas ? this.canvas.getContext('2d') : null;
@@ -243,6 +255,7 @@ export class UIController {
     if (this.rimDrawBanner) this.rimDrawBanner.classList.remove('hidden');
     if (this.btnPinRim) this.btnPinRim.classList.add('btn-pin-active');
     if (this.canvas) this.canvas.classList.add('canvas-drawing-mode');
+    this.onRimChange?.();
   }
 
   /**
@@ -256,6 +269,7 @@ export class UIController {
     if (this.rimDrawBanner) this.rimDrawBanner.classList.add('hidden');
     if (this.btnPinRim) this.btnPinRim.classList.remove('btn-pin-active');
     if (this.canvas) this.canvas.classList.remove('canvas-drawing-mode');
+    this.onRimChange?.();
   }
 
   /**
@@ -278,6 +292,7 @@ export class UIController {
       console.warn('[UIController] Could not save manual rim to localStorage:', err);
     }
     this._updateManualRimUI();
+    this.onRimChange?.();
   }
 
   /**
@@ -604,6 +619,12 @@ export class UIController {
    * Clear bounding box canvas overlay
    */
   clearDetections() {
+    this.ballInterpolatedBox = null;
+    this.lastBallAiTimestamp = null;
+    this.lastBallAiTime = null;
+    this.lastAiBallX = null;
+    this.lastAiBallY = null;
+    this.lastInterpolationTime = null;
     if (this.canvas) {
       const ctx = this.canvas.getContext('2d');
       if (ctx) {
@@ -991,6 +1012,40 @@ export class UIController {
     if (this.btnReset && typeof handler === 'function') {
       this.btnReset.addEventListener('click', () => handler());
     }
+  }
+
+  bindPractice(handler) {
+    this.practiceButton?.addEventListener('click', handler);
+  }
+
+  bindOpenCamera(handler) {
+    this.openCameraButton?.addEventListener('click', handler);
+  }
+
+  bindRimChange(handler) {
+    this.onRimChange = handler;
+  }
+
+  updatePracticeControls({ state, cameraReady, modelReady, rimReady, canPractice, cameraLoading, modelLoading, cameraError, modelError }) {
+    if (this.practiceButton) {
+      const text = state === 'practice' ? 'พักการฝึกซ้อม' : state === 'paused' ? 'ฝึกซ้อมต่อ' : 'เริ่มฝึกซ้อม';
+      if (this.practiceButton.textContent !== text) this.practiceButton.textContent = text;
+      this.practiceButton.disabled = state !== 'practice' && !canPractice;
+    }
+    if (this.openCameraButton) {
+      this.openCameraButton.disabled = cameraLoading;
+      this.openCameraButton.textContent = cameraLoading ? 'กำลังเปิดกล้อง…' : cameraReady ? 'เปิดกล้องอีกครั้ง' : 'เปิดกล้อง';
+    }
+    if (this.cameraSelect) this.cameraSelect.disabled = cameraLoading || !cameraReady;
+    if (this.btnApplyModel) this.btnApplyModel.disabled = modelLoading;
+    for (const button of [this.btnPinRim, this.btnSettingsPinRim]) {
+      if (button) button.disabled = !cameraReady || cameraLoading;
+    }
+    const readiness = `กล้อง: ${cameraReady ? 'พร้อม' : cameraLoading ? 'กำลังเปิด' : 'ยังไม่พร้อม'} · โมเดล: ${modelReady ? 'พร้อม' : modelLoading ? 'กำลังโหลด' : 'ยังไม่พร้อม'} · ห่วง: ${rimReady ? 'พร้อม' : 'ยังไม่พร้อม'}`;
+    const recovery = cameraError ? ` — ${cameraError} กดเปิดกล้องเพื่อลองอีกครั้ง`
+      : modelError ? ` — ${modelError} เปิดการตั้งค่าแล้วกดเปลี่ยนโมเดลเพื่อลองอีกครั้ง` : '';
+    const text = `${state === 'practice' ? 'กำลังฝึกซ้อม' : state === 'paused' ? 'พักการฝึกซ้อม' : 'เตรียมพร้อม'} — ${readiness}${recovery}`;
+    if (this.practiceReadiness && this.practiceReadiness.textContent !== text) this.practiceReadiness.textContent = text;
   }
 
   /**

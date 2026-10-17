@@ -280,6 +280,16 @@ export class ShotTracker {
     console.log('[ShotTracker] Tracker reset to IDLE (score = 0)');
   }
 
+  /** Discard trajectories at practice boundaries, retaining score and cooldown. */
+  clearTrajectory() {
+    this.state = Date.now() < this.cooldownEndTime ? 'COOLDOWN' : 'IDLE';
+    this.previousBallCenterY = null;
+    this.previousBallCenterX = null;
+    this.lastSeenTime = 0;
+    this.lastKnownRimBox = null;
+    this.lastKnownRimTime = 0;
+  }
+
   /**
    * Get current state
    * @returns {'IDLE'|'TRACKING'|'BALL_ABOVE'|'SCORED'|'COOLDOWN'}
