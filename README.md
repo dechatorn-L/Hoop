@@ -1,223 +1,224 @@
-# 🏀 Hoop Shot Counter
+# Hoop Shot Counter
 
-<div align="center">
+เว็บนับลูกบาสลงห่วงจากกล้อง สำหรับซ้อมคนเดียว เปิดบนคอมหรือมือถือได้
+ใช้ JavaScript, Vite, Roboflow, ONNX และ Web Audio
 
-![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
-![JavaScript](https://img.shields.io/badge/Vanilla_JS-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
-![Roboflow](https://img.shields.io/badge/Roboflow-Inference-8A2BE2?style=for-the-badge&logo=roboflow&logoColor=white)
-![Web Audio](https://img.shields.io/badge/Web_Audio_API-00E676?style=for-the-badge&logo=soundcharts&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
+กล้องเป็นพื้นที่หลัก คะแนนอ่านใกล้หน้าจอได้ กดขยายเพื่อให้กล้องเต็มพื้นที่จอ
+พร้อมคะแนน ปุ่มเริ่ม/พัก และไอคอนย่อที่ลอยบนภาพ
 
-**Real-Time Computer Vision Basketball Shot Tracking & Audio Feedback Web Application**
+[เริ่มรัน](#quick-start) · [วิธีซ้อม](#practice) · [เปิดบนมือถือ](#mobile) ·
+[โมเดลและการตั้งค่า](#settings) · [ทดสอบ](#tests) · [แก้ปัญหา](#troubleshooting) ·
+[โครงสร้างโปรเจกต์](#structure)
 
-[Live Demo](#quick-start) • [Architecture](docs/ARCHITECTURE.md) • [Documentation Hub](docs/INDEX.md) • [Roadmap](docs/ROADMAP.md)
+<a id="quick-start"></a>
 
-</div>
+## เริ่มรัน
 
----
+ต้องมี Node.js `^20.19.0 || >=22.12.0`, npm และกล้องที่เบราว์เซอร์เข้าถึงได้
 
-## 📖 Overview
-
-**Hoop Shot Counter** is a browser-based, client-side computer vision application designed to automatically track basketball shots and count completed baskets in real time using your device's camera (Webcam or Smartphone). 
-
-Powered by **Roboflow Inference.js** and pre-trained YOLO object detection models, the system tracks the ball's trajectory relative to the rim and triggers instant spatial audio feedback (Swish, Buzzer, Crowd Cheer, or Custom Audio) upon a successful s## ✨ Key Features
-
-- 🤖 **Multi-Model Detection Suite**: Choose between **Roboflow Universe (Cloud)** or **Local ONNX Suite (Offline 100%)** directly from the UI.
-- ⚡ **Local ONNX & WebGPU Acceleration**: Runs YOLOv8 `Swish-Vision (11.7 MB)` client-side via `onnxruntime-web/all` (WebGPU JSEP) with **~30.9ms latency (10.7x speedup)** and zero cloud latency.
-- 🧮 **Decoupled 60 FPS Kinematic Projectile Interpolator**: Decouples UI rendering from AI inference, running camera & bounding boxes at a locked **60.0 FPS** with continuous gravity projectile physics ($g=980\text{ px/s}^2$).
-- 🎯 **Universal Manual Rim Pinning & ⚡ Hoop ROI Turbo**: Pin exact rim coordinates on canvas and crop the Action Zone on the GPU, accelerating heavy models (`Cricket 9.5K`, `Devin Ross`) by **3x (80–110ms)**.
-- 📐 **Continuous Trajectory Raycast Crossing**: Line-segment intersection math captures high-speed swishes and dunks without frame tunneling or dropped points.
-- 🛡️ **Anti-Confusion & Rebound Rejection**: Spatial cylinder validation and upward velocity rejection prevent premature or false scoring.
-- 💾 **Smart LocalStorage Persistence**: Remembers custom Model IDs, API keys, selected presets, and manual rim coordinates across sessions.
-- 💡 **In-App Model Comparison Guide**: Built-in interactive guide popup explaining accuracy, latency, and best scenarios for each model.
-- 🔊 **Low-Latency Dynamic Web Audio**: Audio effects with `latencyHint: 'interactive'` for instant (<10ms) playback on made baskets.
-- 📱 **Mobile-First & Stadium UI**: Dark glassmorphism interface with neon score counters, live latency metrics, and front/rear camera switching.
-- 🔒 **Zero-Config Mobile HTTPS & Tunneling**: All-in-One Cloudflare Tunnel integration spinning up Vite with public mobile HTTPS access and QR code.
-
----
-
-## 🏗️ System Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         INPUT LAYER                                 │
-│                                                                     │
-│   📷 Camera Stream ──► HTML5 Video Element                         │
-│                              │                                      │
-│                              ▼                                      │
-│                   Canvas 2D Overlay (Locked 60 FPS)                 │
-│                              ▲                                      │
-└──────────────────────────────┼──────────────────────────────────────┘
-                               │
-          ┌────────────────────┴────────────────────┐
-          │                                         │
-          ▼                                         │
-┌─────────────────────────────────────┐             │
-│   DETECTION LAYER (Background Async)│             │
-│                                     │             │
-│   Unified Detector                  │             │
-│     ├── GPU WebGL ──► Roboflow      │             │
-│     │                  Engine       │             │
-│     └── Web Worker ──► ONNX Suite   │             │
-│          WebGPU        (30.9ms)     │             │
-│                                     │             │
-│   (Auto Fallback: Cloud → Local)    │             │
-└──────────────┬──────────────────────┘             │
-               │                                    │
-               ▼                                    │
-┌─────────────────────────────────────┐             │
-│   TRACKING & KINEMATICS ENGINE      │             │
-│                                     │             │
-│   Spatial Trajectory Tracker        │             │
-│         │                           │             │
-│         ▼                           │             │
-│   Raycast Rim Crossing?             │             │
-│     ├── Yes ──► Score +1 ───────┐   │             │
-│     └── No  ──► Kinematic       │   │             │
-│                 Extrapolator ───┼───┼─────────────┘
-│                 (60 FPS)        │   │    (feeds Canvas)
-└─────────────────────────────────┼───┘
-                                  │
-               ┌──────────────────┘
-               ▼
-┌─────────────────────────────────────┐
-│   AUDIO & HUD                       │
-│                                     │
-│   🔊 Web Audio (Low Latency <10ms) │
-│   🏆 HUD Scoreboard Glow           │
-└─────────────────────────────────────┘
-```
-
----
-
-## 📁 Project Structure
-
-```text
-hoop/
-├── .agents/                    # Agent Customizations & Skills
-│   ├── rules/                  # Style & guideline rules
-│   └── skills/                 # Custom domain skill (hoop-shot-counter)
-│
-├── docs/                       # Comprehensive Technical Documentation
-│   ├── INDEX.md                # Central Documentation Hub & Navigation
-│   ├── ARCHITECTURE.md         # Full System Architecture & Decoupled 60 FPS Loop
-│   ├── SPEC.md                 # Technical Specifications & Acceptance Criteria
-│   ├── STYLE_GUIDE.md          # UI Design Tokens, Colors & Glassmorphism
-│   ├── ROADMAP.md              # Feature Roadmap & Optimization Strategy
-│   ├── DEPLOYMENT.md           # Mobile Tunneling & HTTPS Setup Guide
-│   ├── TASK.md                 # Task Checklist, Milestones & Changelog
-│   ├── OPTIMIZATION_SPEED.md   # Empirical Benchmarks & Hardware Audit Report
-│   └── PROMPT_GUIDE.md         # AI Prompt Templates & Checklists
-│
-├── public/                     # Static Assets & Offline Models
-│   ├── benchmark.html          # In-Browser Real Hardware Benchmark Harness
-│   └── models/
-│       └── basketball_swish_yolov8.onnx # Swish-Vision YOLOv8n (11.7 MB · WebGPU / WASM)
-│
-├── scripts/                    # Development & Tunneling Utilities
-│   ├── start-tunnel-cf.js      # All-in-One Cloudflare Tunnel + Auto Dev Runner
-│   ├── get-ip.js               # Discover local LAN IP for mobile testing
-│   └── generate-sounds.js      # Synthesize fallback audio files
-│
-├── sounds/                     # Sound Effect Assets (.wav)
-│   ├── cha-ching.wav           # Cash register sound (Default)
-│   ├── fahhhh.wav              # Swoosh/air sound FX
-│   └── green-giant.wav         # Crowd celebration sound
-│
-├── src/                        # Core Application Source Code
-│   ├── camera.js               # Camera stream lifecycle & device switcher
-│   ├── config.js               # Model presets & default configurations
-│   ├── detector.js             # Unified multi-provider detector manager & ROI Cropper
-│   ├── onnx-detector.js        # Main-thread ONNX fallback engine
-│   ├── onnx-worker-detector.js # Dedicated Web Worker manager for ONNX
-│   ├── shot-tracker.js         # Continuous Raycast Crossing shot tracking engine
-│   ├── sound-manager.js        # Low-latency Web Audio API sound engine
-│   ├── ui.js                   # UI controller, 60 FPS interpolator & manual rim tool
-│   ├── main.js                 # Mediator & decoupled 60 FPS loop coordinator
-│   └── worker/
-│       └── onnx.worker.js      # Background WebGPU/WASM ONNX inference worker
-│
-├── styles/
-│   └── index.css               # Design system & dark glassmorphism styling
-├── .env.example                # Environment variables template
-├── index.html                  # Main application markup & Settings drawer
-├── package.json                # Project dependencies & npm scripts
-└── vite.config.js              # Vite configuration & HTTPS plugin
-```
-
----
-
-## ⚡ Quick Start
-
-### Prerequisites
-- [Node.js](https://nodejs.org/) (version 18 or higher recommended)
-- A device with a working webcam or smartphone camera
-- *(Optional)* [Roboflow API Key](https://roboflow.com/) for custom model training
-
-### Installation
-
-```bash
-# 1. Clone the repository
+```sh
 git clone https://github.com/dechatorn-L/Hoop.git
 cd Hoop
-
-# 2. Install dependencies
-npm install
-
-# 3. Setup environment variables (optional for default key)
-cp .env.example .env
-
-# 4. Start local development server (with HTTPS)
+npm ci
 npm run dev
 ```
 
-Open `https://localhost:5173` in your browser. (Accept the self-signed SSL certificate in your browser).
+เปิด [https://localhost:5173](https://localhost:5173) และตรวจ URL ที่ Vite แสดงใน terminal
+เซิร์ฟเวอร์พัฒนาใช้ใบรับรอง HTTPS แบบ self-signed จึงอาจมีข้อความเตือนจากเบราว์เซอร์
+กด `Ctrl+C` ใน terminal เพื่อหยุดเซิร์ฟเวอร์
 
----
+**ยังไม่ต้องสร้าง `.env` เพื่อใช้ Local ONNX** หากไม่มี Roboflow key แอปจะเลือก Local Swish แทน
+ไฟล์โมเดล Swish และ Swish INT8 อยู่ใน `public/models/`
 
-## 📱 Testing on Mobile / Outdoor Court
+<a id="practice"></a>
 
-To use your smartphone camera on an actual basketball hoop, you need an HTTPS connection to grant camera permissions:
+## วิธีซ้อม
 
-### Option 1: Zero-Config Cloudflare Tunnel (Recommended)
-```bash
+1. วางอุปกรณ์ให้มั่นคง ให้เห็นห่วงและทางผ่านของลูกบาส
+2. กด **เปิดกล้อง** แล้วอนุญาตสิทธิ์กล้อง เลือกกล้องที่ต้องการใน **การควบคุม**
+3. รอให้กล้อง โมเดล และกรอบห่วงพร้อม หากตรวจห่วงไม่พบ ให้กด **ล็อกห่วง**
+4. กำหนดกรอบด้วยการลากหรือแตะสองมุม แล้วกด **ยืนยันกรอบห่วง**
+5. กด **เริ่มฝึกซ้อม** จึงเริ่มนับลูกที่ลง การเตรียมกล้องอย่างเดียวจะยังไม่นับ
+6. กด **พักการฝึกซ้อม** เพื่อพัก คะแนนและภาพกล้องยังอยู่ กด **ฝึกซ้อมต่อ** เพื่อซ้อมต่อ
+
+| การทำงาน | สิ่งที่เกิดขึ้น |
+| --- | --- |
+| ขยายกล้อง | กล้องใช้เต็มพื้นที่จอ คะแนนและปุ่มควบคุมลอยบนภาพ |
+| กดไอคอนย่อมุมขวาบน | กลับหน้าปกติ โดยคงคะแนนและสถานะการซ้อม |
+| เปลี่ยนกล้องหรือแก้กรอบห่วง | พักการนับ ต้องตรวจความพร้อมและกดซ้อมต่อเอง |
+| ยกเลิกกรอบห่วง | เก็บกรอบเดิมและคะแนน ไม่บันทึกกรอบร่าง |
+| รีเซ็ต | ขอการยืนยันก่อนล้างคะแนน โดยเก็บการตั้งค่ากล้อง ห่วง โมเดล และเสียง |
+
+ภาพกล้องแสดงครบเฟรม ไม่ตัดขอบ หากสัดส่วนภาพต่างจากจอ อาจมีขอบดำ
+กรอบตรวจจับและตำแหน่งห่วงใช้พิกัดภาพเดียวกันทั้งแนวตั้งและแนวนอน
+ระหว่างตีกรอบห่วง ปุ่มยืนยัน/ยกเลิกจะอยู่ภายนอกภาพเพื่อไม่บังจุดที่ต้องเลือก
+
+หากเบราว์เซอร์ไม่รองรับหรือปฏิเสธ fullscreen แอปจะขยายภายในหน้าเว็บแทน
+คะแนนปัจจุบันไม่ได้เก็บเป็นประวัติข้ามการรีโหลดหน้า
+
+<a id="mobile"></a>
+
+## เปิดบนมือถือ
+
+### ผ่าน Cloudflare Tunnel
+
+```sh
 npm run tunnel:cf
 ```
-*Generates a public temporary HTTPS URL (e.g. `https://xxxx.trycloudflare.com`) accessible from any mobile browser.*
 
-### Option 2: Local Area Network (Wi-Fi)
-```bash
+สคริปต์จะใช้เซิร์ฟเวอร์ที่พอร์ต `5173` หรือเปิด Vite ให้หากยังไม่มี
+เปิดลิงก์ HTTPS ชั่วคราวที่ terminal แสดงบนมือถือ ไม่จำเป็นต้องใช้ Wi-Fi เดียวกัน
+URL นี้เข้าถึงได้จากภายนอกเครื่อง จึงควรแชร์เฉพาะผู้ที่ต้องการให้ทดสอบ
+
+กด `Ctrl+C` เพื่อปิด tunnel สคริปต์จะสั่งหยุด Vite ที่มันเปิดให้ด้วย
+หากเปิด Vite เองอยู่ก่อน ให้หยุดจาก terminal ของ Vite แยกต่างหาก
+
+### ผ่านเครือข่ายเดียวกัน
+
+เปิด Vite ด้วย `npm run dev` แล้วเปิด terminal อีกหน้าหนึ่ง:
+
+```sh
 npm run ip
-# Then connect to https://<YOUR_LOCAL_IP>:5173 on your mobile phone on the same Wi-Fi
 ```
 
----
+นำ URL รูปแบบ `https://<IP-ของคอม>:5173/` ไปเปิดบนมือถือที่อยู่เครือข่ายเดียวกัน
+ตรวจ firewall และใบรับรอง HTTPS หากเข้าไม่ได้
 
-## 📚 Documentation Suite
+การเข้าถึงกล้องต้องใช้ secure context การเปิดหน้าเว็บได้หรือผ่านคำเตือนใบรับรองได้
+ยังไม่รับรองว่าเบราว์เซอร์จะอนุญาตกล้อง หากติดปัญหาใบรับรอง ให้ใช้ tunnel ที่มี HTTPS ใช้งานได้
 
-| Document | Description |
-|---|---|
-| [**INDEX.md**](docs/INDEX.md) | Central hub and overview for all project documentation |
-| [**ARCHITECTURE.md**](docs/ARCHITECTURE.md) | Deep dive into FSM state transitions, coordinate mapping, and module APIs |
-| [**SPEC.md**](docs/SPEC.md) | Formal functional requirements, FPS limits, and detection tolerances |
-| [**STYLE_GUIDE.md**](docs/STYLE_GUIDE.md) | UI design system, color tokens (`#FF6B35`), and typography |
-| [**ROADMAP.md**](docs/ROADMAP.md) | Strategic feature expansions (Accuracy %, Pose estimation, WebGPU) |
-| [**DEPLOYMENT.md**](docs/DEPLOYMENT.md) | HTTPS configuration, local tunnel setup, and mobile troubleshooting |
-| [**TASK.md**](docs/TASK.md) | Detailed sprint checklist and verification history |
+<a id="settings"></a>
 
----
+## โมเดลและการตั้งค่า
 
-## 🌐 Browser Compatibility
+เปิด **การควบคุม → การตั้งค่า** เพื่อเลือกภาษา โมเดล เสียง ระดับเสียง และความไวตรวจจับ
+เปลี่ยนภาษาไทย/อังกฤษได้ทันที โดยไม่เริ่มกล้องใหม่หรือล้างคะแนน
 
-| Browser | Platform | Support | Notes |
-|---|---|---|---|
-| **Google Chrome** | Desktop / Android | ✅ Recommended | Full WebGL & Web Audio hardware acceleration |
-| **Safari** | iOS (14.3+) / macOS | ✅ Supported | Requires HTTPS for `getUserMedia` |
-| **Mozilla Firefox** | Desktop / Android | ✅ Supported | Full support |
-| **Microsoft Edge** | Desktop | ✅ Supported | Chromium engine |
+### เลือกโมเดล
 
----
+| ตัวเลือก | การทำงาน | สิ่งที่ต้องมี |
+| --- | --- | --- |
+| Local ONNX: Swish-Vision | ตรวจจับในเครื่องผ่าน Web Worker | `public/models/basketball_swish_yolov8.onnx` |
+| Local ONNX: Swish INT8 | ทางเลือกโมเดลขนาดเล็กกว่า | `public/models/basketball_swish_yolov8_int8.onnx` |
+| Roboflow: Main / Cricket / Devin Ross | โหลดโมเดลผ่าน `inferencejs` | อินเทอร์เน็ตและ Roboflow publishable key |
+| Roboflow: Custom Model ID | ใช้โมเดลที่กำหนดเอง | Model ID รูปแบบ `project/version` และ publishable key |
 
-## 📄 License
+Local ONNX จะลอง WebGPU ก่อน และใช้ WASM หากเริ่ม WebGPU ไม่ได้
+Roboflow โหลดไม่สำเร็จจะลอง Local Swish แทน หากโมเดลสำรองพร้อมใช้งาน
 
-This project is licensed under the [MIT License](LICENSE).
+**Local inference ไม่ได้แปลว่าออฟไลน์ทั้งหมด** ตัว worker ยังอ้างอิงไฟล์ runtime จาก CDN
+การใช้งานจึงอาจต้องโหลดทรัพยากรผ่านอินเทอร์เน็ต ไม่มีการรับรอง FPS หรือความแม่นยำเท่ากันทุกเครื่อง
+
+`ROI Turbo` จำกัดพื้นที่ตรวจจับรอบห่วงในเส้นทาง Roboflow เมื่อมีกรอบห่วง
+ผลด้านความเร็วขึ้นกับโมเดลและอุปกรณ์ ไม่ใช่คำรับรองว่าจะเร็วขึ้นตามอัตราตายตัว
+
+### Roboflow key และ `.env`
+
+สำหรับ Roboflow ให้ใส่ publishable key ในหน้าตั้งค่าโมเดล หรือกำหนด `VITE_ROBOFLOW_API_KEY` ใน `.env`
+หากยังไม่มี `.env` คัดลอกแม่แบบด้วย PowerShell โดยไม่ทับไฟล์เดิม:
+
+```powershell
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
+```
+
+เปลี่ยนค่า placeholder เป็น publishable key ของคุณ หรือเว้นค่า `VITE_ROBOFLOW_API_KEY` ว่างเพื่อใช้ Local Swish
+หากต้องการ Model ID อื่น ให้เลือก **Roboflow: Custom Model ID** ในแอป
+หลังแก้ `.env` ให้เริ่ม Vite ใหม่
+
+- ตัวแปร `VITE_*` อยู่ในโค้ดที่ส่งให้เบราว์เซอร์ ใช้เฉพาะ key ที่เผยแพร่ฝั่ง client ได้
+- Custom Roboflow key ที่กรอกในแอปถูกเก็บใน `localStorage` ของเบราว์เซอร์นั้น
+- `NOTION_API_KEY` และ `NOTION_API_VERSION` ใช้กับตัวติดตามงานเท่านั้น ไม่จำเป็นต่อการเปิดแอป และห้ามใช้ชื่อขึ้นต้น `VITE_`
+- อย่า commit `.env` หรือใส่ private key ใน README
+
+### เสียงและข้อมูลที่จำไว้
+
+เลือกเสียงสำเร็จรูป สุ่มเสียง หรืออัปโหลดไฟล์เสียงของตัวเองได้ ขนาดสูงสุด 10 MiB
+กด **ทดสอบเสียง** และปรับระดับเสียงก่อนซ้อม ไฟล์เสียงที่อัปโหลดต้องเลือกใหม่หลังรีโหลดหน้า
+
+แอปจำภาษา โมเดล กรอบห่วง และตัวเลือก ROI ผ่าน `localStorage` เมื่อเบราว์เซอร์อนุญาต
+การล้างข้อมูลเว็บไซต์จะล้างค่าที่บันทึกไว้ด้วย
+
+<a id="tests"></a>
+
+## คำสั่งพัฒนาและทดสอบ
+
+| คำสั่ง | ใช้ทำอะไร |
+| --- | --- |
+| `npm ci` | ติดตั้ง dependency ตาม lockfile |
+| `npm run dev` | เปิดเซิร์ฟเวอร์พัฒนา HTTPS ที่พอร์ต 5173 |
+| `npm run build` | สร้างไฟล์ production ใน `dist/` |
+| `npm run preview` | เปิดดู build บนเครื่อง ดู URL จาก terminal |
+| `npm run tunnel:cf` | เปิด tunnel และเปิด Vite ให้หากจำเป็น |
+| `npm run ip` | แสดง IP และ URL สำหรับเครือข่ายเดียวกัน |
+| `node tests/repro-test.mjs` | ตรวจ scoring และ sound-selection logic |
+
+Browser tests ต้องมีแพ็กเกจ `playwright` และ Chromium ที่เรียกใช้งานได้
+แพ็กเกจนี้ไม่ได้อยู่ใน dependencies ของแอป จากนั้นเปิด `npm run dev` ค้างไว้และรัน:
+
+```sh
+node tests/practice-test.mjs
+node tests/camera-view-test.mjs
+```
+
+| ตัวแปรสำหรับ browser tests | ความหมาย |
+| --- | --- |
+| `HOOP_PLAYWRIGHT_MODULE` | ชื่อหรือ absolute path ของแพ็กเกจ Playwright ที่ติดตั้งไว้ |
+| `HOOP_BROWSER_CHANNEL` | เลือก browser channel เช่น `chrome` หรือ `msedge` หากติดตั้งไว้ |
+| `HOOP_TEST_URL` | URL เซิร์ฟเวอร์ทดสอบ ค่าเริ่มต้นคือ `https://localhost:5173/` |
+
+ชุดทดสอบครอบคลุมการเริ่ม/พักซ้อม ภาษา การบันทึกค่า กรอบห่วง การหมุนจอ
+การขยายกล้อง และการรักษาคะแนน บางกรณีใช้ผลกล้อง/โมเดลจำลองหรือภาพทดสอบที่ระบุชัด
+ผลผ่านใน desktop browser ไม่แทนการทดสอบกล้อง เสียง และการสัมผัสบนมือถือจริง
+
+### สถานะการตรวจสอบ
+
+มี automated browser checks และ feedback หน้าจอจาก Xiaomi 13 แล้ว
+การยอมรับ UI แยกจากการตรวจซ้อมจริง 10 นาที รวมถึงความแม่นยำ เสียง แสง และการหมุนจอบนอุปกรณ์จริง
+ไม่ถือว่า Safari, iPad หรือ Android tablet ผ่านการทดสอบจากผลบน desktop หรือ Xiaomi เพียงเครื่องเดียว
+ติดตามงานและหลักฐานล่าสุดใน [Notion: Hoop Shot Counter](https://app.notion.com/p/3f48a6cad3568165aa11d2cebc7d11ad) ซึ่งต้องมีสิทธิ์เข้าถึง
+
+<a id="troubleshooting"></a>
+
+## แก้ปัญหาเบื้องต้น
+
+| อาการ | ตรวจอะไร |
+| --- | --- |
+| เปิดกล้องไม่ได้ | ตรวจ HTTPS สิทธิ์กล้องของเว็บไซต์ และปิดแอปอื่นที่ใช้กล้องอยู่ |
+| ปุ่มเริ่มซ้อมกดไม่ได้ | อ่านสถานะกล้อง โมเดล และห่วง หากไม่มีห่วง ให้กำหนดกรอบเอง |
+| โมเดลโหลดไม่สำเร็จ | ตรวจอินเทอร์เน็ต key/Model ID และไฟล์โมเดลใน `public/models/` จากนั้นเลือกโมเดลและกดเปลี่ยนโมเดลใหม่ |
+| เสียงไม่ออก | แตะหน้าเว็บหรือกดทดสอบเสียง ตรวจระดับเสียงในแอปและอุปกรณ์ |
+| ขยายแล้วยังมีขอบดำ | เป็นพื้นที่ส่วนเกินจากสัดส่วนจอกับกล้อง ภาพยังแสดงครบเฟรม |
+| เข้าเว็บผ่านมือถือไม่ได้ | ตรวจ URL จาก terminal, เครือข่าย, firewall และว่าเซิร์ฟเวอร์ยังทำงานอยู่ |
+| อ่านค่าที่บันทึกไม่ได้ | เบราว์เซอร์อาจปิด storage ใช้ค่าปัจจุบันต่อได้ แต่บางค่าอาจไม่ถูกจำ |
+
+<a id="structure"></a>
+
+## โครงสร้างโปรเจกต์
+
+| ไฟล์/โฟลเดอร์ | หน้าที่ |
+| --- | --- |
+| [index.html](index.html) | หน้าซ้อม ปุ่มควบคุม และหน้าตั้งค่า |
+| [styles/index.css](styles/index.css) | ธีม Court Journal และ layout ปกติ/เต็มจอ |
+| [src/main.js](src/main.js) | ประสานกล้อง โมเดล สถานะซ้อม คะแนน และเสียง |
+| [src/camera.js](src/camera.js) | ขอสิทธิ์ เปิด/เปลี่ยนกล้อง และปล่อย stream |
+| [src/detector.js](src/detector.js) | เลือก provider จัดการ detection, ROI และ fallback |
+| [src/onnx-worker-detector.js](src/onnx-worker-detector.js) | ดูแล ONNX worker และผลตรวจจับ |
+| [src/worker/onnx.worker.js](src/worker/onnx.worker.js) | เตรียมภาพและรัน ONNX ผ่าน WebGPU/WASM |
+| [src/shot-tracker.js](src/shot-tracker.js) | ติดตามลูกบาส ตรวจลูกลงห่วง และคุม cooldown |
+| [src/ui.js](src/ui.js) | กล้องเต็มจอ กรอบห่วง คะแนน และพฤติกรรม UI |
+| [src/i18n.js](src/i18n.js) | ข้อความภาษาไทย/อังกฤษ |
+| [src/sound-manager.js](src/sound-manager.js) | โหลดและเล่นเสียงผ่าน Web Audio |
+| [src/config.js](src/config.js) | ค่าเริ่มต้นและรายการโมเดล |
+| `public/models/`, `public/fonts/`, `sounds/` | โมเดล ฟอนต์ และเสียง |
+| `scripts/`, `tests/` | เครื่องมือรันโปรเจกต์และชุดทดสอบ |
+
+อ่านต่อ: [บริบทผลิตภัณฑ์](PRODUCT.md) · [ระบบดีไซน์](DESIGN.md) ·
+[คำศัพท์](GLOSSARY.md) · [กติกาสำหรับ Agent](AGENTS.md)
+
+เอกสารใน `docs/` เป็นบันทึกภายในและถูก ignore ใน Git จึงอาจไม่ติดมากับการ clone
+งานและการตัดสินใจใช้ Notion เป็นหลัก เอกสารเก่าบางฉบับอาจอธิบาย UI หรือข้อกำหนดก่อนการปรับล่าสุด
+
+## License
+
+โค้ดโปรเจกต์ใช้ [MIT License](LICENSE)
+ฟอนต์ที่รวมมาใช้ SIL Open Font License ดู [Sarabun](public/fonts/sarabun-OFL.txt) และ [Archivo](public/fonts/archivo-OFL.txt)
