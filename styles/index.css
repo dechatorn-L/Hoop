@@ -16,6 +16,17 @@
   --border-medium: #A8A5A0;
   --font-body: 'Sarabun', sans-serif;
   --font-display: 'Archivo', 'Sarabun', sans-serif;
+  --primary-ink: var(--bg-surface);
+  --primary-active: #531426;
+  --camera-shell: #E8E4DF;
+  --camera-heading: #E2DCD6;
+  --control-radius: 12px;
+  --field-radius: 10px;
+  --camera-radius: 14px;
+  --score-duration: 220ms;
+  --overlay-paper: #1C2534;
+  --overlay-ink: #F8F7F3;
+  --overlay-muted: #58616C;
   font: 400 16px/1.5 var(--font-body);
 }
 * { box-sizing: border-box; }
@@ -25,11 +36,11 @@ button, summary { touch-action: manipulation; cursor: pointer; }
 button, input, select { accent-color: var(--color-primary); caret-color: var(--color-primary); }
 button { font-weight: 600; }
 a { color: var(--color-primary); text-underline-offset: .2em; }
-::selection { background: var(--color-primary); color: var(--bg-surface); }
+::selection { background: var(--color-primary); color: var(--primary-ink); }
 :focus-visible { outline: 3px solid var(--color-primary); outline-offset: 3px; }
 button:disabled, select:disabled { opacity: .6; cursor: not-allowed; }
 button:not(:disabled):active { background: var(--color-primary-subtle); }
-.btn-primary:active:not(:disabled) { background: #531426; }
+.btn-primary:active:not(:disabled) { background: var(--primary-active); }
 button, select, input[type=file] { min-height: 44px; }
 button { overflow-wrap: anywhere; }
 p, h1, h2, h3 { margin: 0; }
@@ -46,11 +57,11 @@ svg { display: block; }
 .score-label { color: var(--text-muted); font-size: .875rem; }
 .score-value { position: relative; display: inline-block; max-width: 100%; padding-bottom: 5px; color: var(--color-primary); font: 800 2rem/1 var(--font-display); font-size: min(2rem, calc(75cqw / var(--score-digits, 3))); font-variant-numeric: tabular-nums; letter-spacing: -.04em; white-space: nowrap; }
 .score-value::after { content: ''; position: absolute; bottom: 0; inset-inline: 4%; height: 3px; background: currentColor; clip-path: inset(0 100% 0 0); }
-.score-value.scored-anim::after { animation: score-baseline 220ms cubic-bezier(.16, 1, .3, 1) both; }
+.score-value.scored-anim::after { animation: score-baseline var(--score-duration) cubic-bezier(.16, 1, .3, 1) both; }
 @keyframes score-baseline { to { clip-path: inset(0); } }
 /* Main Viewport & Camera — both replaced elements use the same contain mapping. */
-.viewport-container { display: flex; flex-direction: column; min-width: 0; background: #E8E4DF; border-radius: 14px; overflow: hidden; }
-.camera-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 12px; font-size: .875rem; background: #E2DCD6; }
+.viewport-container { display: flex; flex-direction: column; min-width: 0; background: var(--camera-shell); border-radius: var(--camera-radius); overflow: hidden; }
+.camera-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 12px; font-size: .875rem; background: var(--camera-heading); }
 .camera-heading span { color: var(--text-muted); }
 .camera-expand { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 10px; }
 .restore-camera-icon, .camera-expand[aria-pressed=true] .expand-camera-icon { display: none; }
@@ -69,7 +80,7 @@ svg { display: block; }
 .secondary-content { display: grid; gap: 14px; padding: 14px 0 4px; }
 #camera-explanation, #positioning-guide p { font-size: .875rem; color: var(--text-muted); max-width: 70ch; }
 #positioning-guide p { padding-top: 8px; }
-summary { min-height: 48px; padding: 11px 14px; border: 1px solid var(--border-medium); border-radius: 12px; font-weight: 600; }
+summary { min-height: 48px; padding: 11px 14px; border: 1px solid var(--border-medium); border-radius: var(--control-radius); font-weight: 600; }
 summary:hover { background: var(--bg-surface-elevated); }
 .bottom-action-bar { display: grid; gap: 12px; }
 .control-group, .field-row { display: grid; gap: 5px; min-width: 0; }
@@ -80,11 +91,11 @@ summary:hover { background: var(--bg-surface-elevated); }
 .rim-draw-banner > button { flex: 1 1 8rem; }
 #rim-draft-status { font-weight: 600; }
 /* General Buttons */
-.btn, .btn-ghost, .btn-cancel-draw { padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border-medium); background: transparent; color: var(--text-main); }
+.btn, .btn-ghost, .btn-cancel-draw { padding: 10px 14px; border-radius: var(--control-radius); border: 1px solid var(--border-medium); background: transparent; color: var(--text-main); }
 .btn:hover:not(:disabled), .btn-ghost:hover, .btn-cancel-draw:hover { background: var(--bg-surface-elevated); }
-.btn-primary, #btn-practice { color: var(--bg-surface); border-color: var(--color-primary); background: var(--color-primary); }
+.btn-primary, #btn-practice { color: var(--primary-ink); border-color: var(--color-primary); background: var(--color-primary); }
 .btn-primary:hover:not(:disabled), #btn-practice:hover:not(:disabled) { background: var(--color-primary-hover); }
-#btn-practice:active:not(:disabled) { background: #531426; }
+#btn-practice:active:not(:disabled) { background: var(--primary-active); }
 .btn-icon { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--border-medium); border-radius: 50%; color: var(--text-main); background: transparent; }
 .btn-icon:hover { background: var(--bg-surface-elevated); }
 .btn-link { min-height: 44px; padding: 6px 0; border: 0; background: transparent; color: var(--color-primary); text-decoration: underline; text-underline-offset: 3px; }
@@ -99,7 +110,7 @@ summary:hover { background: var(--bg-surface-elevated); }
 .section-title-wrap, .section-header-inline { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .val-badge { color: var(--color-primary); font-variant-numeric: tabular-nums; }
 .radio-group { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.radio-label { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 10px; border: 1px solid var(--border-medium); border-radius: 10px; cursor: pointer; font-size: .875rem; }
+.radio-label { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 10px; border: 1px solid var(--border-medium); border-radius: var(--field-radius); cursor: pointer; font-size: .875rem; }
 .radio-label input { flex-shrink: 0; width: 18px; height: 18px; margin: 0; }
 .radio-label:has(input:checked) { background: var(--color-primary-subtle); border-color: var(--color-primary); }
 .radio-label:has(input:focus-visible) { outline: 3px solid var(--color-primary); outline-offset: 2px; }
@@ -111,7 +122,7 @@ summary:hover { background: var(--bg-surface-elevated); }
 .roi-turbo-wrap { display: flex; gap: 16px; align-items: center; justify-content: space-between; }
 .turbo-info { display: grid; }
 .turbo-desc, .field-row label { color: var(--text-muted); font-size: .875rem; }
-.select-input, .text-input { width: 100%; min-width: 0; padding: 10px; background: var(--bg-surface); border: 1px solid var(--border-medium); border-radius: 10px; color: var(--text-main); }
+.select-input, .text-input { width: 100%; min-width: 0; padding: 10px; background: var(--bg-surface); border: 1px solid var(--border-medium); border-radius: var(--field-radius); color: var(--text-main); }
 .text-input::placeholder { color: var(--text-muted); opacity: 1; }
 #custom-sound-file { width: 100%; }
 .model-btn-apply { width: 100%; }
@@ -155,15 +166,15 @@ body.camera-expanded { overflow: hidden; }
 .camera-expanded .viewport-container { position: absolute; inset: 0; grid-area: auto; align-self: stretch; min-height: 0; border-radius: 0; }
 .camera-expanded .camera-heading { position: absolute; z-index: 2; top: max(12px, env(safe-area-inset-top, 0px)); inset-inline-end: max(12px, env(safe-area-inset-right, 0px)); padding: 0; background: transparent; }
 .camera-expanded .camera-heading strong, .camera-expanded .camera-expand-label { display: none; }
-.camera-expanded .camera-expand { width: 48px; height: 48px; padding: 0; border-color: var(--text-muted); background: var(--text-main); color: var(--bg-surface); }
-.camera-expanded .camera-expand:hover { background: var(--text-muted); }
-.camera-expanded .camera-expand:focus-visible { outline-color: var(--bg-surface); }
+.camera-expanded .camera-expand { width: 48px; height: 48px; padding: 0; border-color: var(--overlay-muted); background: var(--overlay-paper); color: var(--overlay-ink); }
+.camera-expanded .camera-expand:hover { background: var(--overlay-muted); }
+.camera-expanded .camera-expand:focus-visible { outline-color: var(--overlay-ink); }
 .camera-expanded .camera-container { flex: 1; min-height: 0; max-height: none; aspect-ratio: auto; }
-.camera-expanded .score-panel { z-index: 1; grid-column: 1 / -1; grid-row: 1; justify-self: start; justify-content: start; width: min(10rem, calc(100% - 64px)); flex-wrap: wrap; gap: 4px 8px; padding: 8px 12px; border-radius: 12px; background: var(--text-main); color: var(--bg-surface); }
+.camera-expanded .score-panel { z-index: 1; grid-column: 1 / -1; grid-row: 1; justify-self: start; justify-content: start; width: min(10rem, calc(100% - 64px)); flex-wrap: wrap; gap: 4px 8px; padding: 8px 12px; border-radius: 12px; background: var(--overlay-paper); color: var(--overlay-ink); }
 .camera-expanded .score-label, .camera-expanded .score-value { color: inherit; }
 .camera-expanded .practice-controls { display: contents; }
 .camera-expanded #btn-practice { z-index: 1; grid-column: 1 / -1; grid-row: 3; justify-self: end; width: auto; max-width: 100%; }
-.camera-expanded #practice-readiness { z-index: 1; grid-column: 1 / -1; grid-row: 4; justify-self: end; max-width: 100%; padding: 6px 10px; border-radius: 10px; background: var(--text-main); color: var(--bg-surface); }
+.camera-expanded #practice-readiness { z-index: 1; grid-column: 1 / -1; grid-row: 4; justify-self: end; max-width: 100%; padding: 6px 10px; border-radius: 10px; background: var(--overlay-paper); color: var(--overlay-ink); }
 .camera-expanded .status-overlay { position: absolute; z-index: 2; inset-inline: 16px; top: 50%; transform: translateY(-50%); max-height: 40%; overflow-y: auto; border-radius: 12px; }
 .camera-expanded #secondary-controls { display: none; }
 .camera-expanded .rim-draw-banner { z-index: 1; grid-column: 1 / -1; grid-row: 3; min-height: 0; max-height: 30dvh; overflow-y: auto; align-content: start; }

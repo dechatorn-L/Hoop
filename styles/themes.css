@@ -1,0 +1,91 @@
+/* Court Journal remains the default. Presets change presentation, never camera pixels. */
+:root[data-theme='night-rally'] {
+  color-scheme: dark;
+  --bg-deep: oklch(19% .012 135);
+  --bg-surface: oklch(19% .012 135);
+  --bg-surface-elevated: oklch(24% .014 135);
+  --text-main: oklch(97% .012 115);
+  --text-muted: oklch(77% .018 125);
+  --text-subtle: var(--text-muted);
+  --color-primary: oklch(88% .19 122);
+  --color-primary-hover: oklch(93% .15 122);
+  --color-primary-subtle: oklch(30% .035 125);
+  --color-danger: oklch(76% .14 28);
+  --border-subtle: oklch(35% .019 135);
+  --border-medium: oklch(57% .025 135);
+  --primary-ink: oklch(20% .025 130);
+  --primary-active: var(--color-primary-hover);
+  --camera-shell: var(--bg-surface-elevated);
+  --camera-heading: var(--bg-surface-elevated);
+  --control-radius: 6px;
+  --field-radius: 6px;
+  --camera-radius: 6px;
+  --score-duration: 180ms;
+}
+:root[data-theme='blue-line'] {
+  color-scheme: light;
+  --bg-deep: oklch(97.7% .008 255);
+  --bg-surface: oklch(97.7% .008 255);
+  --bg-surface-elevated: oklch(94% .018 255);
+  --text-main: oklch(24% .035 260);
+  --text-muted: oklch(44% .035 260);
+  --text-subtle: var(--text-muted);
+  --color-primary: oklch(46% .19 260);
+  --color-primary-hover: oklch(39% .17 260);
+  --color-primary-subtle: oklch(92% .035 260);
+  --border-subtle: oklch(83% .023 255);
+  --border-medium: oklch(59% .04 255);
+  --primary-ink: oklch(99% .004 255);
+  --primary-active: var(--color-primary-hover);
+  --camera-shell: var(--bg-surface-elevated);
+  --camera-heading: var(--bg-surface-elevated);
+  --control-radius: 8px;
+  --field-radius: 8px;
+  --camera-radius: 8px;
+  --score-duration: 200ms;
+}
+:root[data-theme='clay-court'] {
+  color-scheme: light;
+  --bg-deep: oklch(96.5% .022 78);
+  --bg-surface: oklch(96.5% .022 78);
+  --bg-surface-elevated: oklch(92% .025 68);
+  --text-main: oklch(26% .035 45);
+  --text-muted: oklch(44% .035 50);
+  --text-subtle: var(--text-muted);
+  --color-primary: oklch(43% .13 37);
+  --color-primary-hover: oklch(36% .11 37);
+  --color-primary-subtle: oklch(90% .04 47);
+  --border-subtle: oklch(80% .032 65);
+  --border-medium: oklch(58% .045 52);
+  --primary-ink: oklch(98% .015 78);
+  --primary-active: var(--color-primary-hover);
+  --camera-shell: var(--bg-surface-elevated);
+  --camera-heading: var(--bg-surface-elevated);
+  --control-radius: 24px;
+  --field-radius: 16px;
+  --camera-radius: 2px;
+  --score-duration: 240ms;
+}
+.setting-help { color: var(--text-muted); font-size: .875rem; }
+:root[data-theme]:not([data-theme='court-journal']) #app:not(.camera-expanded) .score-panel { justify-content: space-between; padding-block: 8px; }
+:root[data-theme]:not([data-theme='court-journal']) #app:not(.camera-expanded) .score-value { font-size: min(2.5rem, calc(75cqw / var(--score-digits, 3))); }
+:root[data-theme='night-rally'] .brand { font-size: 2.125rem; letter-spacing: -.04em; }
+:root[data-theme='night-rally'] #app:not(.camera-expanded) .score-panel { border-block: 1px solid var(--border-subtle); }
+:root[data-theme='night-rally'] .score-value.scored-anim { animation: score-strike var(--score-duration) cubic-bezier(.16, 1, .3, 1); }
+:root[data-theme='blue-line'] .brand { text-transform: uppercase; letter-spacing: -.025em; }
+:root[data-theme='blue-line'] #app:not(.camera-expanded) .score-panel { border-bottom: 1px solid var(--color-primary); }
+:root[data-theme='blue-line'] .score-value.scored-anim { animation: score-settle var(--score-duration) cubic-bezier(.16, 1, .3, 1); }
+:root[data-theme='clay-court'] .brand { color: var(--color-primary); font-size: 2rem; }
+:root[data-theme='clay-court'] .app-header { border-bottom: 0; }
+:root[data-theme='clay-court'] #app:not(.camera-expanded) .score-panel { justify-content: flex-start; gap: 24px; }
+:root[data-theme='clay-court'] .score-value.scored-anim { animation: score-soft var(--score-duration) cubic-bezier(.16, 1, .3, 1); }
+@keyframes score-strike { from { transform: translateY(2px) scale(.96); opacity: .65; } to { transform: none; opacity: 1; } }
+@keyframes score-settle { from { transform: translateY(3px); opacity: .6; } to { transform: none; opacity: 1; } }
+@keyframes score-soft { from { opacity: .45; } to { opacity: 1; } }
+@media (min-width: 1000px) {
+  :root[data-theme='clay-court'] #app:not(.camera-expanded) .practice-layout { grid-template-columns: minmax(0, 1fr) minmax(260px, .6fr); grid-template-rows: auto auto; }
+  :root[data-theme='clay-court'] #app:not(.camera-expanded) .viewport-container { grid-column: 1 / -1; grid-row: 1; }
+  :root[data-theme='clay-court'] #app:not(.camera-expanded) .camera-container { max-height: 48dvh; }
+  :root[data-theme='clay-court'] #app:not(.camera-expanded) .score-panel { grid-column: 1; grid-row: 2; align-self: start; }
+  :root[data-theme='clay-court'] #app:not(.camera-expanded) .practice-controls { grid-column: 2; grid-row: 2; }
+}

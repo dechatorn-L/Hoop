@@ -3,40 +3,19 @@
  */
 
 export const MODEL_PRESETS = {
-  'roboflow-default': {
-    id: 'roboflow-default',
-    name: 'Roboflow v4: Main (⚡ 30-45 FPS แนะนำ)',
-    provider: 'roboflow',
-    modelId: 'people_basketball_hoops/4',
-    description: 'ตรวจจับห่วง ลูกบาส และคน (โมเดล Cloud ยอดนิยม · ลื่นไหล 30-45 FPS)',
-  },
   'local-onnx-swish': {
     id: 'local-onnx-swish',
-    name: 'Local ONNX: Swish-Vision (⚡ 60 FPS แนะนำ)',
+    name: 'Local ONNX: Swish-Vision (ค่าเริ่มต้น · 11.7 MB)',
     provider: 'onnx',
     modelPath: '/models/basketball_swish_yolov8.onnx',
-    description: 'รันบน Web Worker อิสระ (11.7 MB) ล็อกเฉพาะลูกบาสและห่วง ไม่กินสเปกมือถือ (ออฟไลน์ 100% · 60 FPS)',
+    description: 'ตรวจจับลูกบาสและห่วงบนอุปกรณ์ผ่าน Web Worker ไม่ต้องใช้ API Key',
   },
   'local-onnx-swish-int8': {
     id: 'local-onnx-swish-int8',
     name: 'Local ONNX: Swish INT8 (⚡ 3.3 MB จิ๋วสุด)',
     provider: 'onnx',
     modelPath: '/models/basketball_swish_yolov8_int8.onnx',
-    description: 'เวอร์ชันบีบอัด INT8 ขนาดเพียง 3.3 MB (ลดขนาด 73%) รันลื่น โหลดไว ประหยัดแรม (ออฟไลน์ 100%)',
-  },
-  'roboflow-cricket': {
-    id: 'roboflow-cricket',
-    name: 'Roboflow: Cricket 9.5K Images (🎯 โมเดลละเอียด)',
-    provider: 'roboflow',
-    modelId: 'cricket-qnb5l/basketball-xil7x/1',
-    description: 'โมเดลชุดใหญ่ 9,500+ รูป (cricket-qnb5l/basketball-xil7x/1 · มีระบบ 60 FPS Interpolator ช่วยประมวลผล)',
-  },
-  'roboflow-devinross': {
-    id: 'roboflow-devinross',
-    name: 'Roboflow: Devin Ross (🎯 Made Basket SOTA)',
-    provider: 'roboflow',
-    modelId: 'devin-ross-g0rqc/basketball-ls818/15',
-    description: 'ตรวจจับลูกบาสและจังหวะลูกลงห่วง (Devin Ross 8,150 รูป · เหมาะที่สุดเมื่อใช้ร่วมกับปุ่มล็อกห่วง)',
+    description: 'โมเดลบีบอัด INT8 ขนาด 3.3 MB ยังไม่ได้ยืนยันผลบนอุปกรณ์จริง',
   },
   'roboflow-custom': {
     id: 'roboflow-custom',
@@ -49,9 +28,8 @@ export const MODEL_PRESETS = {
 
 export const DEFAULT_CONFIG = {
   // Detection Model Settings
-  modelType: 'roboflow-default',               // Default preset key from MODEL_PRESETS
+  modelType: 'local-onnx-swish',               // Default preset key from MODEL_PRESETS
   publishableKey: import.meta.env.VITE_ROBOFLOW_API_KEY || '',  // Roboflow Publishable Key
-  modelId: import.meta.env.VITE_ROBOFLOW_MODEL_ID || 'people_basketball_hoops/4',
   onnxModelPath: '/models/basketball_swish_yolov8.onnx',
   confidenceThreshold: 0.35,                   // Min confidence for detection (optimized for fast motion)
   inferenceRate: 20,                           // Inference FPS (throttled)

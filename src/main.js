@@ -265,7 +265,7 @@ export class HoopCounterApp {
     this.primaryRim = null;
     this._updatePracticeControls();
     const { modelType, customModelId, customApiKey } = settings;
-    const preset = MODEL_PRESETS[modelType] || MODEL_PRESETS['roboflow-default'];
+    const preset = Object.hasOwn(MODEL_PRESETS, modelType) ? MODEL_PRESETS[modelType] : MODEL_PRESETS[DEFAULT_CONFIG.modelType];
 
     // Clear old visual bounding boxes immediately
     this.ui.clearDetections();
@@ -294,25 +294,6 @@ export class HoopCounterApp {
           apiKey: apiKey,
           autoFallback: true,
         };
-      } else {
-        // Roboflow presets (default or v3)
-        const apiKey = customApiKey || this.config.publishableKey;
-        if (!apiKey || apiKey === 'rf_live_placeholder') {
-          console.warn('⚠️ No Roboflow API Key found. Switching to Local ONNX Fallback...');
-          this.ui.showLoading({ key: 'loadingFallback' });
-          loadOptions = {
-            provider: 'onnx',
-            modelPath: this.config.onnxModelPath,
-          };
-          this.ui.setActiveModelUI('local-onnx-swish');
-        } else {
-          loadOptions = {
-            provider: 'roboflow',
-            modelId: preset.modelId,
-            apiKey: apiKey,
-            autoFallback: true,
-          };
-        }
       }
 
       const result = await this.detector.loadModel(loadOptions);

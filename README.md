@@ -6,7 +6,7 @@
 
 [![JavaScript: ES Modules](https://img.shields.io/badge/JavaScript-ES%20Modules-F7DF1E?style=flat-square&logo=javascript&logoColor=black)](src/main.js)
 [![Vite: 8.x](https://img.shields.io/badge/Vite-8.x-646CFF?style=flat-square&logo=vite&logoColor=white)](package.json)
-[![Roboflow: Inference](https://img.shields.io/badge/Roboflow-Inference-8A2BE2?style=flat-square)](#settings)
+[![Roboflow: Custom API](https://img.shields.io/badge/Roboflow-Custom%20API-8A2BE2?style=flat-square)](#settings)
 [![ONNX: WebGPU / WASM](https://img.shields.io/badge/ONNX-WebGPU%20%2F%20WASM-005CED?style=flat-square&logo=onnx&logoColor=white)](#settings)
 [![Web Audio: Browser](https://img.shields.io/badge/Web%20Audio-Browser-7F2039?style=flat-square)](src/sound-manager.js)
 [![Node.js: Requirements](https://img.shields.io/badge/Node.js-Requirements-339933?style=flat-square&logo=nodedotjs&logoColor=white)](#quick-start)
@@ -30,7 +30,7 @@
 - **เริ่มนับเมื่อพร้อม** — ตรวจสถานะกล้อง โมเดล และห่วงก่อนเปิดปุ่มเริ่มซ้อม
 - **พักและซ้อมต่อ** — คะแนนและภาพกล้องยังอยู่ เปลี่ยนกล้องหรือกรอบห่วงแล้วพักการนับอัตโนมัติ
 - **ล็อกห่วงเองได้** — ลากหรือแตะสองมุม ตรวจกรอบร่าง แล้วค่อยยืนยันหรือยกเลิก
-- **เลือกโมเดลได้** — Roboflow หรือ Local ONNX ผ่าน Web Worker พร้อม WebGPU/WASM fallback
+- **ใช้โมเดล local เป็นหลัก** — Local Swish / Swish INT8 ผ่าน Web Worker พร้อม WebGPU/WASM fallback และช่อง Custom API สำหรับโมเดลของคุณเอง
 - **เสียงและสองภาษา** — เลือกเสียงสำเร็จรูป สุ่มเสียง หรือใช้ไฟล์ตัวเอง พร้อม UI ไทย/อังกฤษ
 
 <a id="preview"></a>
@@ -62,7 +62,7 @@ npm run dev
 เซิร์ฟเวอร์พัฒนาใช้ใบรับรอง HTTPS แบบ self-signed จึงอาจมีข้อความเตือนจากเบราว์เซอร์
 กด `Ctrl+C` ใน terminal เพื่อหยุดเซิร์ฟเวอร์
 
-**ยังไม่ต้องสร้าง `.env` เพื่อใช้ Local ONNX** หากไม่มี Roboflow key แอปจะเลือก Local Swish แทน
+**ไม่ต้องสร้าง `.env` เพื่อใช้ Local ONNX** แอปใช้ Local Swish เป็นค่าเริ่มต้น แม้มี Roboflow key อยู่แล้ว
 ไฟล์โมเดล Swish และ Swish INT8 อยู่ใน `public/models/`
 
 <a id="practice"></a>
@@ -133,13 +133,15 @@ npm run ip
 
 | ตัวเลือก | การทำงาน | สิ่งที่ต้องมี |
 | --- | --- | --- |
-| Local ONNX: Swish-Vision | ตรวจจับในเครื่องผ่าน Web Worker | `public/models/basketball_swish_yolov8.onnx` |
+| Local ONNX: Swish-Vision (ค่าเริ่มต้น) | ตรวจจับในเครื่องผ่าน Web Worker | `public/models/basketball_swish_yolov8.onnx` |
 | Local ONNX: Swish INT8 | ทางเลือกโมเดลขนาดเล็กกว่า | `public/models/basketball_swish_yolov8_int8.onnx` |
-| Roboflow: Main / Cricket / Devin Ross | โหลดโมเดลผ่าน `inferencejs` | อินเทอร์เน็ตและ Roboflow publishable key |
-| Roboflow: Custom Model ID | ใช้โมเดลที่กำหนดเอง | Model ID รูปแบบ `project/version` และ publishable key |
+| Roboflow: Custom Model ID | ช่องเชื่อมต่อ API ของผู้ใช้ ไม่มีโมเดลสำเร็จรูป | Model ID รูปแบบ `project/version`, publishable key และอินเทอร์เน็ต |
+
+ถอด API preset เดิม Main / Cricket / Devin Ross ออกแล้ว ค่าที่เคยเลือกไว้จะกลับมาใช้ Local Swish
+การเลือก Local Swish INT8 หรือ Custom เดิมยังคงอยู่ รวมถึง Model ID / key ที่ผู้ใช้บันทึกไว้
 
 Local ONNX จะลอง WebGPU ก่อน และใช้ WASM หากเริ่ม WebGPU ไม่ได้
-Roboflow โหลดไม่สำเร็จจะลอง Local Swish แทน หากโมเดลสำรองพร้อมใช้งาน
+Custom Roboflow โหลดไม่สำเร็จจะลอง Local Swish แทน หากโมเดลสำรองพร้อมใช้งาน
 
 **Local inference ไม่ได้แปลว่าออฟไลน์ทั้งหมด** ตัว worker ยังอ้างอิงไฟล์ runtime จาก CDN
 การใช้งานจึงอาจต้องโหลดทรัพยากรผ่านอินเทอร์เน็ต ไม่มีการรับรอง FPS หรือความแม่นยำเท่ากันทุกเครื่อง
@@ -149,15 +151,17 @@ Roboflow โหลดไม่สำเร็จจะลอง Local Swish แ�
 
 ### Roboflow key และ `.env`
 
-สำหรับ Roboflow ให้ใส่ publishable key ในหน้าตั้งค่าโมเดล หรือกำหนด `VITE_ROBOFLOW_API_KEY` ใน `.env`
+หากต้องการใช้ API ให้เลือก **Roboflow: Custom Model ID** แล้วกรอก Model ID และ publishable key ของคุณ
+หรือกำหนด `VITE_ROBOFLOW_API_KEY` ใน `.env` แทนการกรอก key ในหน้าเว็บ
 หากยังไม่มี `.env` คัดลอกแม่แบบด้วย PowerShell โดยไม่ทับไฟล์เดิม:
 
 ```powershell
 if (!(Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
-เปลี่ยนค่า placeholder เป็น publishable key ของคุณ หรือเว้นค่า `VITE_ROBOFLOW_API_KEY` ว่างเพื่อใช้ Local Swish
-หากต้องการ Model ID อื่น ให้เลือก **Roboflow: Custom Model ID** ในแอป
+เปลี่ยนค่า placeholder เป็น publishable key ของคุณ เฉพาะเมื่อจะใช้ Custom API
+กรอก Model ID ในแอปโดยตรง ตัวแปร `VITE_ROBOFLOW_MODEL_ID` เดิมไม่ได้ใช้แล้ว
+การมี key ใน `.env` ไม่เปลี่ยนค่าเริ่มต้นจาก Local Swish เป็น API
 หลังแก้ `.env` ให้เริ่ม Vite ใหม่
 
 - ตัวแปร `VITE_*` อยู่ในโค้ดที่ส่งให้เบราว์เซอร์ ใช้เฉพาะ key ที่เผยแพร่ฝั่ง client ได้
@@ -179,7 +183,7 @@ if (!(Test-Path .env)) { Copy-Item .env.example .env }
 
 ```mermaid
 flowchart LR
-  camera["กล้อง"] --> detection["Roboflow หรือ ONNX Worker"]
+  camera["กล้อง"] --> detection["Local ONNX Worker หรือ Custom Roboflow"]
   camera --> preview["ภาพกล้องและ Canvas"]
   detection --> preview
   detection --> gate{"กำลังฝึกซ้อม?"}
@@ -325,7 +329,7 @@ node tests/camera-view-test.mjs
 | --- | --- |
 | หน้าเว็บ | Vanilla JavaScript ES modules, HTML และ CSS |
 | Dev server / build | Vite และ `@vitejs/plugin-basic-ssl` |
-| โมเดล Roboflow | `inferencejs` |
+| Custom Roboflow API | `inferencejs` |
 | โมเดลในเครื่อง | `onnxruntime-web`, Web Worker, WebGPU และ WASM |
 | เสียง | Web Audio API |
 | ฟอนต์ | Sarabun สำหรับ UI และ Archivo สำหรับตัวเลข |

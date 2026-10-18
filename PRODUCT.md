@@ -47,6 +47,11 @@ These are accepted product requirements, not claims that implementation is done.
   available, otherwise expand within the page. Restore without restarting capture
   or changing Practice state or score.
 - Keep Pause/Resume visible. Other main controls may collapse.
+- Settings offers the existing Court Journal as the default theme, plus optional
+  Night Rally (A), Blue Line (B), and Clay Court (C) presets. Apply each preset's
+  colors, controls, feedback and normal-screen layout immediately; preserve the
+  common expanded-camera view and all practice, camera, model, rim, audio and
+  language state. Remember the preference when storage is available.
 - Manual rim framing supports dragging or tapping two corners, with Confirm and
   Cancel outside the camera image.
 - Start in Thai without a saved preference. Place the Thai/English selector only
@@ -55,12 +60,17 @@ These are accepted product requirements, not claims that implementation is done.
 
 ## Capabilities and Constraints
 
-The existing app uses vanilla JavaScript modules, Vite, camera capture, Roboflow,
-ONNX workers, and Web Audio. Preserve worker cleanup/fallback, source-image box
+The existing app uses vanilla JavaScript modules, Vite, camera capture, local
+ONNX workers, optional user-configured Roboflow, and Web Audio. Preserve worker cleanup/fallback, source-image box
 coordinates, scoring cooldown, and saved-settings compatibility.
 
-This effort is a UX/UI planning decision. Changing scoring algorithms, model
-benchmarks/training, removing models, and deployment are outside its scope.
+Owner amendment — 18 October 2026: Local Swish is the default; Swish INT8 is the
+other bundled model. Remove bundled API presets (Main, Cricket and Devin Ross),
+while retaining explicit custom Model ID/key entry and its local fallback.
+Retired or unknown saved choices migrate to Local Swish without clearing custom
+details. Existing local/custom choices remain valid. This supersedes the earlier
+blanket requirement to preserve all model choices. Model benchmarks/training,
+scoring-algorithm changes and deployment remain outside this effort's scope.
 
 ## Evidence on Hand
 
