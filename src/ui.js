@@ -4,6 +4,7 @@
  */
 
 import { getLanguage, setLanguage, t, translateDocument, translateMessage } from './i18n.js';
+import { DEFAULT_CONFIG } from './config.js';
 
 export class UIController {
   constructor() {
@@ -655,18 +656,10 @@ export class UIController {
       const savedModelId = localStorage.getItem('hoop_custom_model_id');
       const savedApiKey = localStorage.getItem('hoop_custom_api_key');
 
-      // If localStorage had a removed/stale model type, fallback to roboflow-default
-      const validTypes = [
-        'roboflow-default',
-        'roboflow-cricket',
-        'roboflow-devinross',
-        'local-onnx-swish',
-        'local-onnx-swish-int8',
-        'roboflow-custom',
-      ];
+      // Retired API presets and stale choices fall back to the local default.
+      const validTypes = [...(this.modelSelect?.options || [])].map(option => option.value);
       if (!savedType || !validTypes.includes(savedType)) {
-        savedType = 'roboflow-default';
-        localStorage.setItem('hoop_selected_model_type', savedType);
+        savedType = DEFAULT_CONFIG.modelType;
       }
 
       if (this.modelSelect) {
@@ -681,6 +674,7 @@ export class UIController {
       if (savedApiKey && this.customApiKeyInput) {
         this.customApiKeyInput.value = savedApiKey;
       }
+      localStorage.setItem('hoop_selected_model_type', savedType);
     } catch (err) {
       console.warn('[UIController] Could not read settings from localStorage:', err);
     }
@@ -712,7 +706,7 @@ export class UIController {
    */
   getModelSettings() {
     return {
-      modelType: this.modelSelect ? this.modelSelect.value : 'roboflow-default',
+      modelType: this.modelSelect ? this.modelSelect.value : DEFAULT_CONFIG.modelType,
       customModelId: this.customModelIdInput ? this.customModelIdInput.value.trim() : '',
       customApiKey: this.customApiKeyInput ? this.customApiKeyInput.value.trim() : '',
     };

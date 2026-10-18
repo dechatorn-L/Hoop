@@ -215,17 +215,14 @@
           <div class="control-group">
             <label for="model-preset-select" class="visually-hidden" data-i18n="chooseModel">เลือกโมเดลตรวจจับ</label>
             <select id="model-preset-select" class="select-input">
-              <option value="roboflow-default" data-i18n="presetDefault">Roboflow v4: Main (Cloud · แนะนำ)</option>
-              <option value="local-onnx-swish" data-i18n="presetSwish">Local ONNX: Swish-Vision (ออฟไลน์ 60 FPS · 11.7 MB)</option>
+              <option value="local-onnx-swish" data-i18n="presetSwish">Local ONNX: Swish-Vision (ค่าเริ่มต้น · 11.7 MB)</option>
               <option value="local-onnx-swish-int8" data-i18n="presetInt8">Local ONNX: Swish INT8 (จิ๋ว 3.3 MB · ประหยัดแรม)</option>
-              <option value="roboflow-cricket" data-i18n="presetCricket">Roboflow: Cricket 9.5K (ละเอียด)</option>
-              <option value="roboflow-devinross" data-i18n="presetDevin">Roboflow: Devin Ross (Made Basket)</option>
               <option value="roboflow-custom" data-i18n="presetCustom">Roboflow: Custom Model ID</option>
             </select>
           </div>
 
           <div id="model-info-text" class="model-info-box">
-            ตรวจจับห่วง ลูกบาส และผู้เล่น (เสถียรภาพสูง)
+            ตรวจจับลูกบาสและห่วงด้วย Local Swish บนอุปกรณ์ของคุณ
           </div>
 
           <!-- Custom Model ID & API Key Container -->
@@ -263,34 +260,26 @@
           <div class="model-table">
             <div class="model-row active-row">
               <div class="row-header">
-                <span class="model-name">Roboflow v4 (Main)</span>
-                <span class="badge-tag">Cloud</span>
-              </div>
-              <p class="row-desc" data-i18n="guideDefault">ตรวจจับห่วง ลูกบาส และผู้เล่น แยกแยะคนตัดโอกาสสับสน เหมาะกับสนามทั่วไปที่มีคนยืนใต้แป้น</p>
-            </div>
-
-            <div class="model-row">
-              <div class="row-header">
                 <span class="model-name">Local ONNX (Swish-Vision)</span>
-                <span class="badge-tag tag-offline">Offline</span>
+                <span class="badge-tag tag-offline" data-i18n="defaultModel">ค่าเริ่มต้น</span>
               </div>
-              <p class="row-desc" data-i18n="guideSwish">รันในเครื่อง 100% ไม่ต้องต่อเน็ต ลื่นไหล 60 FPS ด้วย WebGPU เหมาะกับการซ้อมยิงคนเดียว</p>
+              <p class="row-desc" data-i18n="guideSwish">ตัวเริ่มต้น 11.7 MB ตรวจจับลูกบาสและห่วงบนอุปกรณ์ผ่าน WebGPU หรือ WASM ไม่ต้องใช้ API Key แต่ยังต้องโหลด runtime จาก CDN</p>
             </div>
 
             <div class="model-row">
               <div class="row-header">
-                <span class="model-name">Roboflow: Cricket 9.5K</span>
-                <span class="badge-tag">Cloud</span>
+                <span class="model-name">Local ONNX (Swish INT8)</span>
+                <span class="badge-tag tag-offline">Local</span>
               </div>
-              <p class="row-desc" data-i18n="guideCricket">ชุดข้อมูลใหญ่ 9,500+ รูป รองรับสภาพแสงที่ยากหรือสนามเปิดโล่ง</p>
+              <p class="row-desc" data-i18n="guideInt8">โมเดลบีบอัด 3.3 MB เป็นตัวเลือก local เพิ่มเติม ยังไม่ได้ยืนยันผลบนอุปกรณ์จริง</p>
             </div>
 
             <div class="model-row">
               <div class="row-header">
-                <span class="model-name">Roboflow: Devin Ross</span>
-                <span class="badge-tag">Cloud</span>
+                <span class="model-name">Roboflow: Custom Model ID</span>
+                <span class="badge-tag">API</span>
               </div>
-              <p class="row-desc" data-i18n="guideDevin">จับจังหวะลูกลงห่วง (Made Basket) แม่นยำเป็นพิเศษ แนะนำให้ใช้คู่กับปุ่มล็อกห่วง</p>
+              <p class="row-desc" data-i18n="guideCustom">กรอก Model ID และ Publishable API Key ของคุณเอง ไม่มีโมเดล API สำเร็จรูปให้เลือก หากโหลดไม่สำเร็จจะลอง Local Swish แทน</p>
             </div>
           </div>
         </div>

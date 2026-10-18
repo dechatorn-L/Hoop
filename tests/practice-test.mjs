@@ -46,13 +46,14 @@ try {
       },
       detector: {
         loads: 0,
-        async loadModel() { this.loads++; if (this.fail) throw Error('Model unavailable'); },
+        async loadModel(options) { this.loads++; this.lastOptions = options; if (this.fail) throw Error('Model unavailable'); return this.result; },
         async detect() { if (this.pending) return new Promise(resolve => { this.resolve = resolve; }); return this.detections || []; },
         clearDetections() {}, setConfidence() {},
       },
       sound: { plays: 0, async init() {}, setVolume(value) { this.volume = value; }, setActiveSound(value) { this.active = value; }, playScoreSound() { this.plays++; } },
     };
     window.app = new HoopCounterApp(services);
+    app.config.publishableKey = 'test-environment-key';
     await Promise.race([app.init(), new Promise((_, reject) => setTimeout(() => reject(Error('Initialization must not wait for camera/model access')), 3000))]);
   });
   assert.equal(await page.evaluate(() => services.camera.starts), 0, 'Opening the app must not request camera access');
@@ -67,6 +68,9 @@ try {
   assert.equal(await page.locator('#settings-panel #language-select').count(), 1, 'Language selector belongs in Settings only');
   await openControls(page);
   await page.locator('#btn-settings-toggle').click();
+  assert.equal(await page.locator('#model-preset-select').inputValue(), 'local-onnx-swish', 'New visits default to Local Swish');
+  assert.deepEqual(await page.locator('#model-preset-select option').evaluateAll(options => options.map(option => option.value)),
+    ['local-onnx-swish', 'local-onnx-swish-int8', 'roboflow-custom'], 'Only local models are bundled; custom API entry remains available');
   assert.equal(await page.locator('#settings-panel #theme-select').count(), 1, 'Theme presets belong in Settings');
   assert.equal(await page.locator('#theme-select').inputValue(), 'court-journal', 'Court Journal remains the default');
   assert.deepEqual(await page.locator('#theme-select option').evaluateAll(options => options.map(option => option.value)),
@@ -110,6 +114,43 @@ try {
   await page.selectOption('#language-select', 'th');
   await page.locator('#btn-apply-model').click();
   await page.waitForFunction(() => !document.getElementById('btn-apply-model').disabled);
+  assert.deepEqual(await page.evaluate(() => services.detector.lastOptions),
+    { provider: 'onnx', modelPath: '/models/basketball_swish_yolov8.onnx' }, 'The default loads local inference even when an API key is configured');
+  await page.selectOption('#model-preset-select', 'roboflow-custom');
+  assert.equal(await page.locator('#custom-model-fields').isVisible(), true);
+  await page.locator('#custom-model-id').fill('');
+  await page.locator('#btn-apply-model').click();
+  await page.waitForFunction(() => document.getElementById('status-text').textContent.includes('กรุณากรอก Model ID'));
+  await page.evaluate(() => { app.config.publishableKey = ''; });
+  await page.locator('#custom-model-id').fill(' player-model/2 ');
+  await page.locator('#custom-api-key').fill('');
+  await page.locator('#btn-apply-model').click();
+  await page.waitForFunction(() => document.getElementById('status-text').textContent.includes('กรุณากรอก Publishable API Key'));
+  await page.locator('#custom-api-key').fill(' test-user-key ');
+  await page.locator('#btn-apply-model').click();
+  await page.waitForFunction(() => !document.getElementById('btn-apply-model').disabled);
+  assert.deepEqual(await page.evaluate(() => services.detector.lastOptions),
+    { provider: 'roboflow', modelId: 'player-model/2', apiKey: 'test-user-key', autoFallback: true }, 'Explicit custom API entry still reaches the external model boundary');
+  await page.evaluate(() => { services.detector.result = { fallback: true, originalError: 'Controlled custom provider failure' }; });
+  await page.locator('#btn-apply-model').click();
+  await page.waitForFunction(() => document.getElementById('model-preset-select').value === 'local-onnx-swish');
+  assert.match(await page.locator('#status-text').textContent(), /Controlled custom provider failure/);
+  assert.equal(await page.locator('#custom-model-id').inputValue(), ' player-model/2 ', 'Fallback retains the user-supplied Model ID');
+  await page.evaluate(() => { services.detector.result = undefined; });
+  await page.selectOption('#model-preset-select', 'local-onnx-swish-int8');
+  assert.equal(await page.locator('#custom-model-fields').isVisible(), false);
+  await page.locator('#btn-apply-model').click();
+  await page.waitForFunction(() => !document.getElementById('btn-apply-model').disabled);
+  assert.deepEqual(await page.evaluate(() => services.detector.lastOptions),
+    { provider: 'onnx', modelPath: '/models/basketball_swish_yolov8_int8.onnx' });
+  await page.selectOption('#model-preset-select', 'local-onnx-swish');
+  await page.locator('#btn-apply-model').click();
+  await page.waitForFunction(() => !document.getElementById('btn-apply-model').disabled);
+  await page.locator('#btn-open-model-guide').click();
+  assert.deepEqual(await page.locator('#model-guide-modal .model-name').allTextContents(),
+    ['Local ONNX (Swish-Vision)', 'Local ONNX (Swish INT8)', 'Roboflow: Custom Model ID'], 'The guide lists local models and user-entered API only');
+  await page.locator('#btn-close-model-guide').click();
+  console.log('PASS: local defaults/INT8, custom API validation/dispatch and updated model guide');
   await page.locator('#btn-close-settings').click();
   assert.equal(await page.locator('#btn-practice').isDisabled(), true, 'Camera and model alone are insufficient');
   console.log('PASS: deliberate camera opening and readiness gate');
@@ -712,6 +753,31 @@ try {
   await live.locator('#btn-settings-toggle').click();
   assert.equal(await live.locator('#theme-select').inputValue(), 'court-journal', 'Unknown saved themes fall back to Court Journal');
   assert.equal(await live.locator('body').evaluate(node => getComputedStyle(node).backgroundColor), defaultBackground);
+  await live.evaluate(() => {
+    localStorage.setItem('hoop_custom_model_id', 'saved-player/3');
+    localStorage.setItem('hoop_custom_api_key', 'test-saved-key');
+  });
+  for (const previous of ['roboflow-default', 'roboflow-cricket', 'roboflow-devinross', 'unknown-model', '__proto__']) {
+    await live.evaluate(value => localStorage.setItem('hoop_selected_model_type', value), previous);
+    await live.reload();
+    await live.waitForFunction(() => document.getElementById('practice-readiness').textContent.includes('เตรียมพร้อม'));
+    await openControls(live);
+    await live.locator('#btn-settings-toggle').click();
+    assert.equal(await live.locator('#model-preset-select').inputValue(), 'local-onnx-swish', 'Retired and unsupported choices migrate to Local Swish');
+    assert.equal(await live.locator('#custom-model-id').inputValue(), 'saved-player/3', 'Migration retains custom model details');
+    assert.equal(await live.locator('#custom-api-key').inputValue(), 'test-saved-key');
+    assert.equal(await live.evaluate(() => cameraRequests), 0);
+  }
+  for (const model of ['local-onnx-swish-int8', 'roboflow-custom', 'local-onnx-swish']) {
+    await live.selectOption('#model-preset-select', model);
+    await live.reload();
+    await live.waitForFunction(() => document.getElementById('practice-readiness').textContent.includes('เตรียมพร้อม'));
+    await openControls(live);
+    await live.locator('#btn-settings-toggle').click();
+    assert.equal(await live.locator('#model-preset-select').inputValue(), model, 'Valid local/custom preferences survive reload');
+    assert.equal(await live.locator('#custom-model-fields').isVisible(), model === 'roboflow-custom');
+  }
+  console.log('PASS: retired API migration, valid local/custom persistence and retained custom credentials');
   await live.close();
   console.log('PASS: production bootstrap, translated camera errors and bidirectional reload persistence');
 
@@ -723,6 +789,7 @@ try {
   await blocked.goto(process.env.HOOP_TEST_URL || 'https://localhost:5173/');
   await blocked.waitForFunction(() => document.getElementById('practice-readiness').textContent.includes('เตรียมพร้อม'));
   await blocked.locator('#btn-settings-toggle').click();
+  assert.equal(await blocked.locator('#model-preset-select').inputValue(), 'local-onnx-swish', 'Blocked storage still defaults to local inference');
   await blocked.selectOption('#language-select', 'en');
   assert.equal(await blocked.locator('html').getAttribute('lang'), 'en');
   assert.equal(await blocked.locator('#btn-open-camera').textContent(), 'Open Camera');
@@ -733,6 +800,20 @@ try {
   assert.equal(await blocked.locator('#btn-open-camera').textContent(), 'เปิดกล้อง');
   assert.equal(await blocked.locator('#theme-select').inputValue(), 'night-rally', 'Language changes retain the in-memory theme');
   await blocked.close();
+  const writeBlocked = await browser.newPage({ ignoreHTTPSErrors: true });
+  await writeBlocked.addInitScript(() => {
+    localStorage.setItem('hoop_selected_model_type', 'roboflow-custom');
+    localStorage.setItem('hoop_custom_model_id', 'retained-player/1');
+    localStorage.setItem('hoop_custom_api_key', 'test-retained-key');
+    Storage.prototype.setItem = () => { throw new DOMException('Storage full', 'QuotaExceededError'); };
+  });
+  await writeBlocked.goto(process.env.HOOP_TEST_URL || 'https://localhost:5173/');
+  await writeBlocked.waitForFunction(() => document.getElementById('practice-readiness').textContent.includes('เตรียมพร้อม'));
+  await writeBlocked.locator('#btn-settings-toggle').click();
+  assert.equal(await writeBlocked.locator('#model-preset-select').inputValue(), 'roboflow-custom');
+  assert.equal(await writeBlocked.locator('#custom-model-id').inputValue(), 'retained-player/1', 'Storage write failure must not discard readable custom settings');
+  assert.equal(await writeBlocked.locator('#custom-api-key').inputValue(), 'test-retained-key');
+  await writeBlocked.close();
   console.log('PASS: storage read/write failure still permits switching for the current visit');
 } catch (error) {
   console.error(await page.locator('.practice-controls').innerText());

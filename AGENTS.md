@@ -1,7 +1,7 @@
 # Repository guidance
 
-Hoop Shot Counter uses vanilla JavaScript ES modules, Vite, Roboflow, ONNX workers,
-and Web Audio. Follow the existing code structure and style.
+Hoop Shot Counter uses vanilla JavaScript ES modules, Vite, local ONNX workers,
+optional custom Roboflow models, and Web Audio. Follow the existing code structure and style.
 
 ## Skills
 

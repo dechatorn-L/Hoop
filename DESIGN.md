@@ -165,6 +165,7 @@ Court Journal uses flat planar layering and crisp 1px borders rather than diffus
 
 ### Settings Drawer (`.settings-drawer`)
 - **Style:** Right slide-in panel (`width: min(100%, 400px)`), bordered left, themed background, containing theme and language selectors, sound presets, detection confidence, and model configurations.
+- **Models:** Local Swish is the default, with Swish INT8 as the other bundled option. Keep a Custom Roboflow choice that reveals user-entered Model ID/key fields. The model guide mirrors these three entries; no bundled API recommendations remain.
 
 ### Optional Theme Presets
 
