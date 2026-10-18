@@ -4,6 +4,7 @@
 
 **เว็บนับลูกบาสลงห่วงจากกล้อง สำหรับซ้อมคนเดียว**
 
+[![Live Demo: Vercel](https://img.shields.io/badge/Live%20Demo-Vercel-000000?style=flat-square&logo=vercel&logoColor=white)](https://hoop-three.vercel.app/)
 [![JavaScript: ES Modules](https://img.shields.io/badge/JavaScript-ES%20Modules-F7DF1E?style=flat-square&logo=javascript&logoColor=black)](src/main.js)
 [![Vite: 8.x](https://img.shields.io/badge/Vite-8.x-646CFF?style=flat-square&logo=vite&logoColor=white)](package.json)
 [![Roboflow: Custom API](https://img.shields.io/badge/Roboflow-Custom%20API-8A2BE2?style=flat-square)](#settings)
@@ -13,6 +14,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 
 เปิดกล้อง เตรียมห่วง แล้วเริ่มซ้อม พร้อมคะแนนและเสียงเมื่อตรวจพบลูกลงห่วง
+
+🏀 **ใช้งานออนไลน์ได้ทันที (HTTPS พร้อมเปิดกล้อง):** [https://hoop-three.vercel.app/](https://hoop-three.vercel.app/)
 
 [เริ่มรัน](#quick-start) · [ฟีเจอร์](#features) · [ภาพตัวอย่าง](#preview) ·
 [วิธีซ้อม](#practice) · [เปิดบนมือถือ](#mobile) · [โมเดลและการตั้งค่า](#settings)
@@ -95,7 +98,11 @@ npm run dev
 
 ## เปิดบนมือถือ
 
-### ผ่าน Cloudflare Tunnel
+### ผ่านเว็บโฮสติ้ง (แนะนำ สะดวกที่สุด ไม่ต้องเปิดคอม)
+
+เปิดผ่าน [https://hoop-three.vercel.app/](https://hoop-three.vercel.app/) บนเบราว์เซอร์ของโทรศัพท์ได้โดยตรง มี HTTPS รองรับการอนุญาตเข้าถึงกล้องทันที
+
+### ผ่าน Cloudflare Tunnel (สำหรับการพัฒนาในเครื่อง)
 
 ```sh
 npm run tunnel:cf
