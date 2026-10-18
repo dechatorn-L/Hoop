@@ -54,8 +54,8 @@ cloudflared.log
 weights/
 scratch/
 .scratch/
-# Local skill runtime (source and references remain versionable)
-.agents/skills/impeccable/scripts/bin/
+# Agent skills & configuration
+.agents/
 .impeccable/questions/
 __pycache__/
 *.pyc
