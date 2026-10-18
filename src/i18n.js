@@ -1,5 +1,8 @@
 // Paired entries keep both supported languages together. Values are plain text.
 export const messages = {
+  theme: ['ธีม', 'Theme'],
+  themeDefault: ['Court Journal · ค่าเริ่มต้น', 'Court Journal · Default'],
+  themeHelp: ['เปลี่ยนสี ปุ่ม และการจัดวาง โดยคงคะแนนและการซ้อมเดิม', 'Change colors, controls and layout while keeping your score and practice state.'],
   rimInputMethod: ['วิธีกำหนดกรอบ', 'Framing method'],
   rimDrag: ['ลากกรอบ', 'Drag a box'],
   rimCorners: ['แตะสองมุม', 'Tap two corners'],

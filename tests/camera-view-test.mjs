@@ -142,6 +142,33 @@ try {
   await page.locator('#btn-cancel-draw-rim').click();
   assert.equal(await page.locator('#btn-fullscreen-toggle').evaluate(node => node === document.activeElement), true, 'Cancelling expanded framing restores focus to a visible control');
   await page.locator('#btn-fullscreen-toggle').click();
+  for (const theme of ['night-rally', 'blue-line', 'clay-court']) {
+    await page.locator('#btn-settings-toggle').click();
+    await page.selectOption('#theme-select', theme);
+    await page.locator('#btn-close-settings').click();
+    for (const viewport of [{ width: 375, height: 800 }, { width: 844, height: 390 }, { width: 1280, height: 800 }]) {
+      await page.setViewportSize(viewport);
+      await page.locator('#btn-fullscreen-toggle').click();
+      assert.equal(await page.evaluate(() => {
+        const camera = document.querySelector('#camera-container').getBoundingClientRect();
+        const video = document.querySelector('video').getBoundingClientRect();
+        const overlay = document.querySelector('canvas').getBoundingClientRect();
+        const score = document.querySelector('#score-display').getBoundingClientRect();
+        const action = document.querySelector('#btn-practice').getBoundingClientRect();
+        return camera.x === 0 && camera.y === 0 && camera.width === innerWidth && camera.height === innerHeight
+          && video.x === overlay.x && video.y === overlay.y && video.width === overlay.width && video.height === overlay.height
+          && score.bottom <= action.top && action.bottom <= innerHeight
+          && getComputedStyle(document.querySelector('video')).objectFit === 'contain'
+          && getComputedStyle(document.querySelector('video')).filter === 'none';
+      }), true, `${theme} preserves full-viewport video, aligned boxes and floating controls`);
+      await page.locator('#btn-fullscreen-toggle').click();
+    }
+  }
+  await page.locator('#btn-settings-toggle').click();
+  await page.selectOption('#theme-select', 'court-journal');
+  await page.locator('#btn-close-settings').click();
+  console.log('PASS: every selected theme preserves the full-frame camera and floating controls across orientations');
+
   if (process.env.HOOP_CAMERA_SCREENSHOTS) {
     for (const viewport of [{ width: 393, height: 850 }, { width: 873, height: 393 }]) {
       await page.setViewportSize(viewport);

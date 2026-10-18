@@ -86,6 +86,20 @@ export class UIController {
     this._setupInternalEventListeners();
     this._setupManualRimEvents();
     this._loadSavedModelSettings();
+    this.themeSelect = document.getElementById('theme-select');
+    if (this.themeSelect) {
+      try {
+        const savedTheme = localStorage.getItem('hoop_theme');
+        if ([...this.themeSelect.options].some(option => option.value === savedTheme)) {
+          this.themeSelect.value = savedTheme;
+        }
+      } catch { /* The default theme works without browser storage. */ }
+      document.documentElement.dataset.theme = this.themeSelect.value;
+      this.themeSelect.addEventListener('change', () => {
+        document.documentElement.dataset.theme = this.themeSelect.value;
+        try { localStorage.setItem('hoop_theme', this.themeSelect.value); } catch { /* Keep the current visit's choice. */ }
+      });
+    }
     this.languageSelect = document.getElementById('language-select');
     this.languageSelect?.addEventListener('change', () => {
       setLanguage(this.languageSelect.value);

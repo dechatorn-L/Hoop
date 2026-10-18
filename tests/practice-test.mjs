@@ -67,6 +67,15 @@ try {
   assert.equal(await page.locator('#settings-panel #language-select').count(), 1, 'Language selector belongs in Settings only');
   await openControls(page);
   await page.locator('#btn-settings-toggle').click();
+  assert.equal(await page.locator('#settings-panel #theme-select').count(), 1, 'Theme presets belong in Settings');
+  assert.equal(await page.locator('#theme-select').inputValue(), 'court-journal', 'Court Journal remains the default');
+  assert.deepEqual(await page.locator('#theme-select option').evaluateAll(options => options.map(option => option.value)),
+    ['court-journal', 'night-rally', 'blue-line', 'clay-court'], 'Only the default and selected A/B/C studies are offered');
+  const defaultBackground = await page.locator('body').evaluate(node => getComputedStyle(node).backgroundColor);
+  await page.selectOption('#theme-select', 'night-rally');
+  assert.notEqual(await page.locator('body').evaluate(node => getComputedStyle(node).backgroundColor), defaultBackground, 'Choosing a preset must change the rendered appearance');
+  await page.selectOption('#theme-select', 'court-journal');
+  assert.equal(await page.locator('body').evaluate(node => getComputedStyle(node).backgroundColor), defaultBackground, 'Court Journal restores the original appearance');
   await page.selectOption('#language-select', 'en');
   assert.equal(await page.locator('html').getAttribute('lang'), 'en');
   assert.equal(await page.locator('#btn-open-camera').textContent(), 'Open Camera');
@@ -135,6 +144,35 @@ try {
   await page.selectOption('#language-select', 'en');
   assert.equal(await page.locator('#btn-practice').textContent(), 'Resume Practice');
   assert.equal(await page.locator('#score-value').textContent(), '1');
+  assert.equal(await page.getByLabel('Theme', { exact: true }).count(), 1, 'Theme control translates with Settings');
+  const modelChoice = await page.locator('#model-preset-select').inputValue();
+  const modelLoads = await page.evaluate(() => services.detector.loads);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  for (const theme of ['night-rally', 'blue-line', 'clay-court']) {
+    await page.selectOption('#theme-select', theme);
+    assert.equal(await page.locator('#score-value').textContent(), '1', 'Theme changes retain score');
+    assert.equal(await page.locator('#btn-practice').textContent(), 'Resume Practice', 'Theme changes retain Pause');
+    assert.equal(await page.evaluate(() => services.camera.starts), cameraStarts, 'Theme changes must not restart capture');
+    assert.equal(await page.evaluate(() => services.detector.loads), modelLoads, 'Theme changes must not reload the model');
+    assert.equal(await page.locator('#model-preset-select').inputValue(), modelChoice);
+    assert.equal(await page.locator('input[name="sound-choice"]:checked').inputValue(), 'random');
+    assert.equal(await page.locator('#volume-slider').inputValue(), '25');
+    assert.equal(await page.locator('#language-select').inputValue(), 'en');
+    const layout = await page.evaluate(() => {
+      const camera = document.querySelector('#main-viewport').getBoundingClientRect();
+      const score = document.querySelector('#score-display').getBoundingClientRect();
+      const video = document.querySelector('video').getBoundingClientRect();
+      const overlay = document.querySelector('canvas').getBoundingClientRect();
+      return { wide: camera.bottom <= score.top, side: camera.right <= score.left,
+        aligned: video.x === overlay.x && video.y === overlay.y && video.width === overlay.width && video.height === overlay.height };
+    });
+    assert.equal(layout.wide, theme === 'clay-court', 'Clay Court uses its wide-camera layout');
+    assert.equal(layout.side, theme !== 'clay-court', 'Night Rally and Blue Line retain their side control layout');
+    assert.equal(layout.aligned, true, 'Theme layout changes preserve camera/overlay alignment');
+  }
+  await page.selectOption('#theme-select', 'court-journal');
+  await page.setViewportSize({ width: 390, height: 844 });
+  console.log('PASS: selected theme layouts preserve score, Pause, capture, model, audio and language');
   await page.selectOption('#language-select', 'th');
   await page.locator('#btn-close-settings').click();
   await page.waitForTimeout(2200);
@@ -170,6 +208,10 @@ try {
   await page.locator('#btn-settings-toggle').click();
   await page.selectOption('#language-select', 'en');
   assert.equal(await page.locator('#btn-practice').textContent(), 'Pause Practice', 'Switching language must preserve active Practice');
+  await page.selectOption('#theme-select', 'clay-court');
+  assert.equal(await page.locator('#btn-practice').textContent(), 'Pause Practice', 'Switching theme must preserve active Practice');
+  assert.equal(await page.locator('#score-value').textContent(), '1');
+  await page.selectOption('#theme-select', 'court-journal');
   await page.selectOption('#language-select', 'th');
   await page.locator('#btn-close-settings').click();
   await page.locator('#btn-practice').click();
@@ -643,6 +685,18 @@ try {
   assert.equal(await live.evaluate(() => cameraRequests), 0);
   await openControls(live);
   await live.locator('#btn-settings-toggle').click();
+  for (const theme of ['night-rally', 'blue-line', 'clay-court', 'court-journal']) {
+    await live.selectOption('#theme-select', theme);
+    const background = await live.locator('body').evaluate(node => getComputedStyle(node).backgroundColor);
+    await live.reload();
+    await live.waitForFunction(() => document.getElementById('practice-readiness').textContent.includes('Setup'));
+    await openControls(live);
+    await live.locator('#btn-settings-toggle').click();
+    assert.equal(await live.locator('#theme-select').inputValue(), theme, 'Reload retains each selected theme');
+    assert.equal(await live.locator('body').evaluate(node => getComputedStyle(node).backgroundColor), background, 'Reload restores the rendered theme');
+    assert.equal(await live.evaluate(() => cameraRequests), 0, 'Restoring a theme must not request camera access');
+  }
+  console.log('PASS: all four theme preferences restore through production bootstrap');
   await live.selectOption('#language-select', 'th');
   await live.reload();
   await live.waitForFunction(() => document.getElementById('practice-readiness').textContent.includes('เตรียมพร้อม'));
@@ -651,6 +705,13 @@ try {
   await live.reload();
   await live.waitForFunction(() => document.getElementById('practice-readiness').textContent.includes('เตรียมพร้อม'));
   assert.equal(await live.locator('html').getAttribute('lang'), 'th', 'Unsupported preferences must fall back to Thai');
+  await live.evaluate(() => localStorage.setItem('hoop_theme', '__proto__'));
+  await live.reload();
+  await live.waitForFunction(() => document.getElementById('practice-readiness').textContent.includes('เตรียมพร้อม'));
+  await openControls(live);
+  await live.locator('#btn-settings-toggle').click();
+  assert.equal(await live.locator('#theme-select').inputValue(), 'court-journal', 'Unknown saved themes fall back to Court Journal');
+  assert.equal(await live.locator('body').evaluate(node => getComputedStyle(node).backgroundColor), defaultBackground);
   await live.close();
   console.log('PASS: production bootstrap, translated camera errors and bidirectional reload persistence');
 
@@ -665,8 +726,12 @@ try {
   await blocked.selectOption('#language-select', 'en');
   assert.equal(await blocked.locator('html').getAttribute('lang'), 'en');
   assert.equal(await blocked.locator('#btn-open-camera').textContent(), 'Open Camera');
+  assert.equal(await blocked.locator('#theme-select').inputValue(), 'court-journal', 'Blocked storage retains the default theme on startup');
+  await blocked.selectOption('#theme-select', 'night-rally');
+  assert.notEqual(await blocked.locator('body').evaluate(node => getComputedStyle(node).backgroundColor), defaultBackground, 'Blocked storage must still allow live theme changes');
   await blocked.selectOption('#language-select', 'th');
   assert.equal(await blocked.locator('#btn-open-camera').textContent(), 'เปิดกล้อง');
+  assert.equal(await blocked.locator('#theme-select').inputValue(), 'night-rally', 'Language changes retain the in-memory theme');
   await blocked.close();
   console.log('PASS: storage read/write failure still permits switching for the current visit');
 } catch (error) {

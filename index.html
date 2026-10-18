@@ -8,6 +8,7 @@
   <meta name="theme-color" content="#F8F7F3" />
   <link rel="stylesheet" href="/fonts/fonts.css" />
   <link rel="stylesheet" href="/styles/index.css" />
+  <link rel="stylesheet" href="/styles/themes.css" />
 </head>
 <body>
   <div id="app">
@@ -97,6 +98,16 @@
       </div>
 
       <div class="settings-content" id="settings-content">
+        <section class="settings-section" id="section-theme">
+          <label for="theme-select" data-i18n="theme">ธีม</label>
+          <select id="theme-select" class="select-input" aria-describedby="theme-help">
+            <option value="court-journal" data-i18n="themeDefault">Court Journal · ค่าเริ่มต้น</option>
+            <option value="night-rally">A · Night Rally</option>
+            <option value="blue-line">B · Blue Line</option>
+            <option value="clay-court">C · Clay Court</option>
+          </select>
+          <p id="theme-help" class="setting-help" data-i18n="themeHelp">เปลี่ยนสี ปุ่ม และการจัดวาง โดยคงคะแนนและการซ้อมเดิม</p>
+        </section>
         <section class="settings-section" id="section-language">
           <label for="language-select" data-i18n="language">ภาษา</label>
           <select id="language-select" class="select-input">

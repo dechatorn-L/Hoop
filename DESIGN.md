@@ -164,14 +164,36 @@ Court Journal uses flat planar layering and crisp 1px borders rather than diffus
 - **Actions:** Dedicated Confirm Rim and Cancel buttons placed completely external to video bounds.
 
 ### Settings Drawer (`.settings-drawer`)
-- **Style:** Right slide-in panel (`width: min(100%, 400px)`), bordered left, stone background, containing language selector, sound presets, detection confidence, and model configurations.
+- **Style:** Right slide-in panel (`width: min(100%, 400px)`), bordered left, themed background, containing theme and language selectors, sound presets, detection confidence, and model configurations.
+
+### Optional Theme Presets
+
+Court Journal remains the default. Settings also offers A **Night Rally**, B
+**Blue Line**, and C **Clay Court**, approved by the owner on 18 October 2026.
+The selected preset is remembered in `hoop_theme`; missing, unsupported, or
+unreadable preferences fall back to Court Journal. Failed writes still permit
+switching for the current visit.
+
+- **Night Rally:** dark surfaces, lime signal, 6px controls and camera corners,
+  larger brand, ruled compact score group, and a short 180ms score settle.
+- **Blue Line:** cool paper, cobalt signal, 8px controls and camera corners,
+  uppercase wordmark, score divider, and a restrained 200ms score settle.
+- **Clay Court:** warm paper, terracotta signal, rounded controls, 2px camera
+  corners, and 240ms opacity feedback. At widths of at least 1000px the camera
+  spans the layout above the compact score and practice controls.
+
+The normal-screen score and controls follow each study. Expanded camera uses
+the common full-viewport layout and opaque ink/porcelain overlays in every
+preset. Camera pixels, detection colors, coordinates, score, practice state,
+model, rim, audio and language remain unchanged when choosing a preset.
+Mint Club is not included. All score animations respect reduced motion.
 
 ## Do's and Don'ts
 
 ### Do:
 - **Do** keep camera aspect ratio contained with clean neutral letterboxing when source video dimensions differ from display container.
 - **Do** place rim framing Confirm/Cancel buttons outside the camera canvas to prevent accidental touches.
-- **Do** preserve 220ms score baseline animation and suppress animation immediately when `prefers-reduced-motion: reduce` is detected.
+- **Do** preserve the default 220ms score baseline, use the selected preset's feedback timing, and suppress animation immediately when `prefers-reduced-motion: reduce` is detected.
 - **Do** maintain bilingual Thai and English text parity without layout clipping or truncated labels.
 
 ### Don't:
