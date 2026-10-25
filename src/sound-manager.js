@@ -20,32 +20,32 @@ export class SoundManager {
     this.volume = config.volume ?? 0.8;
     this.isInitialized = false;
     this.builtinSoundList = [
-      { id: 'cha-ching', name: 'Cha-Ching (Cash 💰)', path: new URL('../sounds/cha-ching.wav', import.meta.url).href },
-      { id: 'swish', name: 'Swish (Net 🏀)', path: new URL('../sounds/swish.wav', import.meta.url).href },
-      { id: 'net-nba', name: 'NBA Net (Snap 🎯)', path: new URL('../sounds/net-nba.wav', import.meta.url).href },
-      { id: 'coin', name: 'Coin (8-bit 🪙)', path: new URL('../sounds/coin.wav', import.meta.url).href },
-      { id: 'ding', name: 'Ding (Bell 🔔)', path: new URL('../sounds/ding.wav', import.meta.url).href },
-      { id: 'point', name: 'Point (Score ⚡)', path: new URL('../sounds/point.wav', import.meta.url).href },
-      { id: 'levelup', name: 'Level Up (Fanfare 🎺)', path: new URL('../sounds/levelup.wav', import.meta.url).href },
-      { id: 'powerup', name: 'Power Up (Retro 🍄)', path: new URL('../sounds/powerup.wav', import.meta.url).href },
-      { id: 'jingle', name: 'Jingle (Victory 🎉)', path: new URL('../sounds/jingle.wav', import.meta.url).href },
-      { id: 'curry-bang', name: 'Curry BANG! 💥', path: new URL('../sounds/curry-bang.wav', import.meta.url).href },
-      { id: 'curry-downtown-bang', name: 'Curry Downtown BANG! 🎯', path: new URL('../sounds/curry-downtown-bang.wav', import.meta.url).href },
-      { id: 'boomshakalaka', name: 'Boomshakalaka! 🔥', path: new URL('../sounds/boomshakalaka.wav', import.meta.url).href },
-      { id: 'hes-on-fire', name: "He's on Fire! 🔥", path: new URL('../sounds/hes-on-fire.wav', import.meta.url).href },
-      { id: 'from-downtown', name: 'From Downtown! 🎯', path: new URL('../sounds/from-downtown.wav', import.meta.url).href },
-      { id: 'kobe', name: 'Kobe! 🐍', path: new URL('../sounds/kobe.wav', import.meta.url).href },
-      { id: 'buzzer-nba', name: 'NBA Buzzer ⏰', path: new URL('../sounds/buzzer-nba.wav', import.meta.url).href },
-      { id: 'triple-airhorn', name: 'Triple Airhorn 📢', path: new URL('../sounds/triple-airhorn.wav', import.meta.url).href },
-      { id: 'crowd-ohhh', name: 'Crowd OHHH! 😲', path: new URL('../sounds/crowd-ohhh.wav', import.meta.url).href },
-      { id: 'csgo-headshot', name: 'CS:GO Headshot 🎯', path: new URL('../sounds/csgo-headshot.wav', import.meta.url).href },
-      { id: 'sonic-ring', name: 'Sonic Ring 💍', path: new URL('../sounds/sonic-ring.wav', import.meta.url).href },
-      { id: 'street-fighter-ko', name: 'Street Fighter K.O. 🥊', path: new URL('../sounds/street-fighter-ko.wav', import.meta.url).href },
-      { id: 'fatality', name: 'Mortal Kombat Fatality 💀', path: new URL('../sounds/fatality.wav', import.meta.url).href },
-      { id: 'anime-wow', name: 'Anime WOW! ✨', path: new URL('../sounds/anime-wow.wav', import.meta.url).href },
-      { id: 'sheesh', name: 'Sheeeesh! 🥶', path: new URL('../sounds/sheesh.wav', import.meta.url).href },
-      { id: 'fahhhh', name: 'Fahhhh (Sound FX 💨)', path: new URL('../sounds/fahhhh.wav', import.meta.url).href },
-      { id: 'green-giant', name: 'Green Giant (Ho Ho Ho 🎅)', path: new URL('../sounds/green-giant.wav', import.meta.url).href },
+      { id: 'cha-ching', name: 'Cha-Ching (Cash)', path: new URL('../sounds/cha-ching.wav', import.meta.url).href },
+      { id: 'swish', name: 'Swish (Net)', path: new URL('../sounds/swish.wav', import.meta.url).href },
+      { id: 'net-nba', name: 'NBA Net (Snap)', path: new URL('../sounds/net-nba.wav', import.meta.url).href },
+      { id: 'coin', name: 'Coin (8-bit)', path: new URL('../sounds/coin.wav', import.meta.url).href },
+      { id: 'ding', name: 'Ding (Bell)', path: new URL('../sounds/ding.wav', import.meta.url).href },
+      { id: 'point', name: 'Point (Score)', path: new URL('../sounds/point.wav', import.meta.url).href },
+      { id: 'levelup', name: 'Level Up (Fanfare)', path: new URL('../sounds/levelup.wav', import.meta.url).href },
+      { id: 'powerup', name: 'Power Up (Retro)', path: new URL('../sounds/powerup.wav', import.meta.url).href },
+      { id: 'jingle', name: 'Jingle (Victory)', path: new URL('../sounds/jingle.wav', import.meta.url).href },
+      { id: 'curry-bang', name: 'Curry BANG!', path: new URL('../sounds/curry-bang.wav', import.meta.url).href },
+      { id: 'curry-downtown-bang', name: 'Curry Downtown BANG!', path: new URL('../sounds/curry-downtown-bang.wav', import.meta.url).href },
+      { id: 'boomshakalaka', name: 'Boomshakalaka!', path: new URL('../sounds/boomshakalaka.wav', import.meta.url).href },
+      { id: 'hes-on-fire', name: "He's on Fire!", path: new URL('../sounds/hes-on-fire.wav', import.meta.url).href },
+      { id: 'from-downtown', name: 'From Downtown!', path: new URL('../sounds/from-downtown.wav', import.meta.url).href },
+      { id: 'kobe', name: 'Kobe!', path: new URL('../sounds/kobe.wav', import.meta.url).href },
+      { id: 'buzzer-nba', name: 'NBA Buzzer', path: new URL('../sounds/buzzer-nba.wav', import.meta.url).href },
+      { id: 'triple-airhorn', name: 'Triple Airhorn', path: new URL('../sounds/triple-airhorn.wav', import.meta.url).href },
+      { id: 'crowd-ohhh', name: 'Crowd OHHH!', path: new URL('../sounds/crowd-ohhh.wav', import.meta.url).href },
+      { id: 'csgo-headshot', name: 'CS:GO Headshot', path: new URL('../sounds/csgo-headshot.wav', import.meta.url).href },
+      { id: 'sonic-ring', name: 'Sonic Ring', path: new URL('../sounds/sonic-ring.wav', import.meta.url).href },
+      { id: 'street-fighter-ko', name: 'Street Fighter K.O.', path: new URL('../sounds/street-fighter-ko.wav', import.meta.url).href },
+      { id: 'fatality', name: 'Mortal Kombat Fatality', path: new URL('../sounds/fatality.wav', import.meta.url).href },
+      { id: 'anime-wow', name: 'Anime WOW!', path: new URL('../sounds/anime-wow.wav', import.meta.url).href },
+      { id: 'sheesh', name: 'Sheeeesh!', path: new URL('../sounds/sheesh.wav', import.meta.url).href },
+      { id: 'fahhhh', name: 'Fahhhh (Sound FX)', path: new URL('../sounds/fahhhh.wav', import.meta.url).href },
+      { id: 'green-giant', name: 'Green Giant (Ho Ho Ho)', path: new URL('../sounds/green-giant.wav', import.meta.url).href },
     ];
   }
 
@@ -184,7 +184,7 @@ export class SoundManager {
 
     // Auto resume if still suspended
     if (this.audioCtx.state === 'suspended') {
-      this.audioCtx.resume().catch(() => {});
+      this.audioCtx.resume().catch(() => { });
     }
 
     let sound = null;
@@ -208,7 +208,7 @@ export class SoundManager {
       source.buffer = sound.buffer;
       source.connect(this.gainNode);
       source.onended = () => {
-        try { source.disconnect(); } catch (_) {}
+        try { source.disconnect(); } catch (_) { }
       };
       source.start(0);
     } catch (error) {
