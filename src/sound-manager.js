@@ -31,6 +31,19 @@ export class SoundManager {
       { id: 'jingle', name: 'Jingle (Victory 🎉)', path: new URL('../sounds/jingle.wav', import.meta.url).href },
       { id: 'curry-bang', name: 'Curry BANG! 💥', path: new URL('../sounds/curry-bang.wav', import.meta.url).href },
       { id: 'curry-downtown-bang', name: 'Curry Downtown BANG! 🎯', path: new URL('../sounds/curry-downtown-bang.wav', import.meta.url).href },
+      { id: 'boomshakalaka', name: 'Boomshakalaka! 🔥', path: new URL('../sounds/boomshakalaka.wav', import.meta.url).href },
+      { id: 'hes-on-fire', name: "He's on Fire! 🔥", path: new URL('../sounds/hes-on-fire.wav', import.meta.url).href },
+      { id: 'from-downtown', name: 'From Downtown! 🎯', path: new URL('../sounds/from-downtown.wav', import.meta.url).href },
+      { id: 'kobe', name: 'Kobe! 🐍', path: new URL('../sounds/kobe.wav', import.meta.url).href },
+      { id: 'buzzer-nba', name: 'NBA Buzzer ⏰', path: new URL('../sounds/buzzer-nba.wav', import.meta.url).href },
+      { id: 'triple-airhorn', name: 'Triple Airhorn 📢', path: new URL('../sounds/triple-airhorn.wav', import.meta.url).href },
+      { id: 'crowd-ohhh', name: 'Crowd OHHH! 😲', path: new URL('../sounds/crowd-ohhh.wav', import.meta.url).href },
+      { id: 'csgo-headshot', name: 'CS:GO Headshot 🎯', path: new URL('../sounds/csgo-headshot.wav', import.meta.url).href },
+      { id: 'sonic-ring', name: 'Sonic Ring 💍', path: new URL('../sounds/sonic-ring.wav', import.meta.url).href },
+      { id: 'street-fighter-ko', name: 'Street Fighter K.O. 🥊', path: new URL('../sounds/street-fighter-ko.wav', import.meta.url).href },
+      { id: 'fatality', name: 'Mortal Kombat Fatality 💀', path: new URL('../sounds/fatality.wav', import.meta.url).href },
+      { id: 'anime-wow', name: 'Anime WOW! ✨', path: new URL('../sounds/anime-wow.wav', import.meta.url).href },
+      { id: 'sheesh', name: 'Sheeeesh! 🥶', path: new URL('../sounds/sheesh.wav', import.meta.url).href },
       { id: 'fahhhh', name: 'Fahhhh (Sound FX 💨)', path: new URL('../sounds/fahhhh.wav', import.meta.url).href },
       { id: 'green-giant', name: 'Green Giant (Ho Ho Ho 🎅)', path: new URL('../sounds/green-giant.wav', import.meta.url).href },
     ];
@@ -259,11 +272,11 @@ export class SoundManager {
         data[i] = (Math.random() * 2 - 1) * env * 0.8;
       }
       return buffer;
-    } else if (type === 'coin' || type === 'ding' || type === 'point') {
+    } else if (type === 'coin' || type === 'ding' || type === 'point' || type === 'sonic-ring' || type === 'csgo-headshot') {
       const duration = 0.5;
       const buffer = this.audioCtx.createBuffer(1, sampleRate * duration, sampleRate);
       const data = buffer.getChannelData(0);
-      const freq = type === 'coin' ? 987.77 : (type === 'point' ? 880 : 1200);
+      const freq = type === 'coin' || type === 'sonic-ring' ? 987.77 : (type === 'point' ? 880 : 1200);
       for (let i = 0; i < data.length; i++) {
         const t = i / sampleRate;
         const env = Math.exp(-t * 7);
@@ -283,7 +296,7 @@ export class SoundManager {
         data[i] = Math.sin(2 * Math.PI * freq * t) * env * 0.7;
       }
       return buffer;
-    } else if (type === 'buzzer' || type === 'cha-ching') {
+    } else if (type === 'buzzer' || type === 'cha-ching' || type === 'buzzer-nba' || type === 'triple-airhorn') {
       const duration = 0.6;
       const buffer = this.audioCtx.createBuffer(1, sampleRate * duration, sampleRate);
       const data = buffer.getChannelData(0);
@@ -310,7 +323,7 @@ export class SoundManager {
         data[i] = (s1 * env1 + s2 * env2) * 0.8;
       }
       return buffer;
-    } else if (type === 'crowd-cheer' || type === 'green-giant') {
+    } else if (type === 'crowd-cheer' || type === 'green-giant' || type === 'crowd-ohhh') {
       const duration = 1.5;
       const buffer = this.audioCtx.createBuffer(1, sampleRate * duration, sampleRate);
       const data = buffer.getChannelData(0);
