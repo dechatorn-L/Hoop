@@ -21,6 +21,16 @@ export class SoundManager {
     this.isInitialized = false;
     this.builtinSoundList = [
       { id: 'cha-ching', name: 'Cha-Ching (Cash 💰)', path: new URL('../sounds/cha-ching.wav', import.meta.url).href },
+      { id: 'swish', name: 'Swish (Net 🏀)', path: new URL('../sounds/swish.wav', import.meta.url).href },
+      { id: 'net-nba', name: 'NBA Net (Snap 🎯)', path: new URL('../sounds/net-nba.wav', import.meta.url).href },
+      { id: 'coin', name: 'Coin (8-bit 🪙)', path: new URL('../sounds/coin.wav', import.meta.url).href },
+      { id: 'ding', name: 'Ding (Bell 🔔)', path: new URL('../sounds/ding.wav', import.meta.url).href },
+      { id: 'point', name: 'Point (Score ⚡)', path: new URL('../sounds/point.wav', import.meta.url).href },
+      { id: 'levelup', name: 'Level Up (Fanfare 🎺)', path: new URL('../sounds/levelup.wav', import.meta.url).href },
+      { id: 'powerup', name: 'Power Up (Retro 🍄)', path: new URL('../sounds/powerup.wav', import.meta.url).href },
+      { id: 'jingle', name: 'Jingle (Victory 🎉)', path: new URL('../sounds/jingle.wav', import.meta.url).href },
+      { id: 'curry-bang', name: 'Curry BANG! 💥', path: new URL('../sounds/curry-bang.wav', import.meta.url).href },
+      { id: 'curry-downtown-bang', name: 'Curry Downtown BANG! 🎯', path: new URL('../sounds/curry-downtown-bang.wav', import.meta.url).href },
       { id: 'fahhhh', name: 'Fahhhh (Sound FX 💨)', path: new URL('../sounds/fahhhh.wav', import.meta.url).href },
       { id: 'green-giant', name: 'Green Giant (Ho Ho Ho 🎅)', path: new URL('../sounds/green-giant.wav', import.meta.url).href },
     ];
@@ -239,7 +249,7 @@ export class SoundManager {
     if (!this.audioCtx) return null;
     const sampleRate = this.audioCtx.sampleRate;
 
-    if (type === 'swoosh' || type === 'fahhhh') {
+    if (type === 'swoosh' || type === 'fahhhh' || type === 'swish' || type === 'net-nba') {
       const duration = 0.4;
       const buffer = this.audioCtx.createBuffer(1, sampleRate * duration, sampleRate);
       const data = buffer.getChannelData(0);
@@ -247,6 +257,30 @@ export class SoundManager {
         const t = i / sampleRate;
         const env = Math.sin((t / duration) * Math.PI) * Math.exp(-t * 4);
         data[i] = (Math.random() * 2 - 1) * env * 0.8;
+      }
+      return buffer;
+    } else if (type === 'coin' || type === 'ding' || type === 'point') {
+      const duration = 0.5;
+      const buffer = this.audioCtx.createBuffer(1, sampleRate * duration, sampleRate);
+      const data = buffer.getChannelData(0);
+      const freq = type === 'coin' ? 987.77 : (type === 'point' ? 880 : 1200);
+      for (let i = 0; i < data.length; i++) {
+        const t = i / sampleRate;
+        const env = Math.exp(-t * 7);
+        data[i] = Math.sin(2 * Math.PI * freq * t) * env * 0.7;
+      }
+      return buffer;
+    } else if (type === 'levelup' || type === 'powerup' || type === 'jingle') {
+      const duration = 0.6;
+      const buffer = this.audioCtx.createBuffer(1, sampleRate * duration, sampleRate);
+      const data = buffer.getChannelData(0);
+      const baseFreq = type === 'levelup' ? 440 : (type === 'powerup' ? 330 : 523.25);
+      for (let i = 0; i < data.length; i++) {
+        const t = i / sampleRate;
+        const stage = Math.floor(t * 5);
+        const freq = baseFreq * Math.pow(1.25, stage);
+        const env = Math.exp(-(t % 0.12) * 10) * Math.max(0, 1 - t / duration);
+        data[i] = Math.sin(2 * Math.PI * freq * t) * env * 0.7;
       }
       return buffer;
     } else if (type === 'buzzer' || type === 'cha-ching') {
@@ -259,6 +293,21 @@ export class SoundManager {
         const s1 = Math.sign(Math.sin(2 * Math.PI * 220 * t));
         const s2 = Math.sign(Math.sin(2 * Math.PI * 233 * t));
         data[i] = (s1 * 0.5 + s2 * 0.5) * env * 0.6;
+      }
+      return buffer;
+    } else if (type === 'curry-bang' || type === 'curry-downtown-bang') {
+      const duration = 1.0;
+      const buffer = this.audioCtx.createBuffer(1, sampleRate * duration, sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) {
+        const t = i / sampleRate;
+        const t1 = t;
+        const t2 = t - 0.4;
+        const env1 = t1 >= 0 && t1 < 0.35 ? Math.exp(-t1 * 12) : 0;
+        const env2 = t2 >= 0 && t2 < 0.5 ? Math.exp(-t2 * 8) : 0;
+        const s1 = (Math.random() * 2 - 1) * 0.4 + Math.sin(2 * Math.PI * 320 * t) * 0.6;
+        const s2 = (Math.random() * 2 - 1) * 0.4 + Math.sin(2 * Math.PI * 400 * t) * 0.6;
+        data[i] = (s1 * env1 + s2 * env2) * 0.8;
       }
       return buffer;
     } else if (type === 'crowd-cheer' || type === 'green-giant') {
@@ -275,6 +324,13 @@ export class SoundManager {
       }
       return buffer;
     }
-    return null;
+    const duration = 0.3;
+    const buffer = this.audioCtx.createBuffer(1, sampleRate * duration, sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      const t = i / sampleRate;
+      data[i] = Math.sin(2 * Math.PI * 440 * t) * Math.exp(-t * 6) * 0.5;
+    }
+    return buffer;
   }
 }
