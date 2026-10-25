@@ -8,7 +8,7 @@ import { userError } from './i18n.js';
 export class SoundManager {
   /**
    * @param {Object} [config={}] Configuration options
-   * @param {string} [config.defaultSound='swoosh'] Default sound ID
+   * @param {string} [config.defaultSound='cha-ching'] Default sound ID
    * @param {number} [config.volume=0.8] Master volume (0.0 to 1.0)
    */
   constructor(config = {}) {
@@ -20,9 +20,9 @@ export class SoundManager {
     this.volume = config.volume ?? 0.8;
     this.isInitialized = false;
     this.builtinSoundList = [
-      { id: 'cha-ching', name: 'Cha-Ching (Cash 💰)', path: 'sounds/cha-ching.wav' },
-      { id: 'fahhhh', name: 'Fahhhh (Sound FX 💨)', path: 'sounds/fahhhh.wav' },
-      { id: 'green-giant', name: 'Green Giant (Ho Ho Ho 🎅)', path: 'sounds/green-giant.wav' },
+      { id: 'cha-ching', name: 'Cha-Ching (Cash 💰)', path: new URL('../sounds/cha-ching.wav', import.meta.url).href },
+      { id: 'fahhhh', name: 'Fahhhh (Sound FX 💨)', path: new URL('../sounds/fahhhh.wav', import.meta.url).href },
+      { id: 'green-giant', name: 'Green Giant (Ho Ho Ho 🎅)', path: new URL('../sounds/green-giant.wav', import.meta.url).href },
     ];
   }
 
@@ -239,7 +239,7 @@ export class SoundManager {
     if (!this.audioCtx) return null;
     const sampleRate = this.audioCtx.sampleRate;
 
-    if (type === 'swoosh') {
+    if (type === 'swoosh' || type === 'fahhhh') {
       const duration = 0.4;
       const buffer = this.audioCtx.createBuffer(1, sampleRate * duration, sampleRate);
       const data = buffer.getChannelData(0);
@@ -249,7 +249,7 @@ export class SoundManager {
         data[i] = (Math.random() * 2 - 1) * env * 0.8;
       }
       return buffer;
-    } else if (type === 'buzzer') {
+    } else if (type === 'buzzer' || type === 'cha-ching') {
       const duration = 0.6;
       const buffer = this.audioCtx.createBuffer(1, sampleRate * duration, sampleRate);
       const data = buffer.getChannelData(0);
@@ -261,7 +261,7 @@ export class SoundManager {
         data[i] = (s1 * 0.5 + s2 * 0.5) * env * 0.6;
       }
       return buffer;
-    } else if (type === 'crowd-cheer') {
+    } else if (type === 'crowd-cheer' || type === 'green-giant') {
       const duration = 1.5;
       const buffer = this.audioCtx.createBuffer(1, sampleRate * duration, sampleRate);
       const data = buffer.getChannelData(0);
