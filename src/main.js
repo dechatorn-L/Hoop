@@ -122,7 +122,7 @@ export class HoopCounterApp {
       if (!this.isInferring && this.cameraReady && this.modelReady && !this.ui.isDrawingRim) {
         this.isInferring = true;
         const epoch = this.detectionEpoch;
-        const cropRoi = this.ui.isHoopRoiEnabled() ? this.ui.getManualRimRoi() : null;
+        const cropRoi = this.ui.isHoopRoiEnabled() ? this.ui.getManualRimRoi()?.bbox : null;
         this.detector
           .detect(this.videoElement, cropRoi)
           .then((rawDetections) => {

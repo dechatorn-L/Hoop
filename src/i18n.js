@@ -78,7 +78,7 @@ export const messages = {
   rimModeLocked: ['โหมด: ล็อกตำแหน่งห่วง', 'Mode: Locked rim position'],
   drawRim: ['ลากตำแหน่งเอง', 'Draw rim manually'],
   returnAuto: ['คืนค่าอัตโนมัติ', 'Use automatic detection'],
-  turboDescription: ['ตัดภาพเฉพาะโซนห่วง เร็วขึ้น 3 เท่า', 'Crop to the rim area for up to 3× faster detection'],
+  turboDescription: ['ครอปโซนห่วงเฉพาะ Roboflow หลังยืนยันกรอบห่วงเอง', 'Crop around your confirmed rim frame with Roboflow only.'],
   turboLabel: ['เปิดใช้ ROI Turbo', 'Enable ROI Turbo'],
   detectionModel: ['โมเดลตรวจจับ (AI Model)', 'Detection model (AI Model)'],
   modelGuide: ['คู่มือโมเดล', 'Model guide'],

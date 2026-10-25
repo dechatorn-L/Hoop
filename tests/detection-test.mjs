@@ -30,6 +30,7 @@ beforeEach(async () => {
       }
       terminate() { this.terminated = true; }
     };
+    window.nativeCreateImageBitmap = window.createImageBitmap.bind(window);
     window.createImageBitmap = async () => ({ close() {} });
   });
 });
@@ -65,6 +66,62 @@ async function setupPractice() {
     };
   });
 }
+
+test('ROI Turbo crops Roboflow frames from the app loop and restores source coordinates', async () => {
+  await setupPractice();
+  const result = await page.evaluate(async () => {
+    const { ObjectDetector } = await import('/src/detector.js');
+    const detector = app.detector = new ObjectDetector();
+    detector.isLoaded = true;
+    detector.roboflowWorkerId = 'controlled-worker';
+    app.ui.setManualRimRoi({ x: 300, y: 200, width: 80, height: 20 });
+    const crops = [], inputs = [], bitmaps = [];
+    const createBitmap = window.createImageBitmap = async (source, ...crop) => {
+      crops.push(crop);
+      const canvas = document.createElement('canvas');
+      canvas.width = crop[2] || source.videoWidth;
+      canvas.height = crop[3] || source.videoHeight;
+      const bitmap = await nativeCreateImageBitmap(canvas);
+      bitmaps.push(bitmap);
+      return bitmap;
+    };
+    detector.roboflowEngine.infer = async (_id, image) => {
+      inputs.push(image.bitmapImage ? [image.bitmapImage.width, image.bitmapImage.height] : 'full-frame');
+      return [{ class: 'ball', x: 50, y: 30, width: 20, height: 10, confidence: 0.9 }];
+    };
+    let pending;
+    const detect = detector.detect.bind(detector);
+    detector.detect = (...args) => pending = detect(...args);
+    const frame = async () => {
+      detector.lastInferenceTime = -Infinity;
+      app.mainLoop();
+      await pending;
+    };
+    await frame();
+    const bbox = detector.lastDetections[0]?.bbox;
+    const bitmapClosed = bitmaps.length === 1 && bitmaps[0].width === 0;
+    app.ui.toggleHoopRoi.checked = false;
+    app.ui.toggleHoopRoi.dispatchEvent(new Event('change'));
+    await frame();
+    app.ui.toggleHoopRoi.checked = true;
+    app.ui.toggleHoopRoi.dispatchEvent(new Event('change'));
+    window.createImageBitmap = undefined;
+    await frame();
+    const fallbackBox = detector.lastDetections[0]?.bbox;
+    window.createImageBitmap = createBitmap;
+    app.ui.clearManualRimRoi();
+    await frame();
+    detector.onnxDetector.dispose();
+    return { crops, inputs, bbox, bitmapClosed, fallbackBox };
+  });
+  assert.deepEqual(result, {
+    crops: [[180, 160, 320, 116]],
+    inputs: [[320, 116], 'full-frame', 'full-frame', 'full-frame'],
+    bbox: { x: 220, y: 185, width: 20, height: 10 },
+    bitmapClosed: true,
+    fallbackBox: { x: 40, y: 25, width: 20, height: 10 },
+  });
+});
 
 test('only observed ball movement scores; render extrapolation cannot score', async () => {
   await setupPractice();
