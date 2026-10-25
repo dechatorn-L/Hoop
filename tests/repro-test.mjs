@@ -39,4 +39,54 @@ soundMgr.setActiveSound('random');
 assert.strictEqual(soundMgr.activeSoundId, 'random', 'SoundManager should accept random sound mode');
 console.log('SoundManager random mode verified.');
 
+console.log('--- TEST 4: Observations separated by a tracking timeout cannot score ---');
+const originalNow = Date.now;
+let now = 10000;
+Date.now = () => now;
+try {
+  const delayedTracker = new ShotTracker();
+  const manualRim = { ...rim, isManual: true };
+  delayedTracker.update(manualRim, frame1);
+  now += 2000;
+  assert.strictEqual(delayedTracker.update(manualRim, frame3), false, 'A new observation cannot complete an expired trajectory');
+  assert.strictEqual(delayedTracker.getScore(), 0);
+  delayedTracker.update(manualRim, frame1);
+  now += 50;
+  assert.strictEqual(delayedTracker.update(manualRim, frame3), true, 'A fresh observed crossing must still score');
+} finally {
+  Date.now = originalNow;
+}
+
+console.log('--- TEST 5: Undo only the latest basket, retaining cooldown ---');
+Date.now = () => now;
+try {
+  const correction = new ShotTracker();
+  assert.strictEqual(correction.undoLastScore(), false);
+  correction.update(rim, frame1);
+  assert.strictEqual(correction.update(rim, frame3), true);
+  const cooldown = correction.cooldownEndTime;
+  assert.strictEqual(correction.undoLastScore(), true);
+  assert.strictEqual(correction.getScore(), 0);
+  assert.strictEqual(correction.cooldownEndTime, cooldown);
+  assert.strictEqual(correction.getState(), 'COOLDOWN');
+  assert.strictEqual(correction.undoLastScore(), false);
+  assert.strictEqual(correction.update(rim, frame3), false);
+  now += 2100;
+  const made = { bbox: { x: 130, y: 105, width: 20, height: 20 } };
+  assert.strictEqual(correction.update(rim, null, made), true);
+  correction.clearTrajectory();
+  assert.strictEqual(correction.canUndoScore, true);
+  now += 2100;
+  assert.strictEqual(correction.update(rim, null, made), true);
+  assert.strictEqual(correction.undoLastScore(), true);
+  assert.strictEqual(correction.getScore(), 1);
+  assert.strictEqual(correction.undoLastScore(), false, 'Earlier baskets cannot be undone');
+  now += 2100;
+  correction.update(rim, null, made);
+  correction.reset();
+  assert.strictEqual(correction.undoLastScore(), false);
+} finally {
+  Date.now = originalNow;
+}
+
 console.log('--- ALL MATH & LOGIC TESTS PASSED ---');

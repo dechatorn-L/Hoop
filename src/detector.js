@@ -76,17 +76,15 @@ export class ObjectDetector {
 
     this.isLoading = true;
     this.isLoaded = false;
-    this.lastDetections = [];
+    this.clearDetections();
     this.isInferring = false;
-    if (this.onnxDetector) {
-      this.onnxDetector.lastDetections = [];
-    }
 
     // 1. If ONNX Provider requested
     if (provider === 'onnx') {
       try {
         console.log(`[ObjectDetector] Initializing Local ONNX model: ${onnxPath}`);
         await this.onnxDetector.loadModel(onnxPath);
+        await this._stopRoboflowWorker();
         this.currentProvider = 'onnx';
         this.activeModelId = onnxPath;
         this.isLoaded = true;
@@ -120,6 +118,7 @@ export class ObjectDetector {
         console.log('[ObjectDetector] Triggering auto-fallback to Local ONNX...');
         try {
           await this.onnxDetector.loadModel(onnxPath);
+          await this._stopRoboflowWorker();
           this.currentProvider = 'onnx';
           this.activeModelId = onnxPath;
           this.isLoaded = true;
@@ -137,11 +136,7 @@ export class ObjectDetector {
     }
   }
 
-  /**
-   * Internal Roboflow worker loading
-   * @private
-   */
-  async _loadRoboflowModel(modelId, apiKey) {
+  async _stopRoboflowWorker() {
     // If previous worker exists, stop it cleanly first
     if (this.roboflowWorkerId) {
       const oldWorker = this.roboflowWorkerId;
@@ -155,7 +150,14 @@ export class ObjectDetector {
       // Brief pause to allow worker thread disposal
       await new Promise((r) => setTimeout(r, 60));
     }
+  }
 
+  /**
+   * Internal Roboflow worker loading
+   * @private
+   */
+  async _loadRoboflowModel(modelId, apiKey) {
+    await this._stopRoboflowWorker();
     try {
       console.log(`[ObjectDetector] Starting worker by modelId: ${modelId}`);
       this.roboflowWorkerId = await this.roboflowEngine.startWorkerByModelId(modelId, apiKey);
@@ -180,9 +182,9 @@ export class ObjectDetector {
    * @param {number} threshold Value between 0 and 1
    */
   setConfidence(threshold) {
-    if (typeof threshold === 'number' && !isNaN(threshold)) {
-      this.confidenceThreshold = Math.max(0.01, Math.min(0.99, threshold));
-      this.onnxDetector.setConfidence(this.confidenceThreshold);
+    if (typeof threshold === 'number' && threshold >= 0 && threshold <= 1) {
+      this.confidenceThreshold = threshold;
+      this.onnxDetector.setConfidence(threshold);
     }
   }
 
@@ -191,7 +193,7 @@ export class ObjectDetector {
    * @param {number} fps Target FPS
    */
   setInferenceRate(fps) {
-    if (typeof fps === 'number' && fps > 0) {
+    if (Number.isFinite(fps) && fps > 0) {
       this.inferenceRate = fps;
       this.onnxDetector.setInferenceRate(fps);
     }
@@ -217,7 +219,7 @@ export class ObjectDetector {
    */
   async detect(videoElement, cropRoi = null) {
     const epoch = this.detectionEpoch;
-    if (!this.isReady() || !videoElement || videoElement.readyState < 2) {
+    if (!this.isLoaded || !videoElement || videoElement.readyState < 2) {
       return [];
     }
 
@@ -230,6 +232,7 @@ export class ObjectDetector {
     }
 
     // Roboflow Detection
+    if (!this.roboflowWorkerId) return [];
     const now = performance.now();
     const intervalMs = 1000 / this.inferenceRate;
 
@@ -392,16 +395,5 @@ export class ObjectDetector {
     }
 
     return normalized;
-  }
-
-  /**
-   * Update confidence threshold across all detectors
-   * @param {number} threshold Value between 0.0 and 1.0
-   */
-  setConfidence(threshold) {
-    if (typeof threshold === 'number' && threshold >= 0 && threshold <= 1) {
-      this.confidenceThreshold = threshold;
-      this.onnxDetector.setConfidence(threshold);
-    }
   }
 }

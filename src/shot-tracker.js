@@ -12,6 +12,7 @@ export class ShotTracker {
   constructor(config = {}) {
     this.config = config;
     this.score = 0;
+    this.canUndoScore = false;
     this.state = 'IDLE'; // IDLE, TRACKING, BALL_ABOVE, SCORED, COOLDOWN
 
     this.scoreCooldownMs = config.scoreCooldownMs ?? 2000;
@@ -36,6 +37,12 @@ export class ShotTracker {
    */
   update(rimOrDetections, ballDetection, madeBasketDetection) {
     const now = Date.now();
+
+    if ((this.state === 'TRACKING' || this.state === 'BALL_ABOVE' || this.state === 'BALL_ENTERING') && now - this.lastSeenTime > this.trackingTimeoutMs) {
+      this._transitionTo('IDLE');
+      this.previousBallCenterY = null;
+      this.previousBallCenterX = null;
+    }
 
     // Check if in COOLDOWN
     if (this.state === 'COOLDOWN') {
@@ -129,6 +136,7 @@ export class ShotTracker {
         const isUpward = this.previousBallCenterY !== null && (mbCenterY - this.previousBallCenterY < -5);
         if (!isUpward) {
           this.score++;
+          this.canUndoScore = true;
           this._transitionTo('SCORED');
           this.cooldownEndTime = now + this.scoreCooldownMs;
           this._transitionTo('COOLDOWN');
@@ -139,11 +147,6 @@ export class ShotTracker {
 
     // If no stationary rim or no ball detected
     if (!rimBox || !ballBox) {
-      if ((this.state === 'TRACKING' || this.state === 'BALL_ABOVE' || this.state === 'BALL_ENTERING') && now - this.lastSeenTime > this.trackingTimeoutMs) {
-        this._transitionTo('IDLE');
-        this.previousBallCenterY = null;
-        this.previousBallCenterX = null;
-      }
       return false;
     }
 
@@ -194,6 +197,7 @@ export class ShotTracker {
           // Continuous Trajectory Match: Ball cleanly crossed downward through the rim plane!
           scored = true;
           this.score++;
+          this.canUndoScore = true;
           this._transitionTo('SCORED');
 
           // Immediately enter COOLDOWN
@@ -272,6 +276,7 @@ export class ShotTracker {
    */
   reset() {
     this.score = 0;
+    this.canUndoScore = false;
     this.state = 'IDLE';
     this.previousBallCenterY = null;
     this.previousBallCenterX = null;
@@ -304,6 +309,14 @@ export class ShotTracker {
    */
   getScore() {
     return this.score;
+  }
+
+  /** Correct the latest basket once, keeping the scoring cooldown intact. */
+  undoLastScore() {
+    if (!this.canUndoScore || this.score <= 0) return false;
+    this.score--;
+    this.canUndoScore = false;
+    return true;
   }
 
   /**

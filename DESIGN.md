@@ -163,6 +163,11 @@ Court Journal uses flat planar layering and crisp 1px borders rather than diffus
 - **Style:** Burgundy Subtle ground (`#EEE5E6`), borderless flex banner positioned outside the camera image.
 - **Actions:** Dedicated Confirm Rim and Cancel buttons placed completely external to video bounds.
 
+### Score correction and positioning guidance
+
+- **Undo last basket:** Secondary button beside the score, available once after each automatically counted basket. Expanded camera keeps the 44px icon button with a translated accessible name. Correction removes score feedback animation and retains practice state and scoring cooldown. Reset disables correction.
+- **Positioning guidance:** Existing disclosure contains two geometric diagrams: stable support or tripod, and an uncropped rim with space for the ball path. Bilingual captions and a text checklist carry all instructions. Diagrams use theme tokens and are illustrative rather than calibrated camera-placement instructions. They stack on narrow screens.
+
 ### Settings Drawer (`.settings-drawer`)
 - **Style:** Right slide-in panel (`width: min(100%, 400px)`), bordered left, themed background, containing theme and language selectors, sound presets, detection confidence, and model configurations.
 - **Models:** Local Swish is the default, with Swish INT8 as the other bundled option. Keep a Custom Roboflow choice that reveals user-entered Model ID/key fields. The model guide mirrors these three entries; no bundled API recommendations remain.

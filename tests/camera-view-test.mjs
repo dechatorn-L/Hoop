@@ -62,6 +62,7 @@ try {
   await page.evaluate(() => {
     document.documentElement.requestFullscreen = () => Promise.reject(new Error('Fullscreen denied'));
     ui.currentScore = 11; ui.incrementScore();
+    ui.updatePracticeControls({ state: 'setup', cameraReady: true, modelReady: true, rimReady: true, canPractice: true, canUndoScore: true });
   });
   for (const viewport of [{ width: 393, height: 850 }, { width: 873, height: 393 }, { width: 320, height: 568 }]) {
     await page.setViewportSize(viewport);
@@ -125,6 +126,12 @@ try {
       const action = document.querySelector('#btn-practice').getBoundingClientRect();
       return score.right <= restore.left && score.bottom <= action.top && action.bottom <= innerHeight && document.documentElement.scrollWidth <= innerWidth;
     }), true, 'Floating controls must not overlap at 200% text size with a six-digit score');
+    await page.locator('#btn-undo-score').focus();
+    assert.equal(await page.locator('#btn-undo-score').evaluate(node => {
+      const style = getComputedStyle(node);
+      const rect = node.getBoundingClientRect();
+      return style.outlineColor === style.color && rect.width >= 44 && rect.height >= 44;
+    }), true, 'Expanded Undo must retain a contrasting keyboard focus ring and 44px target');
     await page.locator('#btn-fullscreen-toggle').click();
   }
   await page.evaluate(() => { document.documentElement.style.fontSize = ''; ui.currentScore = 11; ui.incrementScore(); });

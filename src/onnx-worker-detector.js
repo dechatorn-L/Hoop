@@ -24,13 +24,13 @@ export class OnnxWorkerDetector {
     this.workers = [];
     this.isLoaded = false;
     this.isLoading = false;
+    this.loadError = null;
     this.lastDetections = [];
     this.lastInferenceTime = 0;
     this.reqCounter = 0;
     this.discardThroughId = 0;
     this.watchdogTimeoutMs = 2000; // Auto-recovery timeout if worker hangs
-
-    this._initWorkerPool();
+    this.loadTimeoutMs = 30000;
   }
 
   /**
@@ -48,12 +48,14 @@ export class OnnxWorkerDetector {
           isBusy: false,
           isReady: false,
           watchdogTimer: null,
+          requestId: null,
+          rejectInit: null,
         };
 
         worker.onmessage = (e) => this._handleWorkerMessage(workerState, e.data);
         worker.onerror = (err) => {
           console.error(`[OnnxWorkerDetector] Worker ${i} fatal error:`, err);
-          this._recoverWorker(workerState);
+          this._recoverWorker(workerState, new Error(err.message || 'Worker crashed'));
         };
 
         this.workers.push(workerState);
@@ -68,26 +70,17 @@ export class OnnxWorkerDetector {
    * @private
    */
   _handleWorkerMessage(workerState, msg) {
+    if (!this.workers.includes(workerState) || msg.id !== workerState.requestId || msg.type !== 'INFER_RESULT') return;
     // Clear watchdog timer as worker responded
     if (workerState.watchdogTimer) {
       clearTimeout(workerState.watchdogTimer);
       workerState.watchdogTimer = null;
     }
 
-    const { type, detections, error } = msg;
-
-    if (type === 'INIT_SUCCESS') {
-      workerState.isReady = true;
-      workerState.isBusy = false;
-    } else if (type === 'INIT_ERROR') {
-      workerState.isReady = false;
-      workerState.isBusy = false;
-      console.error(`[OnnxWorkerDetector] Worker ${workerState.id} init error:`, error);
-    } else if (type === 'INFER_RESULT') {
-      workerState.isBusy = false;
-      if (msg.id > this.discardThroughId && Array.isArray(detections)) {
-        this.lastDetections = detections;
-      }
+    workerState.isBusy = false;
+    workerState.requestId = null;
+    if (msg.id > this.discardThroughId && Array.isArray(msg.detections)) {
+      this.lastDetections = msg.detections;
     }
   }
 
@@ -95,13 +88,15 @@ export class OnnxWorkerDetector {
    * Recover stuck or crashed worker
    * @private
    */
-  _recoverWorker(workerState) {
+  _recoverWorker(workerState, error = new Error('Worker inference timed out')) {
+    if (!this.workers.includes(workerState)) return;
     console.warn(`[OnnxWorkerDetector] Auto-recovering Worker ${workerState.id}...`);
-    if (workerState.watchdogTimer) {
-      clearTimeout(workerState.watchdogTimer);
-      workerState.watchdogTimer = null;
+    if (workerState.rejectInit) {
+      workerState.rejectInit(error);
+      return;
     }
-    workerState.isBusy = false;
+    // A failed initialization ends recovery; it must not create a reload loop.
+    this.loadModel().catch(err => console.error('[OnnxWorkerDetector] Recovery failed:', err));
   }
 
   /**
@@ -124,57 +119,70 @@ export class OnnxWorkerDetector {
    */
   async loadModel(modelPath) {
     if (modelPath) this.modelPath = modelPath;
+    this.dispose();
+    this._initWorkerPool();
     this.isLoading = true;
     this.isLoaded = false;
+    const workers = this.workers;
 
     console.log(`[OnnxWorkerDetector] Initializing ${this.workers.length} workers with model: ${this.modelPath}`);
 
-    const loadPromises = this.workers.map((w) => {
+    const loadPromises = workers.map((w) => {
       return new Promise((resolve, reject) => {
-        if (w.watchdogTimer) {
-          clearTimeout(w.watchdogTimer);
-          w.watchdogTimer = null;
-        }
-
         w.isReady = false;
         w.isBusy = true;
         const reqId = ++this.reqCounter;
+        w.requestId = reqId;
+
+        const finish = (error) => {
+          clearTimeout(w.watchdogTimer);
+          w.watchdogTimer = null;
+          w.rejectInit = null;
+          w.requestId = null;
+          w.worker.removeEventListener('message', onInitResponse);
+          w.isReady = !error;
+          w.isBusy = false;
+          if (error) reject(error);
+          else resolve(true);
+        };
 
         const onInitResponse = (e) => {
-          if (e.data.id === reqId) {
-            w.worker.removeEventListener('message', onInitResponse);
-            if (e.data.type === 'INIT_SUCCESS') {
-              w.isReady = true;
-              w.isBusy = false;
-              resolve(true);
-            } else {
-              w.isBusy = false;
-              reject(new Error(e.data.error || 'Worker init failed'));
-            }
+          if (e.data.id === reqId && (e.data.type === 'INIT_SUCCESS' || e.data.type === 'INIT_ERROR')) {
+            finish(e.data.type === 'INIT_ERROR' ? new Error(e.data.error || 'Worker init failed') : null);
           }
         };
 
+        w.rejectInit = finish;
+        w.watchdogTimer = setTimeout(() => finish(new Error('Worker model initialization timed out')), this.loadTimeoutMs);
         w.worker.addEventListener('message', onInitResponse);
-        w.worker.postMessage({
-          type: 'INIT_MODEL',
-          id: reqId,
-          data: {
-            modelPath: this.modelPath,
-            confidenceThreshold: this.confidenceThreshold,
-          },
-        });
+        try {
+          w.worker.postMessage({
+            type: 'INIT_MODEL',
+            id: reqId,
+            data: {
+              modelPath: this.modelPath,
+              confidenceThreshold: this.confidenceThreshold,
+            },
+          });
+        } catch (error) {
+          finish(error);
+        }
       });
     });
 
     try {
+      if (!workers.length) throw new Error('No inference workers available');
       await Promise.all(loadPromises);
+      if (this.workers !== workers) throw new Error('Worker model initialization cancelled');
       this.isLoaded = true;
       this.isLoading = false;
       console.log('[OnnxWorkerDetector] All workers initialized successfully.');
       return true;
     } catch (err) {
-      this.isLoading = false;
-      this.isLoaded = false;
+      if (this.workers === workers) {
+        this.dispose();
+        this.loadError = err;
+      }
       console.error('[OnnxWorkerDetector] Worker pool load failed:', err);
       throw err;
     }
@@ -196,12 +204,17 @@ export class OnnxWorkerDetector {
     }
   }
 
+  setInferenceRate(fps) {
+    if (Number.isFinite(fps) && fps > 0) this.inferenceRate = fps;
+  }
+
   /**
    * Send frame to available worker via zero-copy ImageBitmap
    * @param {HTMLVideoElement} videoElement
    * @returns {Promise<Array<{class: string, bbox: {x: number, y: number, width: number, height: number}, confidence: number}>>}
    */
   async detect(videoElement) {
+    if (this.loadError) throw this.loadError;
     if (!this.isReady() || !videoElement || videoElement.readyState < 2) {
       return this.lastDetections;
     }
@@ -225,12 +238,12 @@ export class OnnxWorkerDetector {
     // Armed Watchdog Timer (resets worker if inference hangs > 2s)
     idleWorker.watchdogTimer = setTimeout(() => {
       console.warn(`[OnnxWorkerDetector] Watchdog triggered on Worker ${idleWorker.id} (stalled inference). Resetting...`);
-      idleWorker.isBusy = false;
-      idleWorker.watchdogTimer = null;
+      this._recoverWorker(idleWorker);
     }, this.watchdogTimeoutMs);
 
     let imageBitmap = null;
     const reqId = ++this.reqCounter;
+    idleWorker.requestId = reqId;
     try {
       const originalWidth = videoElement.videoWidth || 1280;
       const originalHeight = videoElement.videoHeight || 720;
@@ -276,7 +289,9 @@ export class OnnxWorkerDetector {
    * Terminate all workers cleanly
    */
   dispose() {
+    this.clearDetections();
     this.workers.forEach((w) => {
+      w.rejectInit?.(new Error('Worker model initialization cancelled'));
       if (w.watchdogTimer) {
         clearTimeout(w.watchdogTimer);
         w.watchdogTimer = null;
@@ -287,5 +302,7 @@ export class OnnxWorkerDetector {
     });
     this.workers = [];
     this.isLoaded = false;
+    this.isLoading = false;
+    this.loadError = null;
   }
 }

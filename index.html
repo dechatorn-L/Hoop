@@ -22,6 +22,10 @@
       <section class="score-panel" id="score-display" aria-labelledby="score-label">
         <p class="score-label" id="score-label" data-i18n="madeBaskets">ลูกที่ลง</p>
         <span class="score-value" id="score-value" role="status" aria-live="polite" aria-atomic="true">0</span>
+        <button type="button" id="btn-undo-score" class="btn undo-score" disabled data-i18n-aria-label="undoScore" data-i18n-title="undoScore" aria-label="ยกเลิกลูกล่าสุด" title="ยกเลิกลูกล่าสุด">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 10h11a7 7 0 0 1 0 14" transform="translate(0 -4)"/><path d="m7 2-4 4 4 4"/></svg>
+          <span class="undo-score-label" data-i18n="undoScore">ยกเลิกลูกล่าสุด</span>
+        </button>
       </section>
 
       <!-- Main Viewport Area -->
@@ -82,7 +86,35 @@
                 <button id="btn-settings-toggle" class="btn btn-secondary" aria-label="เปิดการตั้งค่า" data-i18n-aria-label="openSettings" data-i18n="settings">การตั้งค่า</button>
               </div>
             </nav>
-            <details id="positioning-guide"><summary data-i18n="guideTitle">วิธีจัดวางกล้อง</summary><p data-i18n="guideBody">วางอุปกรณ์ให้มั่นคงและเห็นห่วงกับทางเดินของลูกบาส ตรวจกรอบห่วงอัตโนมัติ หรือล็อกห่วงเอง แล้วกดเริ่มฝึกซ้อม พักได้โดยคะแนนยังอยู่</p></details>
+            <details id="positioning-guide">
+              <summary data-i18n="guideTitle">วิธีจัดวางกล้อง</summary>
+              <div class="positioning-diagrams">
+                <figure>
+                  <svg viewBox="0 0 240 120" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                    <path d="M16 104h208M42 101V78h32v23M50 78V43h16v35M55 48h6M106 100l12-55 12 55M118 45V22h16v23z"/>
+                    <path class="guide-accent" d="m66 50 25-18m-25 28 25 10m43-41 35-13m-35 21 35 13"/>
+                  </svg>
+                  <figcaption data-i18n="guideSupport">ใช้ฐานที่มั่นคงหรือขาตั้ง</figcaption>
+                </figure>
+                <figure>
+                  <svg viewBox="0 0 240 120" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                    <rect x="16" y="12" width="208" height="96" rx="8"/>
+                    <path d="M170 25h32v28h-32zM180 53h28M183 57l4 13h14l4-13"/>
+                    <path class="guide-accent" stroke-dasharray="4 5" d="M40 90Q100-16 190 52v41"/>
+                    <circle class="guide-accent" cx="123" cy="28" r="6"/>
+                    <rect class="guide-accent" x="176" y="47" width="36" height="12" rx="2"/>
+                  </svg>
+                  <figcaption data-i18n="guideFrame">เห็นห่วงครบและเผื่อทางเดินลูก</figcaption>
+                </figure>
+              </div>
+              <p class="guide-note" data-i18n="guideIllustrative">ภาพเป็นแนวทาง ปรับตำแหน่งจากภาพกล้องจริงของคุณ</p>
+              <ul class="positioning-checklist">
+                <li data-i18n="guideStable">ตั้งอุปกรณ์ให้นิ่ง ไม่ขวางทางวิ่งหรือทางลูกบาส</li>
+                <li data-i18n="guideClear">ให้เห็นห่วงทั้งวงและพื้นที่เหนือ–ใต้ห่วง ไม่มีสิ่งบัง</li>
+                <li data-i18n="guideRim">ตรวจกรอบให้ตรงห่วงเหล็ก ไม่ครอบทั้งแป้น หากกรอบผิดให้ล็อกห่วงเอง</li>
+              </ul>
+              <p data-i18n="guideBody">ตรวจภาพและกรอบห่วงก่อนกดเริ่มฝึกซ้อม หากนับเกิน กดยกเลิกลูกล่าสุดได้หนึ่งครั้งต่อคะแนนใหม่ พักการซ้อมได้โดยคะแนนยังอยู่</p>
+            </details>
           </div>
         </details>
       </section>

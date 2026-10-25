@@ -653,7 +653,7 @@ try {
       terminate() {}
     };
     app.detector = new ObjectDetector(app.config);
-    window.Worker = NativeWorker;
+    window.restoreWorker = () => { window.Worker = NativeWorker; };
     const bitmap = window.createImageBitmap.bind(window);
     const source = document.createElement('canvas');
     source.width = 640; source.height = 480;
@@ -679,6 +679,7 @@ try {
   await page.evaluate(() => { for (const reply of workerFrames.splice(0)) reply([rim, made]); });
   await page.waitForTimeout(100);
   assert.equal(await page.locator('#score-value').textContent(), '1', 'Pause/Resume must retain scoring cooldown');
+  await page.evaluate(() => { app.isRunning = false; app.detector.onnxDetector.dispose(); restoreWorker(); });
   console.log('PASS: real ONNX worker adapter rejects stale results and retains cooldown');
 
   const live = await browser.newPage({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 844 } });

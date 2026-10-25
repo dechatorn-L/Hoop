@@ -30,6 +30,7 @@ export class HoopCounterApp {
     this.isRunning = false;
     this.isInferring = false;
     this.latestDetections = [];
+    this.lastProcessedDetections = null;
     this.primaryRim = null;
     this.practiceState = 'setup';
     this.cameraReady = false;
@@ -66,6 +67,9 @@ export class HoopCounterApp {
    * @private
    */
   _processDetections(rawDetections) {
+    // Throttled detectors return the same array until a new inference completes.
+    if (rawDetections === this.lastProcessedDetections) return;
+    this.lastProcessedDetections = rawDetections;
     const timestamp = performance.now();
     const manualRim = this.ui.getManualRimRoi();
     const detections = rawDetections || [];
@@ -92,6 +96,18 @@ export class HoopCounterApp {
     this.latestDetections = filtered;
     this.primaryRim = rim;
     this._updatePracticeControls();
+
+    // Only observed detections can score; canvas extrapolation is presentation.
+    const ball = filtered.find(d => this._isBall(d));
+    const madeBasket = filtered.find(d => this._isMade(d));
+    const scored = this.practiceState === 'practice' && this.cameraReady && this.modelReady
+      && this.tracker.update(rim, ball, madeBasket);
+    if (scored) {
+      console.log('🎯 SCORE EVENT TRIGGERED!');
+      this.sound.playScoreSound();
+      this.ui.incrementScore();
+      this._updatePracticeControls();
+    }
   }
 
   /**
@@ -116,26 +132,16 @@ export class HoopCounterApp {
           .catch((err) => {
             console.warn('[MainLoop] Inference warning:', err);
             this.isInferring = false;
+            if (epoch !== this.detectionEpoch) return;
+            this.modelReady = false;
+            this.modelError = err.userMessage || { key: 'modelError', params: { detail: err.message } };
+            this.pausePractice();
+            this.ui.showError(this.modelError);
           });
       }
 
       // 2. Unblocked 60 FPS Render & HUD Update Loop (Never pauses, 60 FPS Interpolator runs continuously)
       this.ui.drawDetections(this.latestDetections);
-
-      // 3. Continuous shot tracking (Zero-allocation 60 FPS duck-typing)
-      const ball = this.ui.getBallInterpolatedBox() || this.latestDetections.find((d) => this._isBall(d));
-      const madeBasket = this.latestDetections.find((d) => this._isMade(d));
-
-      // 4. Update shot tracker state machine with continuous trajectory
-      const scored = this.practiceState === 'practice' && this.cameraReady && this.modelReady
-        && this.tracker.update(this.primaryRim, ball, madeBasket);
-
-      // 5. Handle score event
-      if (scored) {
-        console.log('🎯 SCORE EVENT TRIGGERED!');
-        this.sound.playScoreSound();
-        this.ui.incrementScore();
-      }
     }
 
     requestAnimationFrame(() => this.mainLoop());
@@ -174,11 +180,13 @@ export class HoopCounterApp {
       state: this.practiceState, cameraReady: this.cameraReady, modelReady: this.modelReady,
       rimReady, canPractice: this.canPractice, cameraLoading: this.cameraLoading,
       modelLoading: this.modelLoading, cameraError: this.cameraError, modelError: this.modelError,
+      canUndoScore: this.tracker.canUndoScore,
     });
   }
 
   _clearTracking() {
     this.detectionEpoch++;
+    this.lastProcessedDetections = null;
     this.latestDetections = [];
     this.ui.clearDetections();
     this.detector.clearDetections();
@@ -188,6 +196,13 @@ export class HoopCounterApp {
   pausePractice() {
     if (this.practiceState === 'practice') this.practiceState = 'paused';
     this._clearTracking();
+    this._updatePracticeControls();
+  }
+
+  undoLastScore() {
+    if (!this.tracker.undoLastScore()) return;
+    this._clearTracking();
+    this.ui.setScore(this.tracker.getScore());
     this._updatePracticeControls();
   }
 
@@ -322,6 +337,7 @@ export class HoopCounterApp {
    */
   _wireEvents() {
     this.ui.bindPractice(() => this.togglePractice());
+    this.ui.bindUndoScore(() => this.undoLastScore());
     this.ui.bindOpenCamera(() => this.openCamera());
     this.ui.bindRimChange(() => {
       this.pausePractice();
@@ -334,6 +350,7 @@ export class HoopCounterApp {
       this._clearTracking();
       this.tracker.reset();
       this.ui.resetScore();
+      this._updatePracticeControls();
     });
 
     // Camera Switch

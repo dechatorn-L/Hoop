@@ -46,6 +46,24 @@ button { overflow-wrap: anywhere; }
 p, h1, h2, h3 { margin: 0; }
 p { overflow-wrap: anywhere; }
 svg { display: block; }
+.undo-score { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: .875rem; }
+.undo-score svg { flex-shrink: 0; }
+.positioning-diagrams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+.positioning-diagrams figure { margin: 0; min-width: 0; }
+.positioning-diagrams svg { width: 100%; max-height: 150px; color: var(--text-muted); }
+.positioning-diagrams figcaption { font-size: .875rem; font-weight: 600; margin-top: 8px; }
+.guide-accent { color: var(--color-primary); }
+.positioning-checklist { padding-left: 1.4em; margin: 12px 0 0; font-size: .875rem; color: var(--text-muted); }
+.positioning-checklist li + li { margin-top: 8px; }
+.camera-expanded .undo-score { width: 44px; padding: 10px; color: inherit; }
+.camera-expanded .undo-score:hover:not(:disabled) { background: var(--overlay-muted); }
+.camera-expanded .undo-score:focus-visible { outline-color: var(--overlay-ink); }
+.camera-expanded .undo-score-label { display: none; }
+@media (max-width: 480px) { .positioning-diagrams { grid-template-columns: 1fr; } }
+@media (max-width: 360px), (max-height: 480px) {
+  .undo-score { width: 44px; padding: 10px; flex-shrink: 0; }
+  .undo-score-label { display: none; }
+}
 #app { padding: env(safe-area-inset-top, 0px) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
 /* Top Minimal Header */
 .app-header { min-height: 68px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--border-subtle); }
@@ -53,7 +71,7 @@ svg { display: block; }
 .practice-state { color: var(--color-primary); font-weight: 600; }
 .practice-layout { display: grid; gap: 12px; padding-top: 12px; }
 /* Score Display Pill — the score now has its own space, outside the camera. */
-.score-panel { display: flex; align-items: center; justify-content: center; gap: 12px; text-align: center; min-width: 0; align-self: center; container-type: inline-size; }
+.score-panel { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; text-align: center; min-width: 0; align-self: center; container-type: inline-size; }
 .score-label { color: var(--text-muted); font-size: .875rem; }
 .score-value { position: relative; display: inline-block; max-width: 100%; padding-bottom: 5px; color: var(--color-primary); font: 800 2rem/1 var(--font-display); font-size: min(2rem, calc(75cqw / var(--score-digits, 3))); font-variant-numeric: tabular-nums; letter-spacing: -.04em; white-space: nowrap; }
 .score-value::after { content: ''; position: absolute; bottom: 0; inset-inline: 4%; height: 3px; background: currentColor; clip-path: inset(0 100% 0 0); }
@@ -172,6 +190,7 @@ body.camera-expanded { overflow: hidden; }
 .camera-expanded .camera-container { flex: 1; min-height: 0; max-height: none; aspect-ratio: auto; }
 .camera-expanded .score-panel { z-index: 1; grid-column: 1 / -1; grid-row: 1; justify-self: start; justify-content: start; width: min(10rem, calc(100% - 64px)); flex-wrap: wrap; gap: 4px 8px; padding: 8px 12px; border-radius: 12px; background: var(--overlay-paper); color: var(--overlay-ink); }
 .camera-expanded .score-label, .camera-expanded .score-value { color: inherit; }
+.camera-expanded .score-label { flex-basis: 100%; text-align: start; }
 .camera-expanded .practice-controls { display: contents; }
 .camera-expanded #btn-practice { z-index: 1; grid-column: 1 / -1; grid-row: 3; justify-self: end; width: auto; max-width: 100%; }
 .camera-expanded #practice-readiness { z-index: 1; grid-column: 1 / -1; grid-row: 4; justify-self: end; max-width: 100%; padding: 6px 10px; border-radius: 10px; background: var(--overlay-paper); color: var(--overlay-ink); }
@@ -183,6 +202,7 @@ body.camera-expanded { overflow: hidden; }
 .drawing-active .camera-expanded .viewport-container { position: relative; inset: auto; grid-column: 1 / -1; grid-row: 1; align-self: stretch; }
 .drawing-active .camera-expanded .camera-heading { position: static; align-self: flex-end; margin-bottom: 8px; }
 .drawing-active .camera-expanded .score-panel { grid-column: 1; grid-row: 2; width: 100%; padding: 6px 8px; }
+.drawing-active .camera-expanded .score-label { flex-basis: auto; }
 .drawing-active .camera-expanded #btn-practice { grid-column: 2; grid-row: 2; }
 .drawing-active .camera-expanded #practice-readiness { grid-row: 4; }
 @media (min-width: 600px) and (orientation: landscape) {

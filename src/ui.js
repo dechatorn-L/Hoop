@@ -25,6 +25,7 @@ export class UIController {
     this.ctx = this.canvas ? this.canvas.getContext('2d') : null;
 
     this.scoreElement = document.getElementById('score-value');
+    this.undoScoreButton = document.getElementById('btn-undo-score');
     this.statusIndicator = document.getElementById('status-indicator');
     this.statusSpinner = document.getElementById('status-spinner');
     this.statusText = document.getElementById('status-text');
@@ -999,11 +1000,8 @@ export class UIController {
    * Increment score display with a 220ms baseline reveal.
    */
   incrementScore() {
-    this.currentScore++;
+    this.setScore(this.currentScore + 1);
     if (this.scoreElement) {
-      this.scoreElement.textContent = this.currentScore;
-      this.scoreElement.style.setProperty('--score-digits', Math.max(3, String(this.currentScore).length));
-      this.scoreElement.classList.remove('scored-anim');
       void this.scoreElement.offsetWidth; // Restart the single feedback animation for each score.
       this.scoreElement.classList.add('scored-anim');
     }
@@ -1013,10 +1011,14 @@ export class UIController {
    * Reset score display to 0
    */
   resetScore() {
-    this.currentScore = 0;
+    this.setScore(0);
+  }
+
+  setScore(score) {
+    this.currentScore = score;
     if (this.scoreElement) {
-      this.scoreElement.textContent = '0';
-      this.scoreElement.style.removeProperty('--score-digits');
+      this.scoreElement.textContent = score;
+      this.scoreElement.style.setProperty('--score-digits', Math.max(3, String(score).length));
       this.scoreElement.classList.remove('scored-anim');
     }
   }
@@ -1175,6 +1177,10 @@ export class UIController {
     this.practiceButton?.addEventListener('click', handler);
   }
 
+  bindUndoScore(handler) {
+    this.undoScoreButton?.addEventListener('click', handler);
+  }
+
   bindOpenCamera(handler) {
     this.openCameraButton?.addEventListener('click', handler);
   }
@@ -1183,12 +1189,13 @@ export class UIController {
     this.onRimChange = handler;
   }
 
-  updatePracticeControls({ state, cameraReady, modelReady, rimReady, canPractice, cameraLoading, modelLoading, cameraError, modelError }) {
+  updatePracticeControls({ state, cameraReady, modelReady, rimReady, canPractice, cameraLoading, modelLoading, cameraError, modelError, canUndoScore = false }) {
     if (state === 'practice' && this.practiceView?.state !== 'practice') {
       const controls = document.getElementById('secondary-controls');
       if (controls) controls.open = false;
     }
-    this.practiceView = { state, cameraReady, modelReady, rimReady, canPractice, cameraLoading, modelLoading, cameraError, modelError };
+    this.practiceView = { state, cameraReady, modelReady, rimReady, canPractice, cameraLoading, modelLoading, cameraError, modelError, canUndoScore };
+    if (this.undoScoreButton) this.undoScoreButton.disabled = !canUndoScore;
     const stateLabel = document.getElementById('practice-state');
     if (stateLabel) stateLabel.textContent = t(state === 'practice' ? 'practice' : state === 'paused' ? 'paused' : 'setup');
     if (this.practiceButton) {
